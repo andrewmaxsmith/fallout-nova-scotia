@@ -376,12 +376,21 @@
             // Update stats
             const statsList = document.getElementById('stats-list');
             statsList.innerHTML = '';
+            const statNames = {
+                charm: 'CHARM',
+                hardiness: 'HARDINESS',
+                agility: 'AGILITY',
+                perception: 'PERCEPTION',
+                politeness: 'POLITENESS',
+                yarns: 'YARNS'
+            };
             if (playerData.stats) {
                 for (let stat in playerData.stats) {
                     const val = playerData.stats[stat];
+                    const displayName = statNames[stat] || stat.toUpperCase();
                     const div = document.createElement('div');
                     div.className = 'flex justify-between';
-                    div.innerHTML = `<span>${stat}</span><span>${val}</span>`;
+                    div.innerHTML = `<span>${displayName}</span><span class="font-bold">${val}</span>`;
                     statsList.appendChild(div);
                 }
             }
