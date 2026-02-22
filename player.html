@@ -455,16 +455,20 @@
             
             try {
                 // Update the entire stats object
-                await fetch(`${API_URL}/api/player/${playerName}/stat/stats`, {
+                const response = await fetch(`${API_URL}/api/player/${playerName}/stats`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ value: tempStats })
+                    body: JSON.stringify({ stats: tempStats })
                 });
                 
-                // Reload data and hide overlay
-                await loadData();
-                document.getElementById('char-creation-overlay').classList.add('hidden');
-                notify('CHARACTER CREATED!');
+                if (response.ok) {
+                    // Reload data and hide overlay
+                    await loadData();
+                    document.getElementById('char-creation-overlay').classList.add('hidden');
+                    notify('CHARACTER CREATED!');
+                } else {
+                    notify('ERROR: Could not save stats');
+                }
             } catch (e) {
                 console.error('Error saving stats:', e);
                 notify('ERROR: Could not save stats');

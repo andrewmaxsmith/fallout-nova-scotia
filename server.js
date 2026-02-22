@@ -322,6 +322,19 @@ app.post('/api/player/:player/stat/:stat', (req, res) => {
     }
 });
 
+// Update player stats object (for character creation)
+app.post('/api/player/:player/stats', (req, res) => {
+    const { player } = req.params;
+    const { stats } = req.body;
+    if (gameState.players[player] && stats && typeof stats === 'object') {
+        gameState.players[player].stats = stats;
+        scheduleAutoSave();
+        res.json({ success: true, message: `Updated ${player} stats`, stats: stats });
+    } else {
+        res.status(400).json({ error: 'Invalid stats object' });
+    }
+});
+
 // Send quest to player
 app.post('/api/player/:player/quest', (req, res) => {
     const { player } = req.params;
