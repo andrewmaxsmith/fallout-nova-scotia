@@ -393,10 +393,11 @@
                         const quest = gameData.quests.find(q => q.id === questId);
                         if (quest) {
                             const div = document.createElement('div');
-                            div.className = 'border border-yellow-500/50 p-1 mb-1';
+                            div.className = 'border border-yellow-500/50 p-2 mb-2';
                             div.innerHTML = `
-                                <p class="font-bold text-yellow-400 text-[9px]">${quest.title}</p>
-                                <p class="text-[8px] opacity-70">Reward: ${quest.reward} tabs, ${quest.xp} XP</p>
+                                <p class="font-bold text-yellow-400 text-[10px]">${quest.title}</p>
+                                <p class="text-[9px] opacity-90 mb-1">${quest.desc}</p>
+                                <p class="text-[8px] opacity-70 mb-1">Reward: ${quest.reward} tabs, ${quest.xp} XP</p>
                                 <button onclick="completeQuestForPlayer('logan', '${quest.id}')" class="pip-btn text-[8px] w-full mt-1 bg-green-900 hover:bg-green-700">✓ COMPLETE</button>
                             `;
                             loganQuestsDiv.appendChild(div);
@@ -414,10 +415,11 @@
                         const quest = gameData.quests.find(q => q.id === questId);
                         if (quest) {
                             const div = document.createElement('div');
-                            div.className = 'border border-yellow-500/50 p-1 mb-1';
+                            div.className = 'border border-yellow-500/50 p-2 mb-2';
                             div.innerHTML = `
-                                <p class="font-bold text-yellow-400 text-[9px]">${quest.title}</p>
-                                <p class="text-[8px] opacity-70">Reward: ${quest.reward} tabs, ${quest.xp} XP</p>
+                                <p class="font-bold text-yellow-400 text-[10px]">${quest.title}</p>
+                                <p class="text-[9px] opacity-90 mb-1">${quest.desc}</p>
+                                <p class="text-[8px] opacity-70 mb-1">Reward: ${quest.reward} tabs, ${quest.xp} XP</p>
                                 <button onclick="completeQuestForPlayer('rylyn', '${quest.id}')" class="pip-btn text-[8px] w-full mt-1 bg-green-900 hover:bg-green-700">✓ COMPLETE</button>
                             `;
                             rylynQuestsDiv.appendChild(div);
@@ -448,10 +450,12 @@
             if (gameData.quests) {
                 gameData.quests.forEach(q => {
                     const div = document.createElement('div');
-                    div.className = 'border border-pip-green/30 p-2 text-[10px]';
+                    div.className = 'border border-pip-green/30 p-2 text-[10px] mb-2';
                     div.innerHTML = `
-                        <p class="font-bold">${q.title}</p>
-                        <div class="flex gap-1 mt-1">
+                        <p class="font-bold text-yellow-400">${q.title}</p>
+                        <p class="text-[9px] opacity-90 mb-1">${q.desc}</p>
+                        <p class="text-[8px] opacity-70 mb-2">Reward: ${q.reward} tabs, ${q.xp} XP</p>
+                        <div class="flex gap-1">
                             <button onclick="sendQuestToPlayer('logan', '${q.id}')" class="pip-btn text-[8px] px-2 flex-1">→ LOGAN</button>
                             <button onclick="sendQuestToPlayer('rylyn', '${q.id}')" class="pip-btn text-[8px] px-2 flex-1">→ RYLYN</button>
                         </div>
