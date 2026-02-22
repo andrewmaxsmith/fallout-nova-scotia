@@ -248,7 +248,8 @@ let gameState = {
             specialEffect: 'assistBonus',
             effect: 'Once per session, call the other survivor for +1 to any C.H.A.P.P.Y. roll.'
         }
-    ]
+    ],
+    trades: []
 };
 
 function scheduleAutoSave() {
@@ -589,6 +590,133 @@ app.get('/api/radio', (req, res) => {
 // GET trade offers
 app.get('/api/trades', (req, res) => {
     res.json(gameState.tradeOffers);
+});
+
+// --- TRADING SYSTEM ---
+
+// GET all pending trades
+app.get('/api/trades/pending', (req, res) => {
+    res.json(gameState.trades);
+});
+
+// GET trades for a specific player (both sent and received)
+app.get('/api/player/:player/trades', (req, res) => {
+    const { player } = req.params;
+    const playerTrades = gameState.trades.filter(t => t.from === player || t.to === player);
+    res.json(playerTrades);
+});
+
+// Initiate a trade offer
+app.post('/api/player/:player/trade/offer', (req, res) => {
+    const { player } = req.params;
+    const { toPlayer, offeringScrap, requestingScrap } = req.body;
+    
+    if (!gameState.players[player] || !gameState.players[toPlayer]) {
+        return res.status(404).json({ error: 'Player not found' });
+    }
+    
+    if (player === toPlayer) {
+        return res.status(400).json({ error: 'Cannot trade with yourself' });
+    }
+    
+    // Verify player has offering scrap
+    for (let [scrapType, amount] of Object.entries(offeringScrap)) {
+        if (!gameState.players[player].scrap[scrapType] || gameState.players[player].scrap[scrapType] < amount) {
+            return res.status(400).json({ error: `Not enough ${scrapType}` });
+        }
+    }
+    
+    // Create trade offer
+    const trade = {
+        id: `trade-${Date.now()}`,
+        from: player,
+        to: toPlayer,
+        offeringScrap: offeringScrap,
+        requestingScrap: requestingScrap,
+        status: 'pending',
+        createdAt: Date.now()
+    };
+    
+    gameState.trades.push(trade);
+    scheduleAutoSave();
+    
+    res.json({ success: true, message: `Trade offer sent to ${toPlayer}!`, trade: trade });
+});
+
+// Accept a trade offer
+app.post('/api/trade/:tradeId/accept', (req, res) => {
+    const { tradeId } = req.params;
+    const { player } = req.body;
+    
+    const trade = gameState.trades.find(t => t.id === tradeId);
+    if (!trade) {
+        return res.status(404).json({ error: 'Trade not found' });
+    }
+    
+    if (trade.to !== player) {
+        return res.status(400).json({ error: 'You cannot accept this trade' });
+    }
+    
+    if (trade.status !== 'pending') {
+        return res.status(400).json({ error: 'Trade is no longer pending' });
+    }
+    
+    // Verify receiving player has requesting scrap
+    for (let [scrapType, amount] of Object.entries(trade.requestingScrap)) {
+        if (!gameState.players[player].scrap[scrapType] || gameState.players[player].scrap[scrapType] < amount) {
+            return res.status(400).json({ error: `Not enough ${scrapType} to complete trade` });
+        }
+    }
+    
+    // Verify offering player still has offering scrap
+    for (let [scrapType, amount] of Object.entries(trade.offeringScrap)) {
+        if (!gameState.players[trade.from].scrap[scrapType] || gameState.players[trade.from].scrap[scrapType] < amount) {
+            return res.status(400).json({ error: `Offering player no longer has required scrap` });
+        }
+    }
+    
+    // Transfer scrap - FROM gives to TO
+    for (let [scrapType, amount] of Object.entries(trade.offeringScrap)) {
+        gameState.players[trade.from].scrap[scrapType] -= amount;
+        gameState.players[player].scrap[scrapType] += amount;
+    }
+    
+    // Transfer scrap - TO gives to FROM
+    for (let [scrapType, amount] of Object.entries(trade.requestingScrap)) {
+        gameState.players[player].scrap[scrapType] -= amount;
+        gameState.players[trade.from].scrap[scrapType] += amount;
+    }
+    
+    trade.status = 'accepted';
+    trade.acceptedAt = Date.now();
+    scheduleAutoSave();
+    
+    res.json({ success: true, message: 'Trade accepted!', trade: trade });
+});
+
+// Reject a trade offer
+app.post('/api/trade/:tradeId/reject', (req, res) => {
+    const { tradeId } = req.params;
+    const { player } = req.body;
+    
+    const trade = gameState.trades.find(t => t.id === tradeId);
+    if (!trade) {
+        return res.status(404).json({ error: 'Trade not found' });
+    }
+    
+    if (trade.to !== player) {
+        return res.status(400).json({ error: 'You cannot reject this trade' });
+    }
+    
+    if (trade.status !== 'pending') {
+        return res.status(400).json({ error: 'Trade is no longer pending' });
+    }
+    
+    trade.status = 'rejected';
+    trade.rejectedAt = Date.now();
+    scheduleAutoSave();
+    
+    res.json({ success: true, message: 'Trade rejected', trade: trade });
 });
 
 // --- SERVER START ---

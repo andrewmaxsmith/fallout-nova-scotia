@@ -146,7 +146,7 @@
     </header>
 
     <!-- NAVIGATION -->
-    <nav class="grid grid-cols-7 gap-1 mb-6">
+    <nav class="grid grid-cols-8 gap-1 mb-6">
         <button onclick="showTab('status')" class="pip-btn p-2 text-[9px]">STATUS</button>
         <button onclick="showTab('perks')" class="pip-btn p-2 text-[9px]">PERK</button>
         <button onclick="showTab('quests')" class="pip-btn p-2 text-[9px]">QUESTS</button>
@@ -154,6 +154,7 @@
         <button onclick="showTab('crafting')" class="pip-btn p-2 text-[9px]">CRAFT</button>
         <button onclick="showTab('quarters')" class="pip-btn p-2 text-[9px]">QUARTERS</button>
         <button onclick="showTab('radio')" class="pip-btn p-2 text-[9px]">RADIO</button>
+        <button onclick="showTab('trade')" class="pip-btn p-2 text-[9px]">TRADE</button>
     </nav>
 
     <!-- TAB: STATUS -->
@@ -354,6 +355,59 @@
             <h2 class="text-xl border-b border-pip-green mb-4">THREE-CROWS RADIO</h2>
             <div id="radio-broadcast" class="space-y-4">
                 <p class="text-[10px] italic opacity-70">WAITING FOR BROADCAST...</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- TAB: TRADE -->
+    <section id="trade" class="tab-content">
+        <div class="pip-border p-4 bg-black/50 space-y-4">
+            <h2 class="text-xl border-b border-pip-green mb-4">PLAYER TRADING</h2>
+            
+            <!-- INITIATE TRADE -->
+            <div class="pip-border p-3 bg-black/30 border-dashed border-yellow-500">
+                <h3 class="text-sm font-bold text-yellow-500 mb-2">INITIATE TRADE</h3>
+                <div class="space-y-2 text-[10px]">
+                    <div>
+                        <label class="block mb-1">I OFFER:</label>
+                        <select id="offer-type" class="w-full p-1 bg-black border border-pip-green text-pip-green text-[10px]">
+                            <option value="">Select scrap type...</option>
+                            <option value="maritimeMetal">Maritime Metal</option>
+                            <option value="syntheticSap">Synthetic Sap</option>
+                            <option value="hubCircuitry">Hub Circuitry</option>
+                            <option value="plaidScraps">Plaid Scraps</option>
+                            <option value="propaneTank">Propane Tank</option>
+                            <option value="radMeat">Rad-Meat</option>
+                            <option value="spices">Spices</option>
+                            <option value="cleanWater">Clean Water</option>
+                        </select>
+                        <input type="number" id="offer-amount" placeholder="Amount" min="1" class="w-full p-1 mt-1 bg-black border border-pip-green text-pip-green text-[10px]">
+                    </div>
+                    <div>
+                        <label class="block mb-1">I WANT:</label>
+                        <select id="request-type" class="w-full p-1 bg-black border border-pip-green text-pip-green text-[10px]">
+                            <option value="">Select scrap type...</option>
+                            <option value="maritimeMetal">Maritime Metal</option>
+                            <option value="syntheticSap">Synthetic Sap</option>
+                            <option value="hubCircuitry">Hub Circuitry</option>
+                            <option value="plaidScraps">Plaid Scraps</option>
+                            <option value="propaneTank">Propane Tank</option>
+                            <option value="radMeat">Rad-Meat</option>
+                            <option value="spices">Spices</option>
+                            <option value="cleanWater">Clean Water</option>
+                        </select>
+                        <input type="number" id="request-amount" placeholder="Amount" min="1" class="w-full p-1 mt-1 bg-black border border-pip-green text-pip-green text-[10px]">
+                    </div>
+                    <button onclick="sendTradeOffer()" class="pip-btn w-full py-2 text-[10px]">SEND TRADE OFFER</button>
+                </div>
+            </div>
+
+            <!-- PENDING TRADES -->
+            <div>
+                <h3 class="text-sm font-bold text-yellow-500 mb-2">PENDING TRADES</h3>
+                <div id="trades-list" class="space-y-2 text-[10px]">
+                    <p class="opacity-70">No pending trades</p>
+                </div>
             </div>
         </div>
     </section>
@@ -572,6 +626,9 @@
 
             // Update quarters
             updateQuarters();
+
+            // Update trades
+            updateTrades();
         }
 
         function updateQuests() {
@@ -961,6 +1018,165 @@
                 console.error('Error purchasing upgrade:', e);
                 notify('ERROR: Could not purchase upgrade');
             }
+        }
+
+        // TRADING FUNCTIONS
+        async function sendTradeOffer() {
+            const offerType = document.getElementById('offer-type').value;
+            const offerAmount = parseInt(document.getElementById('offer-amount').value);
+            const requestType = document.getElementById('request-type').value;
+            const requestAmount = parseInt(document.getElementById('request-amount').value);
+
+            if (!offerType || !offerAmount || !requestType || !requestAmount) {
+                notify('Please fill in all fields');
+                return;
+            }
+
+            const otherPlayer = playerName === 'logan' ? 'rylyn' : 'logan';
+            const offeringScrap = { [offerType]: offerAmount };
+            const requestingScrap = { [requestType]: requestAmount };
+
+            try {
+                const response = await fetch(`${API_URL}/api/player/${playerName}/trade/offer`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        toPlayer: otherPlayer,
+                        offeringScrap: offeringScrap,
+                        requestingScrap: requestingScrap
+                    })
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    notify('Trade offer sent!');
+                    document.getElementById('offer-type').value = '';
+                    document.getElementById('offer-amount').value = '';
+                    document.getElementById('request-type').value = '';
+                    document.getElementById('request-amount').value = '';
+                    await loadData();
+                    updateTrades();
+                } else {
+                    const result = await response.json();
+                    notify(`ERROR: ${result.error}`);
+                }
+            } catch (e) {
+                console.error('Error sending trade offer:', e);
+                notify('ERROR: Could not send trade offer');
+            }
+        }
+
+        async function acceptTrade(tradeId) {
+            try {
+                const response = await fetch(`${API_URL}/api/trade/${tradeId}/accept`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ player: playerName })
+                });
+
+                if (response.ok) {
+                    notify('Trade accepted!');
+                    await loadData();
+                    updateTrades();
+                } else {
+                    const result = await response.json();
+                    notify(`ERROR: ${result.error}`);
+                }
+            } catch (e) {
+                console.error('Error accepting trade:', e);
+                notify('ERROR: Could not accept trade');
+            }
+        }
+
+        async function rejectTrade(tradeId) {
+            try {
+                const response = await fetch(`${API_URL}/api/trade/${tradeId}/reject`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ player: playerName })
+                });
+
+                if (response.ok) {
+                    notify('Trade rejected');
+                    await loadData();
+                    updateTrades();
+                } else {
+                    const result = await response.json();
+                    notify(`ERROR: ${result.error}`);
+                }
+            } catch (e) {
+                console.error('Error rejecting trade:', e);
+                notify('ERROR: Could not reject trade');
+            }
+        }
+
+        async function fetchTrades() {
+            try {
+                const response = await fetch(`${API_URL}/api/player/${playerName}/trades`);
+                return await response.json();
+            } catch (e) {
+                console.error('Error fetching trades:', e);
+                return [];
+            }
+        }
+
+        async function updateTrades() {
+            const trades = await fetchTrades();
+            const tradesList = document.getElementById('trades-list');
+            tradesList.innerHTML = '';
+
+            const scrapNames = {
+                maritimeMetal: 'Maritime Metal',
+                syntheticSap: 'Synthetic Sap',
+                hubCircuitry: 'Hub Circuitry',
+                plaidScraps: 'Plaid Scraps',
+                propaneTank: 'Propane Tank',
+                radMeat: 'Rad-Meat',
+                spices: 'Spices',
+                cleanWater: 'Clean Water'
+            };
+
+            if (trades.length === 0) {
+                tradesList.innerHTML = '<p class="opacity-70">No trades</p>';
+                return;
+            }
+
+            trades.forEach(trade => {
+                const isReceiving = trade.to === playerName;
+                const isOffering = trade.from === playerName;
+                const otherPlayer = isReceiving ? trade.from : trade.to;
+                
+                const offerDisplay = Object.entries(trade.offeringScrap)
+                    .map(([type, amount]) => `${amount} ${scrapNames[type]}`)
+                    .join(', ');
+                const requestDisplay = Object.entries(trade.requestingScrap)
+                    .map(([type, amount]) => `${amount} ${scrapNames[type]}`)
+                    .join(', ');
+
+                const div = document.createElement('div');
+                div.className = 'border border-yellow-500/50 p-2';
+                
+                let status = trade.status.toUpperCase();
+                let statusColor = trade.status === 'pending' ? 'text-yellow-400' : trade.status === 'accepted' ? 'text-green-400' : 'text-red-400';
+
+                let html = `
+                    <p class="text-[9px] ${statusColor} font-bold mb-1">${status}</p>
+                    <p class="text-[9px] opacity-90 mb-1"><strong>${otherPlayer.toUpperCase()}</strong> offers: ${offerDisplay}</p>
+                    <p class="text-[9px] opacity-90 mb-2">In exchange for: ${requestDisplay}</p>
+                `;
+
+                if (trade.status === 'pending' && isReceiving) {
+                    html += `
+                        <div class="flex gap-1">
+                            <button onclick="acceptTrade('${trade.id}')" class="pip-btn text-[8px] px-2 flex-1 bg-green-900 hover:bg-green-700">ACCEPT</button>
+                            <button onclick="rejectTrade('${trade.id}')" class="pip-btn text-[8px] px-2 flex-1 bg-red-900 hover:bg-red-700">REJECT</button>
+                        </div>
+                    `;
+                }
+
+                div.innerHTML = html;
+                tradesList.appendChild(div);
+            });
         }
 
         window.onload = init;
