@@ -119,6 +119,24 @@ let gameState = {
         { id: 'r9', title: "GREAT DRAIN LOCATION", text: "Coordinates locked: Five Islands Provincial Park. Beware the Red Mud. The Tidal Rush is unpredictable. Proceed with caution." },
         { id: 'r10', title: "BEAST PENS SIGHTING", text: "Movement detected at Shubenacadie Wildlife Park. Rad-Moose and Yao Guai variants confirmed. Scout teams deploy. Biological data required." }
     ],
+    broadcastSignals: [
+        { id: 'b1', title: "THREE-CROWS RADIO: MUSIC HOUR", text: "[STATIC] Now playing: The Atomic Dream by The Pip-Boys..." },
+        { id: 'b2', title: "WEATHER ALERT", text: "ATTENTION: High-pressure rad-front moving in from the northeast. Recommend increasing vault shielding." },
+        { id: 'b3', title: "SURVIVOR LOG", text: "[CRACKLING VOICE] This is Overseer Sinclair... Day 847... We endure..." },
+        { id: 'b4', title: "STRANGE SIGNAL", text: "[MYSTERIOUS BEEPING] ...cannot identify source... ...repeating pattern..." },
+        { id: 'b5', title: "DISTRESS CALL", text: "[GARBLED TRANSMISSION] ...anyone... ...need help... ...coordinates unknown..." },
+        { id: 'b6', title: "OLD WORLD BROADCAST", text: "[ANCIENT RECORDING] Welcome to Three-Crows Radio, serving Halifax since 1957..." },
+        { id: 'b7', title: "VAULT-TEC ANNIVERSARY", text: "Celebrating another year of safety and security! Vault-Tec: Ensuring your family's future!" },
+        { id: 'b8', title: "UNKNOWN TRANSMISSION", text: "[WHISPERED] ...they're coming... ...prepare the defenses... ...the old ones stir..." }
+    ],
+    questRadioMap: {
+        q12: 'r5',
+        q13: 'r6',
+        q14: 'r7',
+        q15: 'r8',
+        q16: 'r9',
+        q17: 'r10'
+    },
     tradeOffers: [
         { id: 't1', vendor: 'Masstown Merchant', offers: [{ item: 'Stimpak', cost: 20 }] },
         { id: 't2', vendor: 'Vault Overseer', offers: [{ item: 'Pop Tabs', cost: 10 }] }
@@ -344,6 +362,13 @@ app.post('/api/player/:player/quest', (req, res) => {
         const quest = gameState.quests.find(q => q.id === questId);
         if (quest && !gameState.players[player].activeQuests.includes(questId)) {
             gameState.players[player].activeQuests.push(questId);
+            
+            // Auto-send corresponding radio signal if mapped
+            const radioId = gameState.questRadioMap[questId];
+            if (radioId) {
+                gameState.players[player].activeRadio = radioId;
+            }
+            
             scheduleAutoSave();
             res.json({ success: true, message: `Quest sent to ${player}` });
         } else {
@@ -587,10 +612,29 @@ app.get('/api/radio', (req, res) => {
     res.json(gameState.radioSignals);
 });
 
-// GET trade offers
-app.get('/api/trades', (req, res) => {
-    res.json(gameState.tradeOffers);
+// GET all broadcast signals
+app.get('/api/broadcast-signals', (req, res) => {
+    res.json(gameState.broadcastSignals);
 });
+
+// Send random broadcast to both players
+app.post('/api/broadcast/random', (req, res) => {
+    if (!gameState.broadcastSignals || gameState.broadcastSignals.length === 0) {
+        return res.status(400).json({ error: 'No broadcast signals available' });
+    }
+    
+    const randomSignal = gameState.broadcastSignals[Math.floor(Math.random() * gameState.broadcastSignals.length)];
+    
+    // Send to both players
+    for (let player in gameState.players) {
+        gameState.players[player].activeRadio = randomSignal.id;
+    }
+    
+    scheduleAutoSave();
+    res.json({ success: true, message: 'Broadcast sent to all players', signal: randomSignal });
+});
+
+// Get trade offers
 
 // --- TRADING SYSTEM ---
 

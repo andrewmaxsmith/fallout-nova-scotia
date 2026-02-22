@@ -219,20 +219,29 @@
                     </div>
                 </div>
 
-                <!-- PLAYER QUEST STATUS -->
-                <div class="pip-border p-4 bg-black/50">
-                    <h2 class="text-xl font-bold mb-4">ACTIVE QUESTS</h2>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div class="border border-blue-400 p-2">
-                            <p class="text-blue-400 text-xs font-bold">LOGAN</p>
-                            <div id="logan-quests" class="text-[10px] space-y-1">
-                                <!-- Logan's active quests -->
+                <!-- PLAYER QUEST STATUS & ENCOUNTERS -->
+                <div class="pip-border p-4 bg-black/50 space-y-4">
+                    <!-- RANDOM ENCOUNTERS -->
+                    <div class="pip-border p-3 border-dashed border-yellow-500 bg-yellow-950/10">
+                        <h3 class="text-sm font-bold text-yellow-500 mb-2">BROADCAST ENCOUNTER</h3>
+                        <button onclick="sendRandomEncounter()" class="pip-btn w-full py-2 text-sm font-bold">TRIGGER RANDOM BROADCAST</button>
+                    </div>
+
+                    <!-- ACTIVE QUESTS -->
+                    <div>
+                        <h2 class="text-xl font-bold mb-4">ACTIVE QUESTS</h2>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div class="border border-blue-400 p-2">
+                                <p class="text-blue-400 text-xs font-bold">LOGAN</p>
+                                <div id="logan-quests" class="text-[10px] space-y-1">
+                                    <!-- Logan's active quests -->
+                                </div>
                             </div>
-                        </div>
-                        <div class="border border-red-400 p-2">
-                            <p class="text-red-400 text-xs font-bold">RYLYN</p>
-                            <div id="rylyn-quests" class="text-[10px] space-y-1">
-                                <!-- Rylyn's active quests -->
+                            <div class="border border-red-400 p-2">
+                                <p class="text-red-400 text-xs font-bold">RYLYN</p>
+                                <div id="rylyn-quests" class="text-[10px] space-y-1">
+                                    <!-- Rylyn's active quests -->
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -699,6 +708,25 @@
                 }
             } catch (e) {
                 console.error('Error granting upgrade:', e);
+            }
+        }
+
+        async function sendRandomEncounter() {
+            try {
+                const response = await fetch(`${API_URL}/api/broadcast/random`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                if (response.ok) {
+                    const result = await response.json();
+                    alert(`BROADCAST: ${result.signal.title}`);
+                    await loadGameState();
+                } else {
+                    const result = await response.json();
+                    alert(`Error: ${result.error}`);
+                }
+            } catch (e) {
+                console.error('Error sending broadcast:', e);
             }
         }
 
