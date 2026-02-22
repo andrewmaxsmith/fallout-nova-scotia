@@ -225,6 +225,9 @@
                     <div class="pip-border p-3 border-dashed border-yellow-500 bg-yellow-950/10">
                         <h3 class="text-sm font-bold text-yellow-500 mb-2">BROADCAST ENCOUNTER</h3>
                         <button onclick="sendRandomEncounter()" class="pip-btn w-full py-2 text-sm font-bold">TRIGGER RANDOM BROADCAST</button>
+                        <div id="random-encounter-log" class="text-[10px] opacity-80 mt-3">
+                            <p>NO ENCOUNTERS SENT YET</p>
+                        </div>
                     </div>
 
                     <!-- ACTIVE QUESTS -->
@@ -725,6 +728,17 @@
                 if (response.ok) {
                     const result = await response.json();
                     alert(`ENCOUNTER: ${result.encounter.title}`);
+                    const log = document.getElementById('random-encounter-log');
+                    const logan = result.results?.logan;
+                    const rylyn = result.results?.rylyn;
+                    const loganText = logan ? `LOGAN: D20 ${logan.roll} (${logan.label}) - ${logan.effects}` : 'LOGAN: N/A';
+                    const rylynText = rylyn ? `RYLYN: D20 ${rylyn.roll} (${rylyn.label}) - ${rylyn.effects}` : 'RYLYN: N/A';
+                    log.innerHTML = `
+                        <p class="font-bold text-yellow-400 mb-1">${result.encounter.title}</p>
+                        <p class="opacity-90 mb-1">${result.encounter.text}</p>
+                        <p class="text-green-400">${loganText}</p>
+                        <p class="text-red-400">${rylynText}</p>
+                    `;
                     await loadGameState();
                 } else {
                     const result = await response.json();
