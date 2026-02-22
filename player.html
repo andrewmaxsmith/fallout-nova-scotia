@@ -666,6 +666,18 @@
 
         function updateRadio() {
             const broadcast = document.getElementById('radio-broadcast');
+            if (playerData.activeRadioData) {
+                const safeText = playerData.activeRadioData.text.replace(/\n/g, '<br>');
+                broadcast.innerHTML = `
+                    <div class="radio-alert">
+                        <h3 class="font-bold text-sm mb-2">${playerData.activeRadioData.title}</h3>
+                        <p class="text-[10px] italic leading-relaxed">${safeText}</p>
+                    </div>
+                `;
+                notify(`RADIO SIGNAL: ${playerData.activeRadioData.title}`);
+                return;
+            }
+
             if (playerData.activeRadio) {
                 const signal = allRadio.find(r => r.id === playerData.activeRadio);
                 if (signal) {

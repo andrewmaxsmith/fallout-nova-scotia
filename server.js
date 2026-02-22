@@ -40,6 +40,7 @@ let gameState = {
             activeQuests: [],
             completedQuests: [],
             activeRadio: null,
+            activeRadioData: null,
             faction: null,
             class: null,
             unlockedPerks: [],
@@ -58,6 +59,7 @@ let gameState = {
             activeQuests: [],
             completedQuests: [],
             activeRadio: null,
+            activeRadioData: null,
             faction: null,
             class: null,
             unlockedPerks: [],
@@ -137,6 +139,53 @@ let gameState = {
         q16: 'r9',
         q17: 'r10'
     },
+    randomEncounters: [
+        {
+            id: 'e1',
+            title: 'RAD-MOOSE SIGHTING',
+            text: 'WARNING: A glowing Rad-Moose has been spotted near your sector. Keep your distance or prepare for a fight.'
+        },
+        {
+            id: 'e2',
+            title: 'HIGHWAY 104 AMBUSH',
+            text: 'ALERT: Raiders have set up a scrap-metal barricade. They are demanding 5 Tabs for safe passage.'
+        },
+        {
+            id: 'e3',
+            title: 'FERAL GHOUL PACK',
+            text: 'RADIO STATIC: ...they are coming out of the basement! Feral pack moving fast through the ruins!'
+        },
+        {
+            id: 'e4',
+            title: 'ABANDONED SLOCUMS JOE',
+            text: 'LUCK: You have found a preserved Slocums Joe. It is dusty, but there might be some useful scrap or a snack inside.'
+        },
+        {
+            id: 'e5',
+            title: 'CRASHED VERTIBIRD',
+            text: 'SIGNAL: Emergency beacon detected. A Pre-War transport has crashed nearby. High chance of finding Steel and Circuits.'
+        },
+        {
+            id: 'e6',
+            title: 'TRAVELING MERCHANT',
+            text: "TRADER: 'Hey there! Name is Halifax. I have got the best Adhesive in the Maritimes if you have got the Tabs!'"
+        },
+        {
+            id: 'e7',
+            title: 'ACID RAIN MIST',
+            text: 'WEATHER: Yellow clouds are rolling in from the coast. Seek shelter or take +2 RADS.'
+        },
+        {
+            id: 'e8',
+            title: 'MYSTERIOUS RADIO SIGNAL',
+            text: 'SIGNAL: A strange, upbeat fiddle tune is playing on a loop. It fills you with Nova Scotian pride. (+1 Politeness temporarily).'
+        },
+        {
+            id: 'e9',
+            title: 'KITCHEN PARTY NOISE',
+            text: 'SOUND: You hear the faint sound of a kitchen party in the distance. Following the noise might lead to a safe settlement.'
+        }
+    ],
     tradeOffers: [
         { id: 't1', vendor: 'Masstown Merchant', offers: [{ item: 'Stimpak', cost: 20 }] },
         { id: 't2', vendor: 'Vault Overseer', offers: [{ item: 'Pop Tabs', cost: 10 }] }
@@ -309,6 +358,81 @@ function flushSaveOnExit() {
     }
 }
 
+function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+}
+
+function getRandomScrapType(player) {
+    const scrap = gameState.players[player].scrap || {};
+    const keys = Object.keys(scrap);
+    if (keys.length === 0) {
+        return null;
+    }
+    return keys[Math.floor(Math.random() * keys.length)];
+}
+
+function resolveEncounterOutcome(player, encounter) {
+    const roll = Math.floor(Math.random() * 20) + 1;
+    let hpDelta = 0;
+    let radDelta = 0;
+    let tabsDelta = 0;
+    let scrapType = null;
+    let scrapDelta = 0;
+    let label = 'MIXED';
+
+    if (roll <= 5) {
+        hpDelta = -2;
+        radDelta = 2;
+        label = 'DANGER';
+    } else if (roll <= 10) {
+        hpDelta = -1;
+        radDelta = 1;
+        tabsDelta = 5;
+        label = 'ROUGH';
+    } else if (roll <= 15) {
+        tabsDelta = 10;
+        scrapDelta = 1;
+        label = 'CLEAR';
+    } else {
+        hpDelta = 1;
+        tabsDelta = 15;
+        scrapDelta = 2;
+        label = 'LUCKY';
+    }
+
+    if (scrapDelta > 0) {
+        scrapType = getRandomScrapType(player);
+    }
+
+    const playerData = gameState.players[player];
+    playerData.hp = clamp((playerData.hp || 0) + hpDelta, 0, playerData.maxHp || 10);
+    playerData.rads = clamp((playerData.rads || 0) + radDelta, 0, 10);
+    playerData.tabs = Math.max(0, (playerData.tabs || 0) + tabsDelta);
+    if (scrapType) {
+        playerData.scrap[scrapType] = (playerData.scrap[scrapType] || 0) + scrapDelta;
+    }
+
+    const effects = [];
+    if (hpDelta !== 0) {
+        effects.push(`HP ${hpDelta > 0 ? '+' : ''}${hpDelta}`);
+    }
+    if (radDelta !== 0) {
+        effects.push(`RADS ${radDelta > 0 ? '+' : ''}${radDelta}`);
+    }
+    if (tabsDelta !== 0) {
+        effects.push(`TABS +${tabsDelta}`);
+    }
+    if (scrapType && scrapDelta > 0) {
+        effects.push(`${scrapType} +${scrapDelta}`);
+    }
+
+    return {
+        roll,
+        label,
+        effects: effects.length > 0 ? effects.join(', ') : 'NO CHANGE'
+    };
+}
+
 loadGameStateFromDisk();
 
 process.on('SIGINT', () => {
@@ -367,6 +491,7 @@ app.post('/api/player/:player/quest', (req, res) => {
             const radioId = gameState.questRadioMap[questId];
             if (radioId) {
                 gameState.players[player].activeRadio = radioId;
+                gameState.players[player].activeRadioData = null;
             }
             
             scheduleAutoSave();
@@ -383,6 +508,7 @@ app.post('/api/player/:player/radio', (req, res) => {
     const { radioId } = req.body;
     if (gameState.players[player]) {
         gameState.players[player].activeRadio = radioId;
+        gameState.players[player].activeRadioData = null;
         scheduleAutoSave();
         res.json({ success: true, message: `Radio signal sent to ${player}` });
     }
@@ -609,7 +735,8 @@ app.post('/api/player/:player/quarters/:upgradeId', (req, res) => {
 
 // GET all radio signals
 app.get('/api/radio', (req, res) => {
-    res.json(gameState.radioSignals);
+    const allSignals = [...gameState.radioSignals, ...gameState.broadcastSignals];
+    res.json(allSignals);
 });
 
 // GET all broadcast signals
@@ -628,10 +755,34 @@ app.post('/api/broadcast/random', (req, res) => {
     // Send to both players
     for (let player in gameState.players) {
         gameState.players[player].activeRadio = randomSignal.id;
+        gameState.players[player].activeRadioData = null;
     }
     
     scheduleAutoSave();
     res.json({ success: true, message: 'Broadcast sent to all players', signal: randomSignal });
+});
+
+// Send random encounter to both players with D20 outcomes
+app.post('/api/encounter/random', (req, res) => {
+    if (!gameState.randomEncounters || gameState.randomEncounters.length === 0) {
+        return res.status(400).json({ error: 'No random encounters available' });
+    }
+
+    const encounter = gameState.randomEncounters[Math.floor(Math.random() * gameState.randomEncounters.length)];
+    const results = {};
+
+    for (let player in gameState.players) {
+        const outcome = resolveEncounterOutcome(player, encounter);
+        results[player] = outcome;
+        gameState.players[player].activeRadio = null;
+        gameState.players[player].activeRadioData = {
+            title: encounter.title,
+            text: `${encounter.text}\n\nD20 ROLL: ${outcome.roll} (${outcome.label})\nOUTCOME: ${outcome.effects}`
+        };
+    }
+
+    scheduleAutoSave();
+    res.json({ success: true, message: 'Encounter sent to all players', encounter: encounter, results: results });
 });
 
 // Get trade offers

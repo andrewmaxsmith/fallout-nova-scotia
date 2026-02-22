@@ -253,6 +253,10 @@
         <section id="radio" class="tab-content">
             <div class="pip-border p-4 bg-black/50">
                 <h2 class="text-xl font-bold mb-4">BROADCAST SIGNALS</h2>
+                <div class="pip-border p-3 border-dashed border-yellow-500 bg-yellow-950/10 mb-6">
+                    <h3 class="text-sm font-bold text-yellow-500 mb-2">RANDOM BROADCAST</h3>
+                    <button onclick="sendRandomBroadcast()" class="pip-btn w-full py-2 text-sm font-bold">SEND RANDOM SIGNAL</button>
+                </div>
                 <div class="grid grid-cols-2 gap-2 mb-6">
                     <div class="border border-blue-400 p-2">
                         <p class="text-blue-400 text-xs mb-2">SEND TO LOGAN</p>
@@ -480,8 +484,9 @@
             loganList.innerHTML = '';
             rylynList.innerHTML = '';
             
-            if (gameData.radioSignals) {
-                gameData.radioSignals.forEach(r => {
+            const allSignals = [...(gameData.radioSignals || []), ...(gameData.broadcastSignals || [])];
+            if (allSignals.length > 0) {
+                allSignals.forEach(r => {
                     const loganBtn = document.createElement('button');
                     loganBtn.className = 'pip-btn w-full text-[8px] text-left truncate';
                     loganBtn.textContent = r.title;
@@ -712,6 +717,25 @@
         }
 
         async function sendRandomEncounter() {
+            try {
+                const response = await fetch(`${API_URL}/api/encounter/random`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                if (response.ok) {
+                    const result = await response.json();
+                    alert(`ENCOUNTER: ${result.encounter.title}`);
+                    await loadGameState();
+                } else {
+                    const result = await response.json();
+                    alert(`Error: ${result.error}`);
+                }
+            } catch (e) {
+                console.error('Error sending broadcast:', e);
+            }
+        }
+
+        async function sendRandomBroadcast() {
             try {
                 const response = await fetch(`${API_URL}/api/broadcast/random`, {
                     method: 'POST',
