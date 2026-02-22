@@ -73,14 +73,12 @@
         </header>
 
         <!-- NAVIGATION -->
-        <nav class="grid grid-cols-7 gap-2 mb-6">
+        <nav class="grid grid-cols-5 gap-2 mb-6">
             <button onclick="showTab('players')" class="pip-btn">PLAYERS</button>
             <button onclick="showTab('quarters')" class="pip-btn">QUARTERS</button>
             <button onclick="showTab('perks')" class="pip-btn">PERKS</button>
             <button onclick="showTab('quests')" class="pip-btn">QUESTS</button>
             <button onclick="showTab('radio')" class="pip-btn">RADIO</button>
-            <button onclick="showTab('trades')" class="pip-btn">TRADES</button>
-            <button onclick="showTab('qrcodes')" class="pip-btn">QR CODES</button>
         </nav>
 
         <!-- TAB: PLAYERS -->
@@ -277,32 +275,6 @@
             </div>
         </section>
 
-        <!-- TAB: TRADES -->
-        <section id="trades" class="tab-content">
-            <div class="pip-border p-4 bg-black/50">
-                <h2 class="text-xl font-bold mb-4">TRADING POSTS</h2>
-                <p class="text-xs opacity-70 mb-4">Manage NPC vendors and trade offers</p>
-                <div id="trades-list" class="space-y-2">
-                    <!-- Trades injected here -->
-                </div>
-            </div>
-        </section>
-
-        <!-- TAB: QR CODES -->
-        <section id="qrcodes" class="tab-content">
-            <div class="grid grid-cols-2 gap-4">
-                <div class="pip-border p-4 bg-black/50 text-center">
-                    <h2 class="text-lg font-bold text-blue-400 mb-4">LOGAN'S QR CODE</h2>
-                    <canvas id="qr-logan" width="300" height="300" class="mx-auto mb-4"></canvas>
-                    <p class="text-xs opacity-70">Scan for LOGAN's player interface</p>
-                </div>
-                <div class="pip-border p-4 bg-black/50 text-center">
-                    <h2 class="text-lg font-bold text-red-400 mb-4">RYLYN'S QR CODE</h2>
-                    <canvas id="qr-rylyn" width="300" height="300" class="mx-auto mb-4"></canvas>
-                    <p class="text-xs opacity-70">Scan for RYLYN's player interface</p>
-                </div>
-            </div>
-        </section>
     </div>
 
     <script>
@@ -317,8 +289,6 @@
             renderQuarters();
             renderPerks();
             renderRadio();
-            renderTrades();
-            generateQRCodes();
         }
 
         async function loadGameState() {
@@ -669,35 +639,6 @@
             }
         }
 
-        function renderTrades() {
-            const list = document.getElementById('trades-list');
-            list.innerHTML = '';
-            if (gameData.tradeOffers) {
-                gameData.tradeOffers.forEach(t => {
-                    const div = document.createElement('div');
-                    div.className = 'border border-pip-green/30 p-2 text-[10px]';
-                    div.innerHTML = `<strong>${t.vendor}</strong><br>${t.offers.map(o => `${o.item}: ${o.cost} Tabs`).join(', ')}`;
-                    list.appendChild(div);
-                });
-            }
-        }
-
-        function generateQRCodes() {
-            const loganUrl = `${window.location.origin}/player.html?player=logan`;
-            const rylynUrl = `${window.location.origin}/player.html?player=rylyn`;
-
-            new QRious({
-                element: document.getElementById('qr-logan'),
-                value: loganUrl,
-                size: 300
-            });
-
-            new QRious({
-                element: document.getElementById('qr-rylyn'),
-                value: rylynUrl,
-                size: 300
-            });
-        }
 
         async function grantPlayerUpgrade(player, upgradeId) {
             try {
