@@ -63,10 +63,74 @@
             padding: 10px;
             margin-bottom: 8px;
         }
+        .char-creation-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .char-creation-overlay.hidden {
+            display: none;
+        }
+        .stat-allocator {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            border: 1px solid var(--pip-green);
+            margin-bottom: 8px;
+            background: rgba(0, 20, 0, 0.5);
+        }
+        .stat-btn {
+            width: 32px;
+            height: 32px;
+            background: var(--pip-dark);
+            border: 1px solid var(--pip-green);
+            color: var(--pip-green);
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .stat-btn:hover {
+            background: var(--pip-green);
+            color: var(--pip-dark);
+        }
+        .stat-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body class="p-4 max-w-lg mx-auto pb-24">
     <div class="crt-scanline"></div>
+
+    <!-- CHARACTER CREATION OVERLAY -->
+    <div id="char-creation-overlay" class="char-creation-overlay">
+        <div class="pip-border p-6 bg-black max-w-md w-full">
+            <h1 class="text-2xl font-bold text-yellow-500 mb-2 text-center">CHARACTER CREATION</h1>
+            <p class="text-xs opacity-70 mb-6 text-center">ALLOCATE YOUR C.H.A.P.P.Y. STATS</p>
+            
+            <div class="mb-4 text-center">
+                <p class="text-sm mb-1">POINTS REMAINING</p>
+                <p id="points-remaining" class="text-4xl font-bold text-yellow-500">10</p>
+            </div>
+
+            <div id="stat-allocators" class="mb-6">
+                <!-- Stat allocators will be injected here -->
+            </div>
+
+            <button id="confirm-stats-btn" onclick="confirmStats()" class="pip-btn w-full py-3 text-lg font-bold" disabled>
+                CONFIRM STATS
+            </button>
+            <p class="text-[10px] text-center opacity-70 mt-2">You must spend all points</p>
+        </div>
+    </div>
 
     <!-- HEADER -->
     <header class="mb-6 pip-border p-4 bg-black">
@@ -314,7 +378,97 @@
         async function init() {
             document.getElementById('player-name').textContent = playerName.toUpperCase();
             await loadData();
+            checkCharacterCreation();
             startPolling();
+        }
+
+        function checkCharacterCreation() {
+            // Check if player has allocated stats (total > 6, since each stat starts at 1)
+            const totalStats = Object.values(playerData.stats || {}).reduce((sum, val) => sum + val, 0);
+            if (totalStats <= 6) {
+                // Show character creation
+                showCharacterCreation();
+            } else {
+                // Hide character creation
+                document.getElementById('char-creation-overlay').classList.add('hidden');
+            }
+        }
+
+        let tempStats = { charm: 1, hardiness: 1, agility: 1, perception: 1, politeness: 1, yarns: 1 };
+        let pointsRemaining = 10;
+
+        function showCharacterCreation() {
+            document.getElementById('char-creation-overlay').classList.remove('hidden');
+            renderStatAllocators();
+        }
+
+        function renderStatAllocators() {
+            const container = document.getElementById('stat-allocators');
+            const statNames = {
+                charm: 'CHARM',
+                hardiness: 'HARDINESS',
+                agility: 'AGILITY',
+                perception: 'PERCEPTION',
+                politeness: 'POLITENESS',
+                yarns: 'YARNS'
+            };
+            
+            container.innerHTML = '';
+            for (let stat in tempStats) {
+                const div = document.createElement('div');
+                div.className = 'stat-allocator';
+                div.innerHTML = `
+                    <span class="text-sm font-bold">${statNames[stat]}</span>
+                    <div class="flex items-center gap-3">
+                        <button class="stat-btn" onclick="decreaseStat('${stat}')" ${tempStats[stat] <= 1 ? 'disabled' : ''}>-</button>
+                        <span class="text-2xl font-bold w-8 text-center">${tempStats[stat]}</span>
+                        <button class="stat-btn" onclick="increaseStat('${stat}')" ${pointsRemaining <= 0 ? 'disabled' : ''}>+</button>
+                    </div>
+                `;
+                container.appendChild(div);
+            }
+            
+            document.getElementById('points-remaining').textContent = pointsRemaining;
+            document.getElementById('confirm-stats-btn').disabled = pointsRemaining > 0;
+        }
+
+        function increaseStat(stat) {
+            if (pointsRemaining > 0) {
+                tempStats[stat]++;
+                pointsRemaining--;
+                renderStatAllocators();
+            }
+        }
+
+        function decreaseStat(stat) {
+            if (tempStats[stat] > 1) {
+                tempStats[stat]--;
+                pointsRemaining++;
+                renderStatAllocators();
+            }
+        }
+
+        async function confirmStats() {
+            if (pointsRemaining > 0) {
+                return;
+            }
+            
+            try {
+                // Update the entire stats object
+                await fetch(`${API_URL}/api/player/${playerName}/stat/stats`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ value: tempStats })
+                });
+                
+                // Reload data and hide overlay
+                await loadData();
+                document.getElementById('char-creation-overlay').classList.add('hidden');
+                notify('CHARACTER CREATED!');
+            } catch (e) {
+                console.error('Error saving stats:', e);
+                notify('ERROR: Could not save stats');
+            }
         }
 
         async function loadData() {
