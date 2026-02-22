@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fallout: New Nova Scotia Companion</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --pip-green: #1aff80;
+            --pip-bg: #0c160c;
+            --pip-dark: #050a05;
+            --pip-rad: #ffcf1a;
+            --pip-health: #ff1a1a;
+        }
+        body {
+            background-color: var(--pip-bg);
+            color: var(--pip-green);
+            font-family: 'Share+Tech+Mono', monospace;
+            text-transform: uppercase;
+        }
+        .pip-border {
+            border: 2px solid var(--pip-green);
+            box-shadow: 0 0 10px rgba(26, 255, 128, 0.2);
+        }
+        .pip-btn {
+            background-color: var(--pip-dark);
+            border: 1px solid var(--pip-green);
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .pip-btn:active {
+            background-color: var(--pip-green);
+            color: var(--pip-dark);
+        }
+        .pip-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .crt-scanline {
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 50;
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .stat-bar { height: 8px; background: #111; border: 1px solid var(--pip-green); overflow: hidden; }
+        .stat-fill { height: 100%; background: var(--pip-green); transition: width 0.3s; }
+        .health-fill { background: var(--pip-health); }
+        .rad-fill { background: var(--pip-rad); }
+        .quest-done { text-decoration: line-through; opacity: 0.5; }
+        
+        @keyframes flicker {
+            0% { opacity: 0.9; }
+            100% { opacity: 1; }
+        }
+        .flicker { animation: flicker 0.1s infinite alternate; }
+    </style>
+</head>
+<body class="p-4 max-w-lg mx-auto pb-24">
+    <div class="crt-scanline"></div>
+
+    <!-- HEADER -->
+    <header class="mb-6 pip-border p-4 bg-black flicker">
+        <h1 class="text-2xl font-bold leading-tight">FALLOUT: NEW NOVA SCOTIA</h1>
+        <p class="text-xs opacity-80">COLCHESTER CONTAMINATION ZONE v1.2</p>
+    </header>
+
+    <!-- NAVIGATION -->
+    <nav class="grid grid-cols-6 gap-1 mb-6">
+        <button onclick="showTab('home')" class="pip-btn p-2 text-[9px] border-yellow-500 text-yellow-500">VAULT</button>
+        <button onclick="showTab('status')" class="pip-btn p-2 text-[9px]">STAT</button>
+        <button onclick="showTab('perks')" class="pip-btn p-2 text-[9px]">PERK</button>
+        <button onclick="showTab('quests')" class="pip-btn p-2 text-[9px]">DATA</button>
+        <button onclick="showTab('vault')" class="pip-btn p-2 text-[9px]">INV</button>
+        <button onclick="showTab('encounters')" class="pip-btn p-2 text-[9px]">MAP</button>
+    </nav>
+
+    <!-- TAB: VAULT 11 (HOME) -->
+    <section id="home" class="tab-content">
+        <div class="pip-border p-4 bg-black/50 space-y-4">
+            <div class="text-center mb-4">
+                <h2 class="text-2xl font-bold text-yellow-500">VAULT 11</h2>
+                <p class="text-[10px] opacity-70">SECTOR: HOME BASE</p>
+            </div>
+            
+            <div class="pip-border p-3 border-dashed border-yellow-500 bg-yellow-950/10">
+                <h3 class="text-xs font-bold mb-2">QUARTERS MAINTENANCE</h3>
+                <p class="text-[10px] mb-4 italic">"The Overseer demands a tidy Vault for maximum efficiency."</p>
+                <button onclick="restInVault()" class="pip-btn w-full py-3 text-sm text-yellow-500">REST IN BUNKS (HEAL FULL HP)</button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+                <div class="pip-border p-2 text-[9px]">
+                    <span class="text-yellow-500">STATUS:</span> SECURE<br>
+                    <span class="text-yellow-500">RATIONS:</span> STOCKED<br>
+                </div>
+                <div class="pip-border p-2 text-[9px]">
+                    <span class="text-yellow-500">RAD-LEVEL:</span> 0.00<br>
+                    <span class="text-yellow-500">WIFI:</span> CONNECTED
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- TAB: STATUS -->
+    <section id="status" class="tab-content active">
+        <div id="char-setup" class="space-y-4">
+            <div class="pip-border p-4 bg-black/50">
+                <h2 class="text-xl mb-4 border-b border-pip-green text-center">C.O.A.T. INITIATION</h2>
+                <div id="coat-question" class="space-y-4">
+                    <p id="q-text" class="text-sm italic text-center">Starting your assessment...</p>
+                    <div id="q-options" class="flex flex-col gap-2"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="char-sheet" class="hidden space-y-4">
+            <div class="pip-border p-4 bg-black/50">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h2 id="display-name" class="text-xl">VAULT DWELLER</h2>
+                        <p id="display-class" class="text-[10px] text-white bg-green-900 px-1 inline-block">CLASS: UNKNOWN</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-[10px]">LEVEL</p>
+                        <p id="display-level" class="text-2xl">1</p>
+                    </div>
+                </div>
+                
+                <!-- VITALS -->
+                <div class="space-y-2 mb-4">
+                    <div>
+                        <div class="flex justify-between text-[10px]"><span>HP</span><span id="hp-val">10/10</span></div>
+                        <div class="stat-bar"><div id="hp-bar" class="stat-fill health-fill" style="width: 100%"></div></div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-[10px]"><span>RADS</span><span id="rad-val">0/10</span></div>
+                        <div class="stat-bar"><div id="rad-bar" class="stat-fill rad-fill" style="width: 0%"></div></div>
+                    </div>
+                </div>
+
+                <div class="pt-2 border-t border-pip-green/30">
+                    <p class="text-xs mb-1">CAPS (POP TABS)</p>
+                    <div class="flex items-center gap-2">
+                        <span id="display-tabs" class="text-2xl">10</span>
+                        <div class="flex gap-1">
+                            <button onclick="updateTabs(5)" class="pip-btn px-2 text-xs">+5</button>
+                            <button onclick="updateTabs(-5)" class="pip-btn px-2 text-xs">-5</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div class="pip-border p-2 bg-black/50">
+                    <h3 class="text-xs border-b border-pip-green mb-2">C.H.A.P.P.Y.</h3>
+                    <div id="stats-list" class="text-[10px] space-y-1"></div>
+                </div>
+                <div class="pip-border p-2 bg-black/50">
+                    <h3 class="text-xs border-b border-pip-green mb-2">FACTION</h3>
+                    <p id="display-faction" class="text-sm">NONE</p>
+                    <div id="faction-picker" class="mt-2 hidden space-y-1">
+                        <button onclick="joinFaction('Plaid Paladins')" class="pip-btn w-full text-[10px] text-red-400">PLAID PALADINS</button>
+                        <button onclick="joinFaction('Tidesmen')" class="pip-btn w-full text-[10px] text-blue-400">TIDESMEN</button>
+                        <button onclick="joinFaction('Glo-Riders')" class="pip-btn w-full text-[10px] text-green-400">GLO-RIDERS</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="pip-border p-3 bg-black/50">
+                <h3 class="text-xs border-b border-pip-green mb-2">OVERSEER CONTROLS</h3>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="modifyHealth(-1)" class="pip-btn p-1 text-[9px]">TAKE DAMAGE</button>
+                    <button onclick="modifyHealth(1)" class="pip-btn p-1 text-[9px]">HEAL (STIM)</button>
+                    <button onclick="modifyRads(1)" class="pip-btn p-1 text-[9px] text-yellow-500">+1 RAD</button>
+                    <button onclick="modifyRads(-1)" class="pip-btn p-1 text-[9px] text-blue-300">-1 RAD (RAD-X)</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- TAB: QUESTS -->
+    <section id="quests" class="tab-content">
+        <div class="pip-border p-4 bg-black/50 space-y-6">
+            <div>
+                <h2 class="text-xl mb-2 border-b border-pip-green">MAIN QUESTS</h2>
+                <div id="main-quests-list" class="space-y-4"></div>
+            </div>
+            <div>
+                <h2 class="text-xl mb-2 border-b border-pip-green">SIDE CONTRACTS</h2>
+                <div id="side-quests-list" class="space-y-4"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- TAB: ENCOUNTERS -->
+    <section id="encounters" class="tab-content">
+        <div class="pip-border p-4 bg-black/50 space-y-4">
+            <h2 class="text-xl border-b border-pip-green mb-4">WASTELAND ENCOUNTER</h2>
+            <button onclick="rollEncounter()" class="pip-btn w-full py-4 text-xl font-bold">ROLL D20</button>
+            
+            <div id="encounter-result" class="hidden p-4 border border-dashed border-pip-green bg-green-950/20">
+                <p id="roll-val" class="text-4xl font-bold mb-2">20</p>
+                <h3 id="roll-title" class="text-lg font-bold">RAD-SKEETERS!</h3>
+                <p id="roll-desc" class="text-sm opacity-90 mt-2"></p>
+            </div>
+        </div>
+
+        <div class="mt-4 pip-border p-4 bg-black/50">
+            <h3 class="text-xs border-b border-pip-green mb-2">LANDMARK REGISTRY</h3>
+            <div id="map-list" class="space-y-2 text-[10px]"></div>
+        </div>
+    </section>
+
+    <!-- TAB: SCRAP / VAULT -->
+    <section id="vault" class="tab-content">
+        <div class="pip-border p-4 bg-black/50 mb-4">
+            <h2 class="text-xl border-b border-pip-green mb-2">SCRAP INVENTORY</h2>
+            <div id="inventory-list" class="grid grid-cols-2 gap-2 text-[10px]">
+                <!-- Scrap items with +/- buttons -->
+            </div>
+        </div>
+        
+        <div class="pip-border p-4 bg-black/50 mb-4">
+            <h2 class="text-xl border-b border-pip-green mb-2">CRAFTING BENCH</h2>
+            <div id="recipes-list" class="space-y-2"></div>
+        </div>
+
+        <div class="pip-border p-4 bg-black/50">
+            <h2 class="text-xl border-b border-pip-green mb-2">CRAWLER UPGRADES</h2>
+            <div id="upgrades-list" class="space-y-2"></div>
+        </div>
+    </section>
+
+    <!-- TAB: RADIO -->
+    <section id="radio" class="tab-content">
+        <div class="pip-border p-4 bg-black/50 space-y-4">
+            <h2 class="text-xl border-b border-pip-green">THREE-CROWS RADIO</h2>
+            <p class="text-[10px] italic mb-4">SELECT A FREQUENCY TO BROADCAST TO YOUR CELLAR-DWELLERS.</p>
+            
+            <div id="radio-list" class="space-y-3">
+                <!-- Radio Scripts -->
+            </div>
+        </div>
+    </section>
+
+    <!-- NOTIFICATION SYSTEM -->
+    <div id="toast" class="fixed bottom-20 left-4 right-4 pip-border bg-black p-3 text-sm hidden transform translate-y-full transition-transform duration-300 z-50">
+        MESSAGE HERE
+    </div>
+
+    <script>
+        // --- GAME DATA ---
+        const coatQuestions = [
+            {
+                text: "Q1: Mutated 'Townie' starts a 45-minute story at Timmy's ruins. Do you:",
+                options: [
+                    { t: "Smile, nod, say 'Is that right?'", stat: "politeness" },
+                    { t: "Fake a coughing fit and back out.", stat: "yarns" },
+                    { t: "Challenge them to a staring contest.", stat: "hardiness" },
+                    { t: "Sneak around and steal Timbits.", stat: "agility" }
+                ]
+            },
+            {
+                text: "Q2: You drop your precious Donair-Dab in the red mud. Your reaction?",
+                options: [
+                    { t: "Cry loudly until Overseer helps.", stat: "charm" },
+                    { t: "Brush it off. A little dirt never hurt.", stat: "hardiness" },
+                    { t: "Examine if it has mutated.", stat: "perception" },
+                    { t: "Blame sibling for bumping you.", stat: "yarns" }
+                ]
+            },
+            {
+                text: "Q3: Rad-Skeeter swarm attacks! You are armed with a stick.",
+                options: [
+                    { t: "Swing wildly and scream!", stat: "agility" },
+                    { t: "Offer a Pop Tab sacrifice.", stat: "charm" },
+                    { t: "Stand perfectly still.", stat: "hardiness" },
+                    { t: "Apologize for trespassing.", stat: "politeness" }
+                ]
+            }
+        ];
+
+        const classes = {
+            hardiness: { title: "The Hub Brawler", bonuses: { hardiness: 2, agility: 1 } },
+            perception: { title: "The Scavenger", bonuses: { perception: 2, hardiness: 1 } },
+            charm: { title: "The Plaid Diplomat", bonuses: { charm: 2, politeness: 1 } },
+            agility: { title: "The Bluenose Rogue", bonuses: { agility: 2, yarns: 1 } }
+        };
+
+        const radioScripts = [
+            { title: "ENTERING DEBERT", text: "\"You're treadin' on ancient ground now, scavengers. Debert. The old world dug deep here, right on. Built a city underground to hide from the big flash. If you're lookin' for Vault 102, keep your Geiger counters tickin'. Just remember... sometimes things in the dark belong in the dark. Stay salty.\"" },
+            { title: "THE VICTORIA PARK ANOMALY", text: "\"Watch your step in the Gully, wanderers. They say the waterfalls still flow, but the water's got a glow to it that ain't natural. Jacob's Ladder is a test of heart and lung. Don't let the shadow-cats get your scent.\"" },
+            { title: "RED MUD WARNING", text: "\"A public service message for the Surface Dwellers: Keep your boots clear of the red mud in Five Islands. We call it 'Toe-Blight' for a reason. One minute you're lookin' for clams, the next you're growin' a gills. Giver hell, but watch where you step.\"" },
+            { title: "THE HERMIT'S LAST WORDS", text: "\"[STATIC] ...and it was out there, beyond the pines. Eyes like burning pitch. The creature... it walks on two legs but not human. It stalks the northern woods. I've hidden everything in the cache... the maps, the patterns... [SOUND OF SNAPPING TIMBER] NoNONO-- [WET TEARING SOUND]\" [LOOP REPEATS]" },
+            { title: "DEBERT NUMBERS STATION", text: "[COLD, SYNTHESIZED FEMALE VOICE] \"Coordinates: North 45.3471 West 63.2851. North 45.3412 West 63.2790. North 45.3389 West 63.2733. [GLITCH] ...sob... [AIR RAID SIREN BLARES]\"" },
+            { title: "THE MASTODON'S CALL", text: "[DEAFENING LOW-FREQUENCY RUMBLE MIMICKING ELEPHANT TRUMPET - SCREEN TEARS] [FANATIC VOICE] \"The Awakening approaches! The Halfway Heralds welcome the divine! Lay your tributes before the Great Mastodon! [RUMBLE REPEATS]\"" },
+            { title: "HIGHWAY 104 RAIDERS ALERT", text: "\"We're marchin' on Masstown. The Bazaar's gonna be ours by sundown. Anyone defendin' those walls is gonna learn what it means to mess with the 104. This is your warnin'. The hunt has begun.\"" },
+            { title: "FUNDY DISCOVERY BROADCAST", text: "\"This is Station K-7 reporting from Lower Truro. The tidal bore is comin' in hot and very radioactive today. If you're crazy enough to ride it, make sure your raft's sealed. Last guy who didn't... well, let's just say he glowed for a week.\"" }
+        ];
+
+        const questData = [
+            // VAULT 11 (HOME) QUESTS
+            { id: 'h1', title: "VAULT: Sanitize Quarters", desc: "Clean your room until no scrap remains on the floor.", reward: 10, xp: 1 },
+            { id: 'h2', title: "VAULT: Nutrient Synthesis", desc: "Assist the Overseer with preparing a family meal.", reward: 15, xp: 1 },
+            { id: 'h3', title: "VAULT: Static Discharge", desc: "Fold and put away a basket of clean laundry.", reward: 10, xp: 1 },
+            
+            // WORLD QUESTS
+            { id: 'q1', title: "Initiation: Jacob's Ladder", desc: "Climb the stairs at Victoria Park.", reward: 15, xp: 1 },
+            { id: 'q2', title: "The Great Drain", desc: "Visit Burncoat Head at low tide.", reward: 20, xp: 1 },
+            { id: 'q3', title: "Masstown Supply Run", desc: "Acquire a snack from the Megaton.", reward: 10, xp: 1 },
+            { id: 'q4', title: "Vault 102 Recon", desc: "Touch the gates of the Debert Bunker.", reward: 30, xp: 1 },
+            { id: 'q5', title: "Jacob's Ladder Trial", desc: "Complete the bruthal 175 step challenge without falling.", reward: 50, xp: 2 },
+            { id: 'q6', title: "Witches' Cauldron Mystery", desc: "Dive into the radioactive pool and retrieve the pre-war crate.", reward: 45, xp: 2 },
+            { id: 'q7', title: "The Glooscap Legends", desc: "Follow the ancient trail and recover artifacts under the boulder.", reward: 40, xp: 1 },
+            { id: 'q8', title: "Tidal Bore Run", desc: "Ride the radioactive tidal bore on a pre-war raft.", reward: 35, xp: 1 },
+            { id: 'q9', title: "Butter Trail Smugglers", desc: "Intercept the night caravan moving Glow-Butter.", reward: 30, xp: 1 },
+            { id: 'q10', title: "Ghouls of the Cobequid", desc: "Clear three Feral Ghoul nests along the trail.", reward: 60, xp: 2 },
+            { id: 'q11', title: "Battle for the Bazaar", desc: "Defend Masstown Market from Highway 104 Raiders.", reward: 100, xp: 3 },
+            { id: 'q12', title: "Siege of the Debert Gates", desc: "Clear compound and hack security terminal for supply drop.", reward: 80, xp: 2 },
+            { id: 'q13', title: "Stanfield Shipping Yard", desc: "Clear Rad-Spiders and secure thermal gear containers.", reward: 75, xp: 2 },
+            { id: 'q14', title: "Securing the Iron Spine", desc: "Clear tracks and defend merchant trading post.", reward: 70, xp: 2 }
+        ];
+
+        const mainQuests = [
+            { id: 'mq1', title: 'Initiation of the Hub', desc: 'Hike Jacob’s Ladder without stopping.', reward: '+20 Tabs, Iron Calves' },
+            { id: 'mq2', title: 'Anomaly of the Tides', desc: 'Walk on ocean floor at low tide. Collect relic.', reward: '+25 Tabs, Aqua-Bluenoser' },
+            { id: 'mq3', title: 'Red Wastes Expedition', desc: 'Build an inuksuk (5 rocks) at Five Islands.', reward: '+30 Tabs, Legend Status' },
+            { id: 'mq4', title: 'Secrets of Vault 102', desc: 'Perimeter walk of Debert Bunker. Find 3 tech pieces.', reward: '+50 Tabs' }
+        ];
+
+        const recipes = [
+            { name: "Wasteland Wand", wood: 1, adhesive: 1, perk: "+1 Agility on trails" },
+            { name: "Scrapper Goggles", steel: 2, circuit: 1, perk: "+1 Perception in sun" },
+            { name: "Tarp of Truth", wood: 1, circuit: 2, perk: "Immune to Rad-Rain" }
+        ];
+
+        const crawlerUpgrades = [
+            { name: "Cryo-Breeze Protocol", cost: 20, desc: "30m of Air Conditioning." },
+            { name: "Three-Crows Override", cost: 30, desc: "Kids choose the music." },
+            { name: "Sweet-Roll Stash", cost: 40, desc: "Unlock secret candy stash." }
+        ];
+
+        const encounters = {
+            1: { t: "Rad-Skeeter Swarm!", d: "WAVE ARMS AND RUN FOR 10 SECONDS! Take 1 Damage." },
+            5: { t: "Found a Cache!", d: "Overseer hides 3 Tabs nearby. Finders keepers." },
+            9: { t: "Sudden Salt Fog", d: "Visibility zero! Walk single-file for 2 minutes." },
+            12: { t: "Townie Sighting", d: "Hide! If a local sees you, lose 1 Tab." },
+            18: { t: "Irradiated Mud Pit", d: "Toxic path! Gain 1 RAD." },
+            20: { t: "Wandering Merchant!", d: "3 Minutes of 50% discount on snacks!" }
+        };
+
+        const landmarks = [
+            { name: "Forbidden Gully", loc: "Vic Park", desc: "Endless stairs & waterfalls." },
+            { name: "Masstown Megaton", loc: "Masstown", desc: "The ultimate trading post." },
+            { name: "The Great Drain", loc: "Burncoat", desc: "Where the ocean vanishes." },
+            { name: "Vault 102", loc: "Debert", desc: "Genuine military dungeon." }
+        ];
+
+        // --- STATE ---
+        let state = {
+            name: "Dweller",
+            level: 1,
+            tabs: 10,
+            hp: 10,
+            rads: 0,
+            maxHp: 10,
+            stats: { charm: 1, hardiness: 1, agility: 1, perception: 1, politeness: 1, yarns: 1 },
+            scrap: { wood: 0, steel: 0, circuit: 0, adhesive: 0 },
+            faction: null,
+            class: null,
+            completedQuests: [],
+            coatIndex: 0,
+            coatScores: { charm: 0, hardiness: 0, agility: 0, perception: 0, politeness: 0, yarns: 0 }
+        };
+
+        // --- APP LOGIC ---
+        function init() {
+            renderQuests();
+            renderUpgrades();
+            renderRecipes();
+            renderMap();
+            renderInventory();
+            renderRadio();
+            loadQuestion();
+        }
+
+        function showTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+        }
+
+        function loadQuestion() {
+            if (state.coatIndex >= coatQuestions.length) {
+                finalizeCharacter();
+                return;
+            }
+            const q = coatQuestions[state.coatIndex];
+            document.getElementById('q-text').innerText = q.text;
+            const container = document.getElementById('q-options');
+            container.innerHTML = '';
+            q.options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'pip-btn p-3 text-left text-[10px]';
+                btn.innerText = opt.t;
+                btn.onclick = () => {
+                    state.coatScores[opt.stat]++;
+                    state.coatIndex++;
+                    loadQuestion();
+                };
+                container.appendChild(btn);
+            });
+        }
+
+        function finalizeCharacter() {
+            let topStat = 'hardiness';
+            let max = -1;
+            for (let s in state.coatScores) {
+                if (state.coatScores[s] > max) {
+                    max = state.coatScores[s];
+                    topStat = s;
+                }
+            }
+            
+            let classKey = 'hardiness';
+            if (['politeness', 'hardiness'].includes(topStat)) classKey = 'hardiness';
+            if (['perception', 'yarns'].includes(topStat)) classKey = 'perception';
+            if (['charm', 'politeness'].includes(topStat)) classKey = 'charm';
+            if (['agility', 'yarns'].includes(topStat)) classKey = 'agility';
+
+            const selectedClass = classes[classKey];
+            state.class = selectedClass.title;
+            
+            for (let stat in selectedClass.bonuses) {
+                state.stats[stat] += selectedClass.bonuses[stat];
+            }
+
+            document.getElementById('char-setup').classList.add('hidden');
+            document.getElementById('char-sheet').classList.remove('hidden');
+            updateUI();
+            notify("WELCOME TO THE SURFACE, SCAVENGER.");
+        }
+
+        function modifyHealth(amt) {
+            state.hp += amt;
+            if (state.hp > state.maxHp) state.hp = state.maxHp;
+            if (state.hp <= 0) {
+                state.hp = 0;
+                notify("YOU ARE UNCONSCIOUS! FIND STIMPAK (OR SNACK).");
+            }
+            updateUI();
+        }
+
+        function modifyRads(amt) {
+            state.rads += amt;
+            if (state.rads < 0) state.rads = 0;
+            if (state.rads >= 10) {
+                state.rads = 10;
+                notify("MAX RADIATION REACHED! SEE OVERSEER.");
+            }
+            updateUI();
+        }
+
+        function updateUI() {
+            document.getElementById('display-class').innerText = `CLASS: ${state.class || 'PENDING'}`;
+            document.getElementById('display-tabs').innerText = state.tabs;
+            document.getElementById('display-level').innerText = state.level;
+            document.getElementById('display-faction').innerText = state.faction || 'NONE';
+            
+            // Health/Rads Bars
+            const hpPct = (state.hp / state.maxHp) * 100;
+            const radPct = (state.rads / 10) * 100;
+            document.getElementById('hp-bar').style.width = hpPct + '%';
+            document.getElementById('rad-bar').style.width = radPct + '%';
+            document.getElementById('hp-val').innerText = `${state.hp}/${state.maxHp}`;
+            document.getElementById('rad-val').innerText = `${state.rads}/10`;
+
+            if (state.level >= 2 && !state.faction) {
+                document.getElementById('faction-picker').classList.remove('hidden');
+            } else {
+                document.getElementById('faction-picker').classList.add('hidden');
+            }
+
+            const statsList = document.getElementById('stats-list');
+            statsList.innerHTML = '';
+            for (let s in state.stats) {
+                const row = document.createElement('div');
+                row.className = 'mb-1';
+                row.innerHTML = `
+                    <div class="flex justify-between uppercase">
+                        <span>${s}</span><span>${state.stats[s]}</span>
+                    </div>
+                    <div class="stat-bar"><div class="stat-fill" style="width: ${state.stats[s] * 20}%"></div></div>
+                `;
+                statsList.appendChild(row);
+            }
+            renderInventory();
+        }
+
+        function updateTabs(amt) {
+            state.tabs += amt;
+            if (state.tabs < 0) state.tabs = 0;
+            updateUI();
+        }
+
+        function joinFaction(f) {
+            state.faction = f;
+            notify(`FACTION JOINED: ${f}`);
+            updateUI();
+        }
+
+        function renderInventory() {
+            const list = document.getElementById('inventory-list');
+            list.innerHTML = '';
+            for (let item in state.scrap) {
+                const div = document.createElement('div');
+                div.className = 'p-2 border border-pip-green/30 flex justify-between items-center';
+                div.innerHTML = `
+                    <span class="uppercase">${item}</span>
+                    <div class="flex items-center gap-2">
+                        <button onclick="modifyScrap('${item}', -1)" class="pip-btn px-1">-</button>
+                        <span>${state.scrap[item]}</span>
+                        <button onclick="modifyScrap('${item}', 1)" class="pip-btn px-1">+</button>
+                    </div>
+                `;
+                list.appendChild(div);
+            }
+        }
+
+        function modifyScrap(type, amt) {
+            state.scrap[type] += amt;
+            if (state.scrap[type] < 0) state.scrap[type] = 0;
+            renderInventory();
+        }
+
+        function renderRecipes() {
+            const list = document.getElementById('recipes-list');
+            recipes.forEach(r => {
+                const div = document.createElement('div');
+                div.className = 'p-3 border border-pip-green/30 text-[10px] space-y-1';
+                div.innerHTML = `
+                    <div class="flex justify-between">
+                        <strong>${r.name}</strong>
+                        <button onclick="craftItem('${r.name}')" class="pip-btn px-2">CRAFT</button>
+                    </div>
+                    <p class="opacity-70">${r.perk}</p>
+                    <p class="text-white italic">REQS: ${r.wood || 0} Wood, ${r.steel || 0} Steel, ${r.circuit || 0} Circ, ${r.adhesive || 0} Adh</p>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function craftItem(name) {
+            const recipe = recipes.find(r => r.name === name);
+            if (state.scrap.wood >= (recipe.wood || 0) && 
+                state.scrap.steel >= (recipe.steel || 0) &&
+                state.scrap.circuit >= (recipe.circuit || 0) &&
+                state.scrap.adhesive >= (recipe.adhesive || 0)) {
+                
+                state.scrap.wood -= (recipe.wood || 0);
+                state.scrap.steel -= (recipe.steel || 0);
+                state.scrap.circuit -= (recipe.circuit || 0);
+                state.scrap.adhesive -= (recipe.adhesive || 0);
+                
+                notify(`CRAFTED: ${name}!`);
+                updateUI();
+            } else {
+                notify("NEED MORE SCRAP!");
+            }
+        }
+
+        function renderRadio() {
+            const list = document.getElementById('radio-list');
+            radioScripts.forEach(s => {
+                const div = document.createElement('div');
+                div.className = 'p-3 border-l-4 border-pip-green bg-black/40';
+                div.innerHTML = `
+                    <h4 class="text-xs font-bold mb-1 underline">${s.title}</h4>
+                    <p class="text-[10px] italic leading-relaxed text-white">${s.text}</p>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function restInVault() {
+            if (state.hp === 10) {
+                notify("YOU ARE ALREADY FULLY RESTED.");
+            } else {
+                state.hp = 10;
+                updateUI();
+                notify("RESTED IN VAULT 11. HP RESTORED.");
+            }
+        }
+
+        function rollEncounter() {
+            const roll = Math.floor(Math.random() * 20) + 1;
+            const res = document.getElementById('encounter-result');
+            res.classList.remove('hidden');
+            document.getElementById('roll-val').innerText = roll;
+            
+            let match = { t: "Quiet in the wastes.", d: "Nothing but salt air and old dreams." };
+            const keys = Object.keys(encounters).sort((a,b) => b-a);
+            for (let k of keys) {
+                if (roll >= parseInt(k)) {
+                    match = encounters[k];
+                    break;
+                }
+            }
+            document.getElementById('roll-title').innerText = match.t;
+            document.getElementById('roll-desc').innerText = match.d;
+        }
+
+        function renderQuests() {
+            const mList = document.getElementById('main-quests-list');
+            const createQ = (q) => {
+                const div = document.createElement('div');
+                div.className = 'border-l-2 border-pip-green pl-3 py-1';
+                div.id = `q-${q.id}`;
+                div.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <h4 class="font-bold text-sm">${q.title}</h4>
+                        <input type="checkbox" onchange="toggleQuest('${q.id}')" class="accent-green-500">
+                    </div>
+                    <p class="text-[10px] opacity-80">${q.desc}</p>
+                `;
+                return div;
+            };
+            mainQuests.forEach(q => mList.appendChild(createQ(q)));
+        }
+
+        function toggleQuest(id) {
+            const el = document.getElementById(`q-${id}`);
+            if (state.completedQuests.includes(id)) {
+                state.completedQuests = state.completedQuests.filter(i => i !== id);
+                el.classList.remove('quest-done');
+            } else {
+                state.completedQuests.push(id);
+                el.classList.add('quest-done');
+                state.level++;
+                notify("QUEST COMPLETE. LEVEL UP!");
+            }
+            updateUI();
+        }
+
+        function renderUpgrades() {
+            const list = document.getElementById('upgrades-list');
+            crawlerUpgrades.forEach(u => {
+                const btn = document.createElement('button');
+                btn.className = 'pip-btn w-full p-2 text-left flex justify-between items-center';
+                btn.innerHTML = `<div><p class="text-xs font-bold">${u.name}</p><p class="text-[9px] opacity-70">${u.desc}</p></div><span class="text-xs">${u.cost}</span>`;
+                btn.onclick = () => {
+                    if (state.tabs >= u.cost) { updateTabs(-u.cost); notify(`UPGRADE: ${u.name}`); }
+                    else { notify("INSUFFICIENT TABS."); }
+                };
+                list.appendChild(btn);
+            });
+        }
+
+        function renderMap() {
+            const list = document.getElementById('map-list');
+            landmarks.forEach(l => {
+                const div = document.createElement('div');
+                div.className = 'grid grid-cols-2 gap-2 border-b border-pip-green/10 pb-1';
+                div.innerHTML = `<span>${l.name}</span><span class="opacity-60 italic text-right">${l.loc}</span>`;
+                list.appendChild(div);
+            });
+        }
+
+        function notify(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.classList.remove('hidden');
+            toast.classList.remove('translate-y-full');
+            setTimeout(() => {
+                toast.classList.add('translate-y-full');
+                setTimeout(() => toast.classList.add('hidden'), 300);
+            }, 3000);
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>

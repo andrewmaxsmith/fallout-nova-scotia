@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FALLOUT: New Nova Scotia - GM DASHBOARD</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    <style>
+        :root {
+            --pip-green: #1aff80;
+            --pip-bg: #0c160c;
+            --pip-dark: #050a05;
+            --pip-rad: #ffcf1a;
+            --pip-health: #ff1a1a;
+        }
+        body {
+            background-color: var(--pip-bg);
+            color: var(--pip-green);
+            font-family: 'Share Tech Mono', monospace;
+            text-transform: uppercase;
+        }
+        .pip-border {
+            border: 2px solid var(--pip-green);
+            box-shadow: 0 0 10px rgba(26, 255, 128, 0.2);
+        }
+        .pip-btn {
+            background-color: var(--pip-dark);
+            border: 1px solid var(--pip-green);
+            color: var(--pip-green);
+            cursor: pointer;
+            padding: 8px 12px;
+            transition: all 0.2s;
+        }
+        .pip-btn:hover {
+            background-color: var(--pip-green);
+            color: var(--pip-dark);
+        }
+        .crt-scanline {
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 50;
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .player-card {
+            border: 1px solid var(--pip-green);
+            padding: 12px;
+            margin-bottom: 8px;
+            background: rgba(0,0,0,0.3);
+        }
+        .stat-input {
+            background: #050a05;
+            border: 1px solid var(--pip-green);
+            color: var(--pip-green);
+            padding: 4px;
+            width: 60px;
+        }
+    </style>
+</head>
+<body class="p-4">
+    <div class="crt-scanline"></div>
+    
+    <div class="max-w-6xl mx-auto">
+        <!-- HEADER -->
+        <header class="mb-6 pip-border p-4 bg-black">
+            <h1 class="text-3xl font-bold text-yellow-500">GM DASHBOARD</h1>
+            <p class="text-xs opacity-70">FALLOUT: NEW NOVA SCOTIA - GAME MASTER CONTROLS</p>
+        </header>
+
+        <!-- NAVIGATION -->
+        <nav class="grid grid-cols-7 gap-2 mb-6">
+            <button onclick="showTab('players')" class="pip-btn">PLAYERS</button>
+            <button onclick="showTab('quarters')" class="pip-btn">QUARTERS</button>
+            <button onclick="showTab('perks')" class="pip-btn">PERKS</button>
+            <button onclick="showTab('quests')" class="pip-btn">QUESTS</button>
+            <button onclick="showTab('radio')" class="pip-btn">RADIO</button>
+            <button onclick="showTab('trades')" class="pip-btn">TRADES</button>
+            <button onclick="showTab('qrcodes')" class="pip-btn">QR CODES</button>
+        </nav>
+
+        <!-- TAB: PLAYERS -->
+        <section id="players" class="tab-content active">
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <!-- LOGAN -->
+                <div class="pip-border p-4 bg-black/50">
+                    <h2 class="text-xl font-bold text-blue-400 mb-4">LOGAN</h2>
+                    <div class="player-card">
+                        <label>LEVEL: <input type="number" id="logan-level" class="stat-input" value="1" onchange="updatePlayer('logan', 'level', this.value)"></label>
+                    </div>
+                    <div class="player-card">
+                        <label>HP: <input type="number" id="logan-hp" class="stat-input" value="10" onchange="updatePlayer('logan', 'hp', this.value)"> / <input type="number" id="logan-maxhp" class="stat-input" value="10" onchange="updatePlayer('logan', 'maxHp', this.value)"></label>
+                    </div>
+                    <div class="player-card">
+                        <label>RADS: <input type="number" id="logan-rads" class="stat-input" value="0" onchange="updatePlayer('logan', 'rads', this.value)"></label>
+                    </div>
+                    <div class="player-card">
+                        <label>TABS: <input type="number" id="logan-tabs" class="stat-input" value="10" onchange="updatePlayer('logan', 'tabs', this.value)"></label>
+                    </div>
+                    <div class="mt-2">
+                        <button onclick="grantScrap('logan', 'maritimeMetal', 5)" class="pip-btn text-xs w-full mb-1">+5 MARITIME METAL</button>
+                        <button onclick="grantScrap('logan', 'syntheticSap', 5)" class="pip-btn text-xs w-full mb-1">+5 SYNTHETIC SAP</button>
+                        <button onclick="grantScrap('logan', 'hubCircuitry', 3)" class="pip-btn text-xs w-full mb-1">+3 HUB CIRCUITRY</button>
+                        <button onclick="grantScrap('logan', 'plaidScraps', 3)" class="pip-btn text-xs w-full mb-1">+3 PLAID SCRAPS</button>
+                        <button onclick="grantScrap('logan', 'propaneTank', 2)" class="pip-btn text-xs w-full mb-1">+2 PROPANE TANK</button>
+                        <button onclick="grantScrap('logan', 'radMeat', 2)" class="pip-btn text-xs w-full mb-1">+2 RAD-MEAT</button>
+                        <button onclick="grantScrap('logan', 'spices', 2)" class="pip-btn text-xs w-full mb-1">+2 SPICES</button>
+                        <button onclick="grantScrap('logan', 'cleanWater', 2)" class="pip-btn text-xs w-full">+2 CLEAN WATER</button>
+                    </div>
+                </div>
+
+                <!-- RYLYN -->
+                <div class="pip-border p-4 bg-black/50">
+                    <h2 class="text-xl font-bold text-red-400 mb-4">RYLYN</h2>
+                    <div class="player-card">
+                        <label>LEVEL: <input type="number" id="rylyn-level" class="stat-input" value="1" onchange="updatePlayer('rylyn', 'level', this.value)"></label>
+                    </div>
+                    <div class="player-card">
+                        <label>HP: <input type="number" id="rylyn-hp" class="stat-input" value="10" onchange="updatePlayer('rylyn', 'hp', this.value)"> / <input type="number" id="rylyn-maxhp" class="stat-input" value="10" onchange="updatePlayer('rylyn', 'maxHp', this.value)"></label>
+                    </div>
+                    <div class="player-card">
+                        <label>RADS: <input type="number" id="rylyn-rads" class="stat-input" value="0" onchange="updatePlayer('rylyn', 'rads', this.value)"></label>
+                    </div>
+                    <div class="player-card">
+                        <label>TABS: <input type="number" id="rylyn-tabs" class="stat-input" value="10" onchange="updatePlayer('rylyn', 'tabs', this.value)"></label>
+                    </div>
+                    <div class="mt-2">
+                        <button onclick="grantScrap('rylyn', 'maritimeMetal', 5)" class="pip-btn text-xs w-full mb-1">+5 MARITIME METAL</button>
+                        <button onclick="grantScrap('rylyn', 'syntheticSap', 5)" class="pip-btn text-xs w-full mb-1">+5 SYNTHETIC SAP</button>
+                        <button onclick="grantScrap('rylyn', 'hubCircuitry', 3)" class="pip-btn text-xs w-full mb-1">+3 HUB CIRCUITRY</button>
+                        <button onclick="grantScrap('rylyn', 'plaidScraps', 3)" class="pip-btn text-xs w-full mb-1">+3 PLAID SCRAPS</button>
+                        <button onclick="grantScrap('rylyn', 'propaneTank', 2)" class="pip-btn text-xs w-full mb-1">+2 PROPANE TANK</button>
+                        <button onclick="grantScrap('rylyn', 'radMeat', 2)" class="pip-btn text-xs w-full mb-1">+2 RAD-MEAT</button>
+                        <button onclick="grantScrap('rylyn', 'spices', 2)" class="pip-btn text-xs w-full mb-1">+2 SPICES</button>
+                        <button onclick="grantScrap('rylyn', 'cleanWater', 2)" class="pip-btn text-xs w-full">+2 CLEAN WATER</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB: QUARTERS -->
+        <section id="quarters" class="tab-content">
+            <div class="grid grid-cols-2 gap-4">
+                <!-- AVAILABLE UPGRADES -->
+                <div class="pip-border p-4 bg-black/50">
+                    <h2 class="text-xl font-bold mb-4">UPGRADE CATALOG</h2>
+                    <div id="quarters-catalog" class="space-y-2">
+                        <!-- Upgrades injected here -->
+                    </div>
+                </div>
+
+                <!-- PLAYER QUARTERS STATUS -->
+                <div class="pip-border p-4 bg-black/50">
+                    <h2 class="text-xl font-bold mb-4">PLAYER QUARTERS</h2>
+                    <div class="space-y-4">
+                        <!-- LOGAN QUARTERS -->
+                        <div class="border border-blue-400 p-3">
+                            <h3 class="text-blue-400 font-bold text-sm mb-2">LOGAN'S UPGRADES</h3>
+                            <div id="logan-quarters" class="space-y-1 text-[10px]">
+                                <!-- Logan's upgrades -->
+                            </div>
+                        </div>
+                        <!-- RYLYN QUARTERS -->
+                        <div class="border border-red-400 p-3">
+                            <h3 class="text-red-400 font-bold text-sm mb-2">RYLYN'S UPGRADES</h3>
+                            <div id="rylyn-quarters" class="space-y-1 text-[10px]">
+                                <!-- Rylyn's upgrades -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB: PERKS -->
+        <section id="perks" class="tab-content">
+            <div class="grid grid-cols-2 gap-4">
+                <!-- PERKS LIST -->
+                <div class="pip-border p-4 bg-black/50">
+                    <h2 class="text-xl font-bold mb-4">AVAILABLE PERKS</h2>
+                    <div id="perks-list" class="space-y-2">
+                        <!-- Perks injected here -->
+                    </div>
+                </div>
+
+                <!-- PLAYER PERKS STATUS -->
+                <div class="pip-border p-4 bg-black/50">
+                    <h2 class="text-xl font-bold mb-4">PLAYER PERKS</h2>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="border border-blue-400 p-3">
+                            <p class="text-blue-400 text-xs font-bold mb-2">LOGAN</p>
+                            <div id="logan-perks-status" class="text-[10px] space-y-1">
+                                <!-- Logan's perks -->
+                            </div>
+                        </div>
+                        <div class="border border-red-400 p-3">
+                            <p class="text-red-400 text-xs font-bold mb-2">RYLYN</p>
+                            <div id="rylyn-perks-status" class="text-[10px] space-y-1">
+                                <!-- Rylyn's perks -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB: QUESTS -->
+        <section id="quests" class="tab-content">
+            <div class="grid grid-cols-2 gap-4">
+                <!-- QUEST LIST -->
+                <div class="pip-border p-4 bg-black/50">
+                    <h2 class="text-xl font-bold mb-4">SEND QUEST</h2>
+                    <div id="quest-list" class="space-y-2">
+                        <!-- Quests injected here -->
+                    </div>
+                </div>
+
+                <!-- PLAYER QUEST STATUS -->
+                <div class="pip-border p-4 bg-black/50">
+                    <h2 class="text-xl font-bold mb-4">ACTIVE QUESTS</h2>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="border border-blue-400 p-2">
+                            <p class="text-blue-400 text-xs font-bold">LOGAN</p>
+                            <div id="logan-quests" class="text-[10px] space-y-1">
+                                <!-- Logan's active quests -->
+                            </div>
+                        </div>
+                        <div class="border border-red-400 p-2">
+                            <p class="text-red-400 text-xs font-bold">RYLYN</p>
+                            <div id="rylyn-quests" class="text-[10px] space-y-1">
+                                <!-- Rylyn's active quests -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB: RADIO -->
+        <section id="radio" class="tab-content">
+            <div class="pip-border p-4 bg-black/50">
+                <h2 class="text-xl font-bold mb-4">BROADCAST SIGNALS</h2>
+                <div class="grid grid-cols-2 gap-2 mb-6">
+                    <div class="border border-blue-400 p-2">
+                        <p class="text-blue-400 text-xs mb-2">SEND TO LOGAN</p>
+                        <div id="logan-radio-list" class="space-y-1">
+                            <!-- Radio signals for Logan -->
+                        </div>
+                    </div>
+                    <div class="border border-red-400 p-2">
+                        <p class="text-red-400 text-xs mb-2">SEND TO RYLYN</p>
+                        <div id="rylyn-radio-list" class="space-y-1">
+                            <!-- Radio signals for Rylyn -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB: TRADES -->
+        <section id="trades" class="tab-content">
+            <div class="pip-border p-4 bg-black/50">
+                <h2 class="text-xl font-bold mb-4">TRADING POSTS</h2>
+                <p class="text-xs opacity-70 mb-4">Manage NPC vendors and trade offers</p>
+                <div id="trades-list" class="space-y-2">
+                    <!-- Trades injected here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB: QR CODES -->
+        <section id="qrcodes" class="tab-content">
+            <div class="grid grid-cols-2 gap-4">
+                <div class="pip-border p-4 bg-black/50 text-center">
+                    <h2 class="text-lg font-bold text-blue-400 mb-4">LOGAN'S QR CODE</h2>
+                    <canvas id="qr-logan" width="300" height="300" class="mx-auto mb-4"></canvas>
+                    <p class="text-xs opacity-70">Scan for LOGAN's player interface</p>
+                </div>
+                <div class="pip-border p-4 bg-black/50 text-center">
+                    <h2 class="text-lg font-bold text-red-400 mb-4">RYLYN'S QR CODE</h2>
+                    <canvas id="qr-rylyn" width="300" height="300" class="mx-auto mb-4"></canvas>
+                    <p class="text-xs opacity-70">Scan for RYLYN's player interface</p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        // This forces the tablet to use the exact secure URL of your Render site
+        const API_URL = window.location.origin.replace(/\/$/, "");
+        let gameData = {};
+
+        async function init() {
+            await loadGameState();
+            renderQuests();
+            renderQuarters();
+            renderPerks();
+            renderRadio();
+            renderTrades();
+            generateQRCodes();
+        }
+
+        async function loadGameState() {
+            try {
+                const response = await fetch(`${API_URL}/api/game-state`);
+                gameData = await response.json();
+            } catch (e) {
+                console.error('Failed to load game state:', e);
+            }
+        }
+
+        function showTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+        }
+
+        async function updatePlayer(player, stat, value) {
+            try {
+                await fetch(`${API_URL}/api/player/${player}/stat/${stat}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ value: parseInt(value) })
+                });
+            } catch (e) {
+                console.error('Error updating player:', e);
+            }
+        }
+
+        async function grantScrap(player, type, amount) {
+            try {
+                await fetch(`${API_URL}/api/player/${player}/scrap/${type}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amount })
+                });
+                alert(`Granted ${amount} ${type} to ${player}`);
+            } catch (e) {
+                console.error('Error granting scrap:', e);
+            }
+        }
+
+        async function sendQuestToPlayer(player, questId) {
+            try {
+                const response = await fetch(`${API_URL}/api/player/${player}/quest`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ questId })
+                });
+                if (response.ok) {
+                    alert(`Quest sent to ${player}!`);
+                    await loadGameState();
+                }
+            } catch (e) {
+                console.error('Error sending quest:', e);
+            }
+        }
+
+        async function sendRadioToPlayer(player, radioId) {
+            try {
+                await fetch(`${API_URL}/api/player/${player}/radio`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ radioId })
+                });
+                alert(`Radio signal sent to ${player}!`);
+            } catch (e) {
+                console.error('Error sending radio:', e);
+            }
+        }
+
+        function renderQuests() {
+            const list = document.getElementById('quest-list');
+            list.innerHTML = '';
+            if (gameData.quests) {
+                gameData.quests.forEach(q => {
+                    const div = document.createElement('div');
+                    div.className = 'border border-pip-green/30 p-2 text-[10px]';
+                    div.innerHTML = `
+                        <p class="font-bold">${q.title}</p>
+                        <div class="flex gap-1 mt-1">
+                            <button onclick="sendQuestToPlayer('logan', '${q.id}')" class="pip-btn text-[8px] px-2 flex-1">→ LOGAN</button>
+                            <button onclick="sendQuestToPlayer('rylyn', '${q.id}')" class="pip-btn text-[8px] px-2 flex-1">→ RYLYN</button>
+                        </div>
+                    `;
+                    list.appendChild(div);
+                });
+            }
+        }
+
+        function renderRadio() {
+            const loganList = document.getElementById('logan-radio-list');
+            const rylynList = document.getElementById('rylyn-radio-list');
+            loganList.innerHTML = '';
+            rylynList.innerHTML = '';
+            
+            if (gameData.radioSignals) {
+                gameData.radioSignals.forEach(r => {
+                    const loganBtn = document.createElement('button');
+                    loganBtn.className = 'pip-btn w-full text-[8px] text-left truncate';
+                    loganBtn.textContent = r.title;
+                    loganBtn.onclick = () => sendRadioToPlayer('logan', r.id);
+                    loganList.appendChild(loganBtn);
+
+                    const rylynBtn = document.createElement('button');
+                    rylynBtn.className = 'pip-btn w-full text-[8px] text-left truncate';
+                    rylynBtn.textContent = r.title;
+                    rylynBtn.onclick = () => sendRadioToPlayer('rylyn', r.id);
+                    rylynList.appendChild(rylynBtn);
+                });
+            }
+        }
+
+        function renderQuarters() {
+            const catalog = document.getElementById('quarters-catalog');
+            const loganQuarters = document.getElementById('logan-quarters');
+            const rylynQuarters = document.getElementById('rylyn-quarters');
+            
+            catalog.innerHTML = '';
+            loganQuarters.innerHTML = '';
+            rylynQuarters.innerHTML = '';
+            
+            // Show all available upgrades
+            if (gameData.quarterUpgrades) {
+                gameData.quarterUpgrades.forEach(upgrade => {
+                    const div = document.createElement('div');
+                    div.className = 'border border-yellow-500/50 p-2 text-[10px]';
+                    div.innerHTML = `
+                        <p class="font-bold text-yellow-500">${upgrade.name}</p>
+                        <p class="opacity-70 text-[9px] mb-1">${upgrade.desc}</p>
+                        <p class="text-[9px] text-yellow-600 mb-2">COST: ${upgrade.cost} TABS</p>
+                        <div class="flex gap-1">
+                            <button onclick="grantPlayerUpgrade('logan', '${upgrade.id}')" class="pip-btn text-[8px] px-2 flex-1">→ LOGAN</button>
+                            <button onclick="grantPlayerUpgrade('rylyn', '${upgrade.id}')" class="pip-btn text-[8px] px-2 flex-1">→ RYLYN</button>
+                        </div>
+                    `;
+                    catalog.appendChild(div);
+                });
+            }
+
+            // Show Logan's quarters
+            if (gameData.players.logan && gameData.players.logan.purchasedUpgrades) {
+                if (gameData.players.logan.purchasedUpgrades.length > 0) {
+                    gameData.players.logan.purchasedUpgrades.forEach(upgradeId => {
+                        const upgrade = gameData.quarterUpgrades.find(u => u.id === upgradeId);
+                        if (upgrade) {
+                            const div = document.createElement('div');
+                            div.className = 'bg-green-400/10 border-l-2 border-green-500 pl-2 py-1';
+                            div.innerHTML = `<p class="font-bold text-green-400 text-[9px]">${upgrade.name}</p>`;
+                            loganQuarters.appendChild(div);
+                        }
+                    });
+                } else {
+                    loganQuarters.innerHTML = '<p class="opacity-70 text-[9px]">No upgrades purchased</p>';
+                }
+            }
+
+            // Show Rylyn's quarters
+            if (gameData.players.rylyn && gameData.players.rylyn.purchasedUpgrades) {
+                if (gameData.players.rylyn.purchasedUpgrades.length > 0) {
+                    gameData.players.rylyn.purchasedUpgrades.forEach(upgradeId => {
+                        const upgrade = gameData.quarterUpgrades.find(u => u.id === upgradeId);
+                        if (upgrade) {
+                            const div = document.createElement('div');
+                            div.className = 'bg-red-400/10 border-l-2 border-red-500 pl-2 py-1';
+                            div.innerHTML = `<p class="font-bold text-red-400 text-[9px]">${upgrade.name}</p>`;
+                            rylynQuarters.appendChild(div);
+                        }
+                    });
+                } else {
+                    rylynQuarters.innerHTML = '<p class="opacity-70 text-[9px]">No upgrades purchased</p>';
+                }
+            }
+        }
+
+        function renderPerks() {
+            const perkList = document.getElementById('perks-list');
+            const loganPerkStatus = document.getElementById('logan-perks-status');
+            const rylynPerkStatus = document.getElementById('rylyn-perks-status');
+            
+            perkList.innerHTML = '';
+            loganPerkStatus.innerHTML = '';
+            rylynPerkStatus.innerHTML = '';
+            
+            // Show all available perks
+            if (gameData.perks) {
+                gameData.perks.forEach(perk => {
+                    const div = document.createElement('div');
+                    div.className = 'border border-pip-green/30 p-2 text-[10px]';
+                    div.innerHTML = `
+                        <p class="font-bold">${perk.name}</p>
+                        <p class="opacity-70 mb-2">${perk.desc}</p>
+                        <div class="flex gap-1">
+                            <button onclick="addPlayerPerk('logan', '${perk.id}')" class="pip-btn text-[8px] px-2 flex-1">→ LOGAN</button>
+                            <button onclick="addPlayerPerk('rylyn', '${perk.id}')" class="pip-btn text-[8px] px-2 flex-1">→ RYLYN</button>
+                        </div>
+                    `;
+                    perkList.appendChild(div);
+                });
+            }
+
+            // Show player perks
+            if (gameData.players.logan && gameData.players.logan.unlockedPerks) {
+                if (gameData.players.logan.unlockedPerks.length > 0) {
+                    gameData.players.logan.unlockedPerks.forEach(perkId => {
+                        const perk = gameData.perks.find(p => p.id === perkId);
+                        if (perk) {
+                            const div = document.createElement('div');
+                            div.className = 'border-l-2 border-green-500 pl-2 mb-1';
+                            div.innerHTML = `
+                                <span class="text-green-400 font-bold">${perk.name}</span>
+                                <button onclick="removePlayerPerk('logan', '${perk.id}')" class="text-red-400 text-[8px] float-right cursor-pointer hover:text-red-300">REMOVE</button>
+                            `;
+                            loganPerkStatus.appendChild(div);
+                        }
+                    });
+                } else {
+                    loganPerkStatus.innerHTML = '<span class="opacity-70">No perks</span>';
+                }
+            }
+
+            if (gameData.players.rylyn && gameData.players.rylyn.unlockedPerks) {
+                if (gameData.players.rylyn.unlockedPerks.length > 0) {
+                    gameData.players.rylyn.unlockedPerks.forEach(perkId => {
+                        const perk = gameData.perks.find(p => p.id === perkId);
+                        if (perk) {
+                            const div = document.createElement('div');
+                            div.className = 'border-l-2 border-green-500 pl-2 mb-1';
+                            div.innerHTML = `
+                                <span class="text-green-400 font-bold">${perk.name}</span>
+                                <button onclick="removePlayerPerk('rylyn', '${perk.id}')" class="text-red-400 text-[8px] float-right cursor-pointer hover:text-red-300">REMOVE</button>
+                            `;
+                            rylynPerkStatus.appendChild(div);
+                        }
+                    });
+                } else {
+                    rylynPerkStatus.innerHTML = '<span class="opacity-70">No perks</span>';
+                }
+            }
+        }
+
+        async function addPlayerPerk(player, perkId) {
+            try {
+                const response = await fetch(`${API_URL}/api/player/${player}/perk/${perkId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                if (response.ok) {
+                    alert(`Perk added to ${player}!`);
+                    await loadGameState();
+                    renderPerks();
+                } else {
+                    alert('Could not add perk');
+                }
+            } catch (e) {
+                console.error('Error adding perk:', e);
+            }
+        }
+
+        async function removePlayerPerk(player, perkId) {
+            try {
+                const response = await fetch(`${API_URL}/api/player/${player}/perk/${perkId}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                if (response.ok) {
+                    alert(`Perk removed from ${player}!`);
+                    await loadGameState();
+                    renderPerks();
+                } else {
+                    alert('Could not remove perk');
+                }
+            } catch (e) {
+                console.error('Error removing perk:', e);
+            }
+        }
+
+        function renderTrades() {
+            const list = document.getElementById('trades-list');
+            list.innerHTML = '';
+            if (gameData.tradeOffers) {
+                gameData.tradeOffers.forEach(t => {
+                    const div = document.createElement('div');
+                    div.className = 'border border-pip-green/30 p-2 text-[10px]';
+                    div.innerHTML = `<strong>${t.vendor}</strong><br>${t.offers.map(o => `${o.item}: ${o.cost} Tabs`).join(', ')}`;
+                    list.appendChild(div);
+                });
+            }
+        }
+
+        function generateQRCodes() {
+            const loganUrl = `${window.location.origin}/player.html?player=logan`;
+            const rylynUrl = `${window.location.origin}/player.html?player=rylyn`;
+
+            new QRious({
+                element: document.getElementById('qr-logan'),
+                value: loganUrl,
+                size: 300
+            });
+
+            new QRious({
+                element: document.getElementById('qr-rylyn'),
+                value: rylynUrl,
+                size: 300
+            });
+        }
+
+        async function grantPlayerUpgrade(player, upgradeId) {
+            try {
+                const response = await fetch(`${API_URL}/api/player/${player}/quarters/${upgradeId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                if (response.ok) {
+                    const result = await response.json();
+                    alert(`${result.upgrade.name} granted to ${player}!`);
+                    await loadGameState();
+                    renderQuarters();
+                } else {
+                    const result = await response.json();
+                    alert(`Error: ${result.error}`);
+                }
+            } catch (e) {
+                console.error('Error granting upgrade:', e);
+            }
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>

@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Plaid-Pal v5.0 - Timed Expeditions</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
+        :root {
+            --pip-green: #1aff1a;
+            --pip-green-dim: #0a5a0a;
+            --pip-bg: #050505;
+        }
+
+        body {
+            background-color: #000;
+            color: var(--pip-green);
+            font-family: 'VT323', monospace;
+            text-transform: uppercase;
+            overflow: hidden;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .crt-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.15) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 255, 0, 0.03));
+            background-size: 100% 3px, 3px 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .screen {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 8px;
+            border: 4px solid var(--pip-green-dim);
+            box-shadow: inset 0 0 30px #0a2a0a;
+            background: radial-gradient(circle, #0a2a0a 0%, #050505 100%);
+        }
+
+        .nav-top-btn {
+            border: 1px solid var(--pip-green-dim);
+            padding: 4px;
+            text-align: center;
+            cursor: pointer;
+            flex: 1;
+            font-size: 0.9rem;
+            background: rgba(0,0,0,0.5);
+        }
+
+        .nav-top-btn.active {
+            background: var(--pip-green);
+            color: #000;
+            box-shadow: 0 0 10px var(--pip-green);
+        }
+
+        .sub-nav-btn {
+            flex: 1;
+            text-align: center;
+            padding: 4px;
+            border-bottom: 2px solid var(--pip-green-dim);
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        .sub-nav-btn.active {
+            border-bottom-color: var(--pip-green);
+            color: white;
+            text-shadow: 0 0 5px var(--pip-green);
+        }
+
+        input[type="number"] {
+            background: transparent;
+            border: 1px solid var(--pip-green-dim);
+            color: var(--pip-green);
+            width: 40px;
+            text-align: center;
+            font-family: 'VT323', monospace;
+        }
+
+        .btn-action {
+            border: 1px solid var(--pip-green);
+            background: rgba(26, 255, 26, 0.1);
+            padding: 2px 6px;
+            cursor: pointer;
+        }
+
+        .btn-action:active {
+            background: var(--pip-green);
+            color: #000;
+        }
+        
+        .btn-action:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .log-box {
+            border: 1px solid var(--pip-green-dim);
+            height: 60px;
+            overflow-y: auto;
+            font-size: 0.75rem;
+            padding: 4px;
+            background: rgba(0,0,0,0.6);
+        }
+
+        .quest-card {
+            border: 1px solid var(--pip-green-dim);
+            padding: 8px;
+            margin-bottom: 8px;
+            background: rgba(26, 255, 26, 0.05);
+            transition: all 0.3s;
+        }
+        
+        .quest-card.active-quest {
+            border-color: var(--pip-green);
+            box-shadow: 0 0 10px rgba(26, 255, 26, 0.3);
+            background: rgba(26, 255, 26, 0.1);
+        }
+
+        .quest-card.completed {
+            opacity: 0.4;
+            border-style: dashed;
+        }
+
+        .xp-bar {
+            height: 4px;
+            background: var(--pip-green-dim);
+            width: 100%;
+        }
+
+        .xp-fill {
+            height: 100%;
+            background: var(--pip-green);
+            box-shadow: 0 0 5px var(--pip-green);
+            transition: width 0.4s ease;
+        }
+
+        .lvl-up-overlay {
+            position: absolute;
+            top: 10%; left: 5%; width: 90%; height: 80%;
+            background: black;
+            border: 2px solid var(--pip-green);
+            z-index: 200;
+            padding: 1rem;
+            box-shadow: 0 0 50px black;
+        }
+
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: var(--pip-green-dim); }
+    </style>
+</head>
+<body>
+
+<div class="crt-overlay"></div>
+
+<div class="screen">
+    
+    <!-- TOP GLOBAL NAVIGATION -->
+    <div class="flex gap-1 mb-2">
+        <div id="top-btn-radio" class="nav-top-btn" onclick="switchGlobal('radio')">RAD</div>
+        <div id="top-btn-quests" class="nav-top-btn active" onclick="switchGlobal('quests')">QUESTS</div>
+        <div id="top-btn-p1" class="nav-top-btn" onclick="switchGlobal('p1')">P1</div>
+        <div id="top-btn-p2" class="nav-top-btn" onclick="switchGlobal('p2')">P2</div>
+    </div>
+
+    <!-- HEADER STATUS -->
+    <div class="flex justify-between items-end border-b border-[#0a5a0a] pb-1 mb-2">
+        <div>
+            <h1 id="view-title" class="text-xl leading-none">PARTY QUEST LOG</h1>
+            <p id="view-subtitle" class="text-[10px] opacity-70">BASE: VAULT 11</p>
+        </div>
+        <div class="text-right">
+            <p id="clock" class="text-lg">00:00</p>
+            <p class="text-xs">TABS: <span id="party-tabs" class="text-yellow-400">0</span></p>
+        </div>
+    </div>
+
+    <!-- SUB-NAVIGATION (Only visible when Player selected) -->
+    <div id="player-subnav" class="hidden flex mb-2">
+        <div id="sub-btn-stats" class="sub-nav-btn active" onclick="switchSub('stats')">STAT</div>
+        <div id="sub-btn-skills" class="sub-nav-btn" onclick="switchSub('skills')">SKILL</div>
+        <div id="sub-btn-perks" class="sub-nav-btn" onclick="switchSub('perks')">PERK</div>
+        <div id="sub-btn-inv" class="sub-nav-btn" onclick="switchSub('inv')">INV</div>
+    </div>
+
+    <!-- MAIN CONTENT AREA -->
+    <div id="main-content" class="flex-grow overflow-y-auto pr-1">
+        
+        <!-- RADIO VIEW -->
+        <div id="view-radio" class="hidden space-y-4">
+            <div class="border border-[#1aff1a] p-2 text-center bg-black">
+                <div class="text-xl animate-pulse">98.1 THREE-CROWS FM</div>
+            </div>
+            <div id="radio-display" class="log-box italic opacity-80 p-2 text-center">"SELECT A FREQUENCY..."</div>
+            <div class="grid grid-cols-2 gap-2">
+                <button class="btn-action py-3" onclick="playRadio('vault11')">VAULT 11 (HOME)</button>
+                <button class="btn-action py-3" onclick="playRadio('hub')">TRURO HUB</button>
+                <button class="btn-action py-3" onclick="playRadio('wilds')">DEBERT</button>
+                <button class="btn-action py-3" onclick="playRadio('earltown')">EARLTOWN</button>
+                <button class="btn-action py-3" onclick="playRadio('coast')">ECONOMY</button>
+                <button class="btn-action py-3" onclick="playRadio('mastodon')">STEWIACKE</button>
+            </div>
+        </div>
+
+        <!-- QUESTS VIEW (WITH TIMERS) -->
+        <div id="view-quests" class="space-y-4">
+            <div class="text-[10px] opacity-70 text-center border-b border-[#0a5a0a] pb-1 mb-2">INITIATE QUEST TO START TIMERS</div>
+            <div id="quest-list-main"></div>
+            <div class="border-t border-[#0a5a0a] mt-4 pt-2">
+                <div class="text-xs mb-2 opacity-60">LOCAL ENCOUNTERS (SIDE)</div>
+                <div id="quest-list-side"></div>
+            </div>
+        </div>
+
+        <!-- COMBINED PLAYER STATUS VIEW -->
+<div id="view-stats" class="hidden space-y-4">
+    <!-- Level and XP Bar -->
+    <div class="space-y-1">
+        <div class="flex justify-between text-xs">
+            <span>LEVEL <span id="p-lvl">1</span> XP</span>
+            <span id="p-xp-text">0/100</span>
+        </div>
+        <div class="xp-bar"><div id="p-xp-fill" class="xp-fill"></div></div>
+    </div>
+
+    <!-- C.H.A.P.P.Y. Stats Grid -->
+    <div class="grid grid-cols-3 gap-2 text-center">
+        <div class="border border-[#0a5a0a] p-2"><div class="text-[10px]">C</div><div id="stat-c" class="text-xl">5</div></div>
+        <div class="border border-[#0a5a0a] p-2"><div class="text-[10px]">H</div><div id="stat-h" class="text-xl">5</div></div>
+        <div class="border border-[#0a5a0a] p-2"><div class="text-[10px]">A</div><div id="stat-a" class="text-xl">5</div></div>
+        <div class="border border-[#0a5a0a] p-2"><div class="text-[10px]">P</div><div id="stat-p1" class="text-xl">5</div></div>
+        <div class="border border-[#0a5a0a] p-2"><div class="text-[10px]">P</div><div id="stat-p2" class="text-xl">5</div></div>
+        <div class="border border-[#0a5a0a] p-2"><div class="text-[10px]">Y</div><div id="stat-y" class="text-xl">5</div></div>
+    </div>
+
+    <!-- Integrated Skills List -->
+    <div class="border-t border-[#0a5a0a] pt-2">
+        <div class="text-[10px] opacity-60 mb-1">SKILL PROFICIENCIES</div>
+        <div id="skills-list" class="space-y-1"></div>
+    </div>
+</div>
+
+        <!-- PLAYER INVENTORY VIEW -->
+        <div id="view-inv" class="hidden space-y-4">
+            <div class="grid grid-cols-3 gap-2">
+                <div class="border border-[#0a5a0a] p-1 text-center">
+                    <div class="text-[9px]">STEEL</div>
+                    <div id="inv-steel" class="text-lg">0</div>
+                </div>
+                <div class="border border-[#0a5a0a] p-1 text-center">
+                    <div class="text-[9px]">WOOD</div>
+                    <div id="inv-wood" class="text-lg">0</div>
+                </div>
+                <div class="border border-[#0a5a0a] p-1 text-center">
+                    <div class="text-[9px]">ADHESIVE</div>
+                    <div id="inv-adhesive" class="text-lg">0</div>
+                </div>
+            </div>
+            <div class="border-t border-[#0a5a0a] pt-2">
+                <div class="text-xs mb-2 opacity-60">MANUAL OVERRIDE</div>
+                <div class="grid grid-cols-2 gap-2">
+                    <button class="btn-action text-xs" onclick="adjInv('tabs', 5)">+5 TABS</button>
+                    <button class="btn-action text-xs" onclick="adjInv('tabs', -5)">-5 TABS</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- LEVEL UP MODAL -->
+    <div id="lvl-up-modal" class="lvl-up-overlay hidden">
+        <h2 class="text-2xl text-center border-b border-[#1aff1a] mb-4">LEVEL ASCENSION</h2>
+        <div id="lvl-up-content" class="h-full overflow-y-auto pb-20">
+            <div class="mb-4">
+                <div class="text-sm">SKILL POINTS: <span id="spend-skill-pts">0</span></div>
+                <div id="lvl-skill-options" class="grid grid-cols-1 gap-1 mt-2"></div>
+            </div>
+            <div class="mb-4">
+                <div class="text-sm">PICK A PERK:</div>
+                <div id="lvl-perk-options" class="space-y-1 mt-2"></div>
+            </div>
+            <button id="finish-lvl-up" class="btn-action w-full py-2 absolute bottom-4 left-0" onclick="confirmLevelUp()">CONFIRM</button>
+        </div>
+    </div>
+
+    <!-- FOOTER LOG -->
+    <div class="mt-2">
+        <div id="main-log" class="log-box"></div>
+        <div class="mt-1 flex justify-between text-[8px] opacity-40 italic">
+            <span>PLAID-PAL OS v5.0</span>
+            <span id="autosave-status">AUTOSAVE: SYNCED</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    const perksData = [
+        { id: 'iron_calves', name: 'Iron Calves', desc: 'No fatigue on stairs.', lvl: 1 },
+        { id: 'donair_enthusiast', name: 'Donair Enthusiast', desc: 'Healing x2.', lvl: 2 },
+        { id: 'tidal_time', name: 'Tidal Timetable', desc: '+2 Perception.', lvl: 3 },
+        { id: 'plaid_cam', name: 'Plaid Camouflage', desc: 'Bypass Townies.', lvl: 4 },
+        { id: 'scav_master', name: 'Scrap Master', desc: '+50% Scrap Found.', lvl: 5 }
+    ];
+
+    const skillsList = ['Survival', 'Scavenging', 'Politeness', 'Storytelling', 'Hardiness', 'Repair'];
+
+    const questsData = {
+  main: [
+    { id: 'mq1', name: "Initiation of the Hub", mins: 20, xp: 50, tabs: 20, loc: "Victoria Park, Truro", desc: "Scale Jacob's Ladder without stopping. Prove your Hardiness!" },
+    { id: 'mq2', name: "Anomaly of the Tides", mins: 45, xp: 75, tabs: 25, loc: "Burncoat/Salmon River", desc: "Walk the ocean floor or witness the Bore. Collect a Salt-Soaked Relic." },
+    { id: 'mq3', name: "Red Wastes Expedition", mins: 60, xp: 80, tabs: 30, loc: "Five Islands", desc: "Build a 5-rock Beacon and take a photo for the Vault archives." },
+    { id: 'mq4', name: "Vault 102 Breach", mins: 40, xp: 100, tabs: 50, loc: "Debert Diefenbunker", desc: "Search the Cold War ruins for Pre-War Military Tech." },
+    { id: 'mq5', name: "Salt Mountain Summit", mins: 50, xp: 70, tabs: 35, loc: "Whycocomagh", desc: "Scale the heights and survey the surrounding Wasteland." },
+    { id: 'mq6', name: "Kejimkujik Survey", mins: 70, xp: 90, tabs: 30, loc: "Kejimkujik", desc: "Identify 3 types of flora and perform a 30-second Moose Call." },
+    { id: 'mq7', name: "Cape Split Recon", mins: 120, xp: 120, tabs: 40, loc: "Canning", desc: "Complete the ultimate trek to the cliff edge. Do not fall in." }
+  ],
+  side: [
+    { id: 'sq_v11_fire', name: "Fire-Watch Sentinel", mins: 5, xp: 10, tabs: 5, loc: "Vault 11", desc: "Check the BurnSafe map. Are fires permitted today?" },
+    { id: 'sq_v11_sort', name: "Sorting Protocol", mins: 15, xp: 20, tabs: 10, loc: "Vault 11", desc: "Process the waste: Paper, Recyclable, Organic, Garbage." },
+    { id: 'sq_v11_pack', name: "Scavenger's Audit", mins: 10, xp: 15, tabs: 5, loc: "Vault 11", desc: "Verify 3L water and rations are in the Mobile Base." },
+    { id: 'sq_lore', name: "Librarian's Lore", mins: 10, xp: 20, tabs: 10, loc: "Truro Library", desc: "Read local history in your best Old Radio gravelly voice." },
+    { id: 'sq_market', name: "Merchant's Toll", mins: 5, xp: 10, tabs: 5, loc: "Masstown Market", desc: "Hold the door and greet a stranger: 'After you, Wastelander'." },
+    { id: 'sq_gold', name: "Meander Prospecting", mins: 30, xp: 25, tabs: 10, loc: "Smileys Park", desc: "Find one 'shiny' rock in the Meander River banks." },
+    { id: 'sq_iron', name: "Iron Works Scavenge", mins: 30, xp: 40, tabs: 10, loc: "Londonderry", desc: "Retrieve a piece of heavy Steel scrap from the ruins." },
+    { id: 'sq_beach', name: "Lifeguard Vigil", mins: 20, xp: 15, tabs: 5, loc: "Colchester Shores", desc: "Patrol the shoreline. Watch for emerging sea mutants." }
+  ]
+};
+        main: [
+            { id: 'mq1', name: "Ascent of Jacob's Ladder", mins: 20, xp: 50, tabs: 20, loc: "Victoria Park, Truro", desc: "Scale the 175 ancient wooden steps of the Forbidden Gully. Beware the mutated squirrels and acidic waterfall spray. Prove your Hardiness!" },
+            { id: 'mq2', name: "Sugar Moon Summit", mins: 60, xp: 80, tabs: 35, loc: "Rogart Mtn, Earltown", desc: "Trek the 6.2km rugged loop. Retrieve pre-war maple syrup tech from the summit and keep a sharp eye out for the legendary Glo-Moose." },
+            { id: 'mq3', name: "The Great Cascade", mins: 45, xp: 75, tabs: 30, loc: "Economy Falls", desc: "Descend the treacherous gorge to the roaring falls. The rushing water hides old-world secrets, but the slippery rocks demand high Agility." },
+            { id: 'mq4', name: "Vault 102 Breach", mins: 40, xp: 100, tabs: 50, loc: "Diefenbunker, Debert", desc: "Infiltrate the perimeter of the Debert Cold War ruins. Search the heavily irradiated blast doors for abandoned Cellar-Co military rations." },
+            { id: 'mq5', name: "Tidal Bore Run", mins: 15, xp: 40, tabs: 20, loc: "Fundy Discovery Site", desc: "Witness the gravitational anomaly! The ocean flows backwards! Observe the bore and escape the rising red mud before you get bogged down." }
+        ],
+        side: [
+            { id: 'sq_home', name: "Vault 11 Maintenance", mins: 30, xp: 20, tabs: 10, loc: "Vault 11 (Home)", desc: "Perform essential base maintenance (chores). The Overseer requires sanitized living quarters to prevent Rad-Roach infestations." },
+            { id: 'sq_market', name: "Market Barter", mins: 25, xp: 20, tabs: 10, loc: "Truro Farmers Market", desc: "Navigate the crowded bazaar. Use your Charm to barter with the local merchants for a fresh Donair-Dab without getting scammed." },
+            { id: 'sq_trail', name: "Cobequid Courier", mins: 35, xp: 30, tabs: 15, loc: "Cobequid Trail", desc: "Deliver a fragile plasma core (a perfectly balanced pinecone) down the trail. Do not drop it, and evade the Rad-Skeeter swarms." },
+            { id: 'sq_mastodon', name: "Mastodon Recon", mins: 15, xp: 25, tabs: 10, loc: "Stewiacke", desc: "Investigate the giant frozen beast marking the halfway point to the equator. Is it a pre-war statue or a petrified mutant? Gather intel." },
+            { id: 'sq_pump', name: "Bible Hill Pump Track", mins: 20, xp: 25, tabs: 10, loc: "Bible Hill", desc: "Test your Agility at the dirt mounds. Navigate the treacherous rolling terrain without taking Rad-Damage to your knees." },
+            { id: 'sq_mines', name: "Londonderry Mines", mins: 30, xp: 40, tabs: 25, loc: "Londonderry", desc: "Explore the rusted remnants of the iron smelting ruins. Scavenge for precious Steel components hidden in the overgrown brickwork." }
+        ]
+    };
+
+    const radioScripts = {
+  vault11: "OVERSEER: 'Ensure your canines are on a 2m lead. Keep the Vault tidy.'",
+  hub: "THREE-CROWS: 'The stairs at the Gully are slippery today. Watch your step.'",
+  wilds: "THREE-CROWS: 'Something's humming in the Debert bunker. Stay salty.'",
+  coast: "THREE-CROWS: 'Tides are coming in fast at the Great Drain. Move it!'",
+  earltown: "THREE-CROWS: 'Sugar Moon tech detected in the North. Good luck, scavs.'",
+  londonderry: "THREE-CROWS: 'The iron forge is cold, but the scrap is plenty.'"
+};
+        vault11: "OVERSEER COMMS: 'Attention Vault 11 residents. Ensure all living quarters are sanitized before venturing into the Wasteland.'",
+        hub: "THREE-CROWS: 'Market's packed today. Guard your tabs, the merchants are fierce.'",
+        wilds: "THREE-CROWS: 'The Debert bunker is hummin'. Might be mutants, might be the wind.'",
+        earltown: "THREE-CROWS: 'Maple season is upon us. Best scavenging in the North.'",
+        coast: "THREE-CROWS: 'Tides are shifting at Fundy. Don't get caught in the red mud!'",
+        mastodon: "THREE-CROWS: 'Something big is frozen down in Stewiacke. Keep your distance.'"
+    };
+
+    let pIndex = 0; // 0 for P1, 1 for P2
+    let globalView = 'quests';
+    let subView = 'stats';
+
+    let gameState = {
+        players: [
+            { name: "P1", lvl: 1, xp: 0, tabs: 10, steel: 0, wood: 0, adhesive: 0, 
+              stats: { c: 5, h: 5, a: 5, p1: 5, p2: 5, y: 5 }, 
+              skills: { Survival: 10, Scavenging: 10, Politeness: 10, Storytelling: 10, Hardiness: 10, Repair: 10 },
+              perks: [], pendingPerks: 0, pendingSkills: 0 },
+            { name: "P2", lvl: 1, xp: 0, tabs: 10, steel: 0, wood: 0, adhesive: 0, 
+              stats: { c: 5, h: 5, a: 5, p1: 5, p2: 5, y: 5 }, 
+              skills: { Survival: 10, Scavenging: 10, Politeness: 10, Storytelling: 10, Hardiness: 10, Repair: 10 },
+              perks: [], pendingPerks: 0, pendingSkills: 0 }
+        ],
+        sharedCompleted: [],
+        activeQuests: {} // { questId: timestamp_of_completion }
+    };
+
+    // --- INITIALIZATION ---
+    function init() {
+        const saved = localStorage.getItem('plaid_pal_v5_state');
+        if (saved) gameState = JSON.parse(saved);
+        if (!gameState.activeQuests) gameState.activeQuests = {};
+        
+        setInterval(updateClock, 1000);
+        setInterval(updateTimers, 1000);
+        refreshUI();
+        addLog("PLAID-PAL OS v5 BOOTED. TIMERS ONLINE.");
+    }
+
+    function updateClock() {
+        const d = new Date();
+        document.getElementById('clock').innerText = d.getHours().toString().padStart(2,'0') + ":" + d.getMinutes().toString().padStart(2,'0');
+    }
+
+    function autosave() {
+        localStorage.setItem('plaid_pal_v5_state', JSON.stringify(gameState));
+        const status = document.getElementById('autosave-status');
+        status.innerText = "AUTOSAVE: SYNCED";
+        setTimeout(() => status.innerText = "AUTOSAVE: STANDBY", 2000);
+    }
+
+    // --- NAVIGATION ---
+    function switchGlobal(view) {
+        globalView = view;
+        document.querySelectorAll('.nav-top-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(`top-btn-${view}`).classList.add('active');
+        
+        const subNav = document.getElementById('player-subnav');
+        if (view === 'p1' || view === 'p2') {
+            pIndex = (view === 'p1') ? 0 : 1;
+            subNav.classList.remove('hidden');
+            document.getElementById('view-title').innerText = `USER 0${pIndex + 1}`;
+            document.getElementById('view-subtitle').innerText = "RESIDENT OF VAULT 11";
+            switchSub(subView);
+        } else {
+            pIndex = -1;
+            subNav.classList.add('hidden');
+            document.getElementById('view-title').innerText = (view === 'radio') ? "THREE-CROWS FM" : "PARTY QUEST LOG";
+            document.getElementById('view-subtitle').innerText = "BASE: VAULT 11";
+            
+            document.querySelectorAll('#main-content > div').forEach(d => d.classList.add('hidden'));
+            document.getElementById(`view-${view}`).classList.remove('hidden');
+        }
+        refreshUI();
+    }
+
+    function switchSub(view) {
+        subView = view;
+        document.querySelectorAll('.sub-nav-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(`sub-btn-${view}`).classList.add('active');
+        
+        document.querySelectorAll('#main-content > div').forEach(d => d.classList.add('hidden'));
+        document.getElementById(`view-${view}`).classList.remove('hidden');
+        refreshUI();
+    }
+
+    // --- REFRESH UI ---
+    function refreshUI() {
+        document.getElementById('party-tabs').innerText = gameState.players[0].tabs + gameState.players[1].tabs;
+        
+        if (pIndex !== -1) {
+            const p = gameState.players[pIndex];
+            document.getElementById('p-lvl').innerText = p.lvl;
+            document.getElementById('p-xp-text').innerText = `${p.xp}/100`;
+            document.getElementById('p-xp-fill').style.width = `${p.xp}%`;
+            
+            for (let s in p.stats) {
+                const el = document.getElementById(`stat-${s}`);
+                if (el) el.innerText = p.stats[s];
+            }
+            
+            document.getElementById('skills-list').innerHTML = skillsList.map(s => `
+                <div class="flex justify-between border-b border-[#0a5a0a] py-1 text-sm">
+                    <span>${s.toUpperCase()}</span><span>${p.skills[s]}%</span>
+                </div>
+            `).join('');
+
+            document.getElementById('perks-list').innerHTML = p.perks.length > 0 ? 
+                p.perks.map(id => {
+                    const perk = perksData.find(pd => pd.id === id);
+                    return `<div class="p-1 border border-[#0a5a0a] mb-1">
+                                <div class="text-xs">${perk.name}</div>
+                                <div class="text-[9px] opacity-60">${perk.desc}</div>
+                            </div>`;
+                }).join('') : `<div class="text-xs italic opacity-40 text-center">NO PERKS ACTIVE</div>`;
+
+            document.getElementById('inv-steel').innerText = p.steel;
+            document.getElementById('inv-wood').innerText = p.wood;
+            document.getElementById('inv-adhesive').innerText = p.adhesive;
+
+            if ((p.pendingSkills > 0 || p.pendingPerks > 0) && document.getElementById('lvl-up-modal').classList.contains('hidden')) {
+                showLevelUp();
+            }
+        }
+
+        renderQuests();
+    }
+
+    // --- QUEST ENGINE & TIMERS ---
+    function renderQuests() {
+        const render = (list, id) => {
+            const el = document.getElementById(id);
+            el.innerHTML = list.map(q => {
+                const isDone = gameState.sharedCompleted.includes(q.id);
+                const isActive = gameState.activeQuests[q.id] !== undefined;
+                
+                let buttonHTML = "";
+                let statusHTML = "";
+
+                if (isDone) {
+                    buttonHTML = `<button class="btn-action text-[10px] px-4" disabled>FINISHED</button>`;
+                    statusHTML = `<span class="text-[9px] text-green-600 font-bold">CLEARED</span>`;
+                } else if (isActive) {
+                    buttonHTML = `<button class="btn-action text-[10px] bg-green-900 text-white px-4" onclick="completeQuest('${q.id}', ${q.xp}, ${q.tabs})">COMPLETE</button>`;
+                    statusHTML = `<span id="timer-${q.id}" class="text-[12px] font-bold text-yellow-300">--:--</span>`;
+                } else {
+                    buttonHTML = `<button class="btn-action text-[10px] px-4" onclick="startQuest('${q.id}', ${q.mins})">START</button>`;
+                    statusHTML = `<span class="text-[9px] opacity-60">EST: ${q.mins} MINS</span>`;
+                }
+
+                return `
+                    <div class="quest-card ${isDone ? 'completed' : ''} ${isActive ? 'active-quest' : ''}">
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="pr-2">
+                                <div class="text-sm font-bold leading-tight">${q.name}</div>
+                                <div class="text-[10px] opacity-80 mt-1 leading-snug">${q.desc}</div>
+                                <div class="text-[9px] opacity-60 mt-2 text-green-400">LOC: ${q.loc.toUpperCase()}</div>
+                            </div>
+                            <div class="flex flex-col items-end gap-2 shrink-0">
+                                ${buttonHTML}
+                                ${statusHTML}
+                            </div>
+                        </div>
+                        <div class="border-t border-[#0a5a0a] pt-1 mt-1 text-[9px] text-yellow-500">
+                            REWARD: +${q.xp}XP, +${q.tabs}TABS
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        render(questsData.main, 'quest-list-main');
+        render(questsData.side, 'quest-list-side');
+        updateTimers(); // Force immediate timer calculation
+    }
+
+    function startQuest(id, mins) {
+        gameState.activeQuests[id] = Date.now() + (mins * 60 * 1000);
+        addLog(`QUEST INITIATED. TIMER STARTED FOR ${mins} MINS.`);
+        autosave();
+        renderQuests();
+    }
+
+    function updateTimers() {
+        if (!gameState.activeQuests) return;
+        const now = Date.now();
+        
+        for (let id in gameState.activeQuests) {
+            const el = document.getElementById(`timer-${id}`);
+            if (el) {
+                const diff = gameState.activeQuests[id] - now;
+                if (diff <= 0) {
+                    el.innerText = "OVERDUE";
+                    el.classList.add('text-red-500');
+                    el.classList.remove('text-yellow-300');
+                } else {
+                    const m = Math.floor(diff / 60000).toString().padStart(2, '0');
+                    const s = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
+                    el.innerText = `${m}:${s}`;
+                }
+            }
+        }
+    }
+
+    function completeQuest(id, xp, tabs) {
+        if (gameState.sharedCompleted.includes(id)) return;
+        
+        gameState.sharedCompleted.push(id);
+        delete gameState.activeQuests[id]; // Remove from active
+        
+        gameState.players.forEach(p => {
+            p.tabs += tabs;
+            p.xp += xp;
+            if (p.xp >= 100) {
+                p.xp -= 100;
+                p.lvl++;
+                p.pendingSkills += 15;
+                p.pendingPerks += (p.lvl % 2 === 0) ? 1 : 0;
+                addLog(`${p.name} HAS LEVELED UP!`);
+            }
+        });
+
+        addLog(`PARTY REWARD: ${id.toUpperCase()} CLEARED.`);
+        autosave();
+        renderQuests();
+    }
+
+    // --- MISC ACTIONS ---
+    function adjInv(key, amt) {
+        if (pIndex === -1) return;
+        gameState.players[pIndex][key] = Math.max(0, gameState.players[pIndex][key] + amt);
+        refreshUI();
+        autosave();
+    }
+
+    function playRadio(ch) {
+        document.getElementById('radio-display').innerText = radioScripts[ch];
+        addLog(`SIGNAL: ${ch.toUpperCase()} TUNED.`);
+    }
+
+    function addLog(msg) {
+        const log = document.getElementById('main-log');
+        log.innerHTML = `> ${msg}<br>` + log.innerHTML;
+        log.scrollTop = 0;
+    }
+
+    // --- LEVEL UP LOGIC ---
+    function showLevelUp() {
+        const p = gameState.players[pIndex];
+        document.getElementById('lvl-up-modal').classList.remove('hidden');
+        document.getElementById('spend-skill-pts').innerText = p.pendingSkills;
+        
+        const skillOpt = document.getElementById('lvl-skill-options');
+        skillOpt.innerHTML = skillsList.map(s => `
+            <div class="flex justify-between items-center bg-[#1aff1a11] p-1 border border-[#0a5a0a]">
+                <span>${s} (${p.skills[s]})</span>
+                <button class="btn-action" onclick="spendPoint('${s}')">+</button>
+            </div>
+        `).join('');
+
+        const perkOpt = document.getElementById('lvl-perk-options');
+        if (p.pendingPerks > 0) {
+            perkOpt.innerHTML = perksData
+                .filter(pd => !p.perks.includes(pd.id) && pd.lvl <= p.lvl)
+                .map(pd => `
+                    <div class="p-2 border border-[#0a5a0a] cursor-pointer hover:bg-[#1aff1a22]" onclick="selectPerk('${pd.id}')">
+                        <div class="text-sm font-bold">${pd.name}</div>
+                        <div class="text-[10px] opacity-70">${pd.desc}</div>
+                    </div>
+                `).join('');
+        } else {
+            perkOpt.innerHTML = `<div class="text-[10px] italic opacity-40">NO PERK POINTS AVAILABLE.</div>`;
+        }
+    }
+
+    function spendPoint(skill) {
+        const p = gameState.players[pIndex];
+        if (p.pendingSkills > 0) {
+            p.pendingSkills--;
+            p.skills[skill]++;
+            document.getElementById('spend-skill-pts').innerText = p.pendingSkills;
+            showLevelUp(); 
+        }
+    }
+
+    function selectPerk(id) {
+        const p = gameState.players[pIndex];
+        if (p.pendingPerks > 0) {
+            p.perks.push(id);
+            p.pendingPerks--;
+            addLog(`PERK GAINED: ${id.toUpperCase()}`);
+            confirmLevelUp();
+        }
+    }
+
+    function confirmLevelUp() {
+        const p = gameState.players[pIndex];
+        if (p.pendingSkills > 0) {
+            addLog("ERROR: UNSPENT SKILL POINTS.");
+            return;
+        }
+        document.getElementById('lvl-up-modal').classList.add('hidden');
+        autosave();
+        refreshUI();
+    }
+
+    init();
+</script>
+</body>
+</html>
