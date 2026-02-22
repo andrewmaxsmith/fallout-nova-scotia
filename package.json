@@ -1,0 +1,23 @@
+{
+  "name": "fallout-nova-scotia-gm",
+  "version": "1.0.0",
+  "description": "Fallout: New Nova Scotia - Game Master System for 2 players",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "fallout",
+    "game-master",
+    "multiplayer",
+    "rpg"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^4.22.1",
+    "qrcode": "^1.5.4"
+  }
+}
