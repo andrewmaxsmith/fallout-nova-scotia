@@ -118,16 +118,6 @@
                     <div class="player-card">
                         <label>TABS: <input type="number" id="logan-tabs" class="stat-input" value="10" onchange="updatePlayer('logan', 'tabs', this.value)"></label>
                     </div>
-                    <div class="mt-2">
-                        <button onclick="grantScrap('logan', 'maritimeMetal', 5)" class="pip-btn text-xs w-full mb-1">+5 MARITIME METAL</button>
-                        <button onclick="grantScrap('logan', 'syntheticSap', 5)" class="pip-btn text-xs w-full mb-1">+5 SYNTHETIC SAP</button>
-                        <button onclick="grantScrap('logan', 'hubCircuitry', 3)" class="pip-btn text-xs w-full mb-1">+3 HUB CIRCUITRY</button>
-                        <button onclick="grantScrap('logan', 'plaidScraps', 3)" class="pip-btn text-xs w-full mb-1">+3 PLAID SCRAPS</button>
-                        <button onclick="grantScrap('logan', 'propaneTank', 2)" class="pip-btn text-xs w-full mb-1">+2 PROPANE TANK</button>
-                        <button onclick="grantScrap('logan', 'radMeat', 2)" class="pip-btn text-xs w-full mb-1">+2 RAD-MEAT</button>
-                        <button onclick="grantScrap('logan', 'spices', 2)" class="pip-btn text-xs w-full mb-1">+2 SPICES</button>
-                        <button onclick="grantScrap('logan', 'cleanWater', 2)" class="pip-btn text-xs w-full">+2 CLEAN WATER</button>
-                    </div>
                     <div class="mt-4 p-3 border border-pip-green/50">
                         <p class="text-xs font-bold mb-3">MULTI-GRANT SCRAP</p>
                         <div class="grid grid-cols-2 gap-2 mb-3">
@@ -158,16 +148,6 @@
                     </div>
                     <div class="player-card">
                         <label>TABS: <input type="number" id="rylyn-tabs" class="stat-input" value="10" onchange="updatePlayer('rylyn', 'tabs', this.value)"></label>
-                    </div>
-                    <div class="mt-2">
-                        <button onclick="grantScrap('rylyn', 'maritimeMetal', 5)" class="pip-btn text-xs w-full mb-1">+5 MARITIME METAL</button>
-                        <button onclick="grantScrap('rylyn', 'syntheticSap', 5)" class="pip-btn text-xs w-full mb-1">+5 SYNTHETIC SAP</button>
-                        <button onclick="grantScrap('rylyn', 'hubCircuitry', 3)" class="pip-btn text-xs w-full mb-1">+3 HUB CIRCUITRY</button>
-                        <button onclick="grantScrap('rylyn', 'plaidScraps', 3)" class="pip-btn text-xs w-full mb-1">+3 PLAID SCRAPS</button>
-                        <button onclick="grantScrap('rylyn', 'propaneTank', 2)" class="pip-btn text-xs w-full mb-1">+2 PROPANE TANK</button>
-                        <button onclick="grantScrap('rylyn', 'radMeat', 2)" class="pip-btn text-xs w-full mb-1">+2 RAD-MEAT</button>
-                        <button onclick="grantScrap('rylyn', 'spices', 2)" class="pip-btn text-xs w-full mb-1">+2 SPICES</button>
-                        <button onclick="grantScrap('rylyn', 'cleanWater', 2)" class="pip-btn text-xs w-full">+2 CLEAN WATER</button>
                     </div>
                     <div class="mt-4 p-3 border border-pip-green/50">
                         <p class="text-xs font-bold mb-3">MULTI-GRANT SCRAP</p>
@@ -422,19 +402,6 @@
                 });
             } catch (e) {
                 console.error('Error updating player:', e);
-            }
-        }
-
-        async function grantScrap(player, type, amount) {
-            try {
-                await fetch(`${API_URL}/api/player/${player}/scrap/${type}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ amount })
-                });
-                alert(`Granted ${amount} ${type} to ${player}`);
-            } catch (e) {
-                console.error('Error granting scrap:', e);
             }
         }
 
