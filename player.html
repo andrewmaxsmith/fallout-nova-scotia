@@ -179,7 +179,6 @@
         <button onclick="showTab('status')" class="pip-btn p-2 text-[9px]">STATUS</button>
         <button onclick="showTab('perks')" class="pip-btn p-2 text-[9px]">PERK</button>
         <button onclick="showTab('quests')" class="pip-btn p-2 text-[9px]">QUESTS</button>
-        <button onclick="showTab('daily')" class="pip-btn p-2 text-[9px]">DAILY</button>
         <button onclick="showTab('crafting')" class="pip-btn p-2 text-[9px]">CRAFT</button>
         <button onclick="showTab('quarters')" class="pip-btn p-2 text-[9px]">QUARTERS</button>
         <button onclick="showTab('radio')" class="pip-btn p-2 text-[9px]">RADIO</button>
@@ -261,22 +260,9 @@
 
     <!-- TAB: QUESTS -->
     <section id="quests" class="tab-content">
-        <div class="pip-border p-4 bg-black/50">
-            <h2 class="text-xl border-b border-pip-green mb-4">ACTIVE CONTRACTS</h2>
-            <div id="quests-list" class="space-y-2">
-                <!-- Active quests injected here -->
-            </div>
-        </div>
-    </section>
-
-    <!-- TAB: DAILY CHORES -->
-    <section id="daily" class="tab-content">
         <div class="pip-border p-4 bg-black/50 space-y-4">
-            <h2 class="text-xl border-b border-pip-green mb-4">DAILY CHORES & ACTIVITIES</h2>
-            <p class="text-[10px] opacity-70 mb-4">Complete household tasks and activities for small rewards!</p>
-            
             <div class="pip-border p-3 border-dashed border-yellow-500 bg-yellow-950/10">
-                <h3 class="text-xs font-bold text-yellow-500 mb-3">REQUEST A RANDOM TASK</h3>
+                <h3 class="text-xs font-bold text-yellow-500 mb-3">GENERATE RANDOM TASK</h3>
                 <button onclick="requestRandomQuest()" class="pip-btn w-full py-3 text-sm font-bold">GENERATE TASK</button>
             </div>
 
@@ -292,7 +278,13 @@
                 </div>
             </div>
 
-            <!-- Recent Completions -->
+            <div>
+                <h2 class="text-xl border-b border-pip-green mb-4">ACTIVE CONTRACTS</h2>
+                <div id="quests-list" class="space-y-2">
+                    <!-- Active quests injected here -->
+                </div>
+            </div>
+
             <div>
                 <h3 class="text-xs font-bold text-yellow-500 mb-2">COMPLETED TODAY</h3>
                 <div id="daily-completed-list" class="space-y-1 text-[10px]">
@@ -301,6 +293,8 @@
             </div>
         </div>
     </section>
+
+
 
     <!-- TAB: CRAFTING -->
     <section id="crafting" class="tab-content">
