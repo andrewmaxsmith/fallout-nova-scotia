@@ -46,6 +46,7 @@ let gameState = {
             class: null,
             unlockedPerks: [],
             pendingPerks: 0,
+            craftedGear: [],
             purchasedUpgrades: [],
             activeEffects: []
         },
@@ -68,6 +69,7 @@ let gameState = {
             class: null,
             unlockedPerks: [],
             pendingPerks: 0,
+            craftedGear: [],
             purchasedUpgrades: [],
             activeEffects: []
         }
@@ -295,6 +297,27 @@ let gameState = {
             desc: 'Removes 2 Rads.',
             ingredients: [{ type: 'syntheticSap', amount: 2 }],
             output: { item: 'Rad-Away', qty: 1 }
+        },
+        {
+            id: 'r7',
+            name: 'PEGGY\'S COVE CLEATS',
+            desc: 'Studded shoreline boots. +1 Agility and +1 Hardiness when crafted (one-time).',
+            ingredients: [{ type: 'maritimeMetal', amount: 2 }, { type: 'plaidScraps', amount: 1 }],
+            output: { item: 'Peggy\'s Cove Cleats', qty: 1 }
+        },
+        {
+            id: 'r8',
+            name: 'BASIN FOG LENS',
+            desc: 'A salvaged monocle tuned for coastal haze. +1 Perception when crafted (one-time).',
+            ingredients: [{ type: 'hubCircuitry', amount: 1 }, { type: 'cleanWater', amount: 1 }],
+            output: { item: 'Basin Fog Lens', qty: 1 }
+        },
+        {
+            id: 'r9',
+            name: 'APPLE-CORE SASH',
+            desc: 'A Valley propaganda sash that boosts confidence. +1 Charm and +1 Politeness when crafted (one-time).',
+            ingredients: [{ type: 'plaidScraps', amount: 2 }, { type: 'spices', amount: 1 }],
+            output: { item: 'Apple-Core Sash', qty: 1 }
         }
     ],
     quarterUpgrades: [
@@ -914,14 +937,30 @@ app.post('/api/player/:player/craft/:recipeId', (req, res) => {
     if (!gameState.players[player]) {
         return res.status(404).json({ error: 'Player not found' });
     }
+    const playerData = gameState.players[player];
+    if (!Array.isArray(playerData.craftedGear)) {
+        playerData.craftedGear = [];
+    }
     
     const recipe = gameState.recipes.find(r => r.id === recipeId);
     if (!recipe) {
         return res.status(404).json({ error: 'Recipe not found' });
     }
+
+    const oneTimeGearEffects = {
+        r1: { stats: { agility: 1 }, text: 'Agility +1 (Bluenose Bayonet equipped).' },
+        r2: { stats: { hardiness: 1 }, maxHp: 2, hp: 2, text: 'Hardiness +1 and Max HP +2 (Trapper\'s Plate equipped).' },
+        r7: { stats: { agility: 1, hardiness: 1 }, text: 'Agility +1 and Hardiness +1 (Peggy\'s Cove Cleats equipped).' },
+        r8: { stats: { perception: 1 }, text: 'Perception +1 (Basin Fog Lens equipped).' },
+        r9: { stats: { charm: 1, politeness: 1 }, text: 'Charm +1 and Politeness +1 (Apple-Core Sash equipped).' }
+    };
+
+    if (oneTimeGearEffects[recipe.id] && playerData.craftedGear.includes(recipe.id)) {
+        return res.status(400).json({ error: `${recipe.name} is already crafted and equipped.` });
+    }
     
     // Check if player has all required ingredients
-    const playerScrap = gameState.players[player].scrap;
+    const playerScrap = playerData.scrap;
     for (let ingredient of recipe.ingredients) {
         if (ingredient.type === 'propaneTank' || ingredient.type === 'syntheticSap' || 
             ingredient.type === 'maritimeMetal' || ingredient.type === 'plaidScraps' ||
@@ -939,22 +978,104 @@ app.post('/api/player/:player/craft/:recipeId', (req, res) => {
             playerScrap[ingredient.type] -= ingredient.amount;
         }
     }
-    
-    // Add crafted item to inventory
-    const newItem = {
-        id: `item-${Date.now()}`,
-        name: recipe.output.item,
-        recipeId: recipeId,
-        qty: recipe.output.qty
-    };
-    gameState.players[player].inventory.push(newItem);
-    scheduleAutoSave();
-    
-    res.json({ 
-        success: true, 
-        message: `Crafted ${recipe.output.item}!`,
-        item: newItem
-    });
+
+    if (oneTimeGearEffects[recipe.id]) {
+        const effect = oneTimeGearEffects[recipe.id];
+
+        if (effect.stats) {
+            Object.entries(effect.stats).forEach(([stat, value]) => {
+                if (playerData.stats && playerData.stats[stat] !== undefined) {
+                    playerData.stats[stat] += value;
+                }
+            });
+        }
+
+        if (effect.maxHp) {
+            playerData.maxHp = (playerData.maxHp || 10) + effect.maxHp;
+        }
+
+        if (effect.hp) {
+            playerData.hp = clamp((playerData.hp || 0) + effect.hp, 0, playerData.maxHp || 10);
+        }
+
+        playerData.craftedGear.push(recipe.id);
+        scheduleAutoSave();
+
+        return res.json({
+            success: true,
+            message: `Crafted ${recipe.name}! ${effect.text}`,
+            effect: effect
+        });
+    }
+
+    if (recipe.id === 'r3') {
+        playerData.tabs = (playerData.tabs || 0) + 15;
+        scheduleAutoSave();
+
+        return res.json({
+            success: true,
+            message: 'Crafted Propane Popper! Salvage blast recovered +15 Tabs.',
+            effect: { tabsGained: 15, tabs: playerData.tabs }
+        });
+    }
+
+    if (recipe.id === 'r4') {
+        const hasLeadBelly = (playerData.unlockedPerks || []).includes('p6');
+        const healAmount = Math.max(1, Math.ceil((playerData.maxHp || 10) * 0.5));
+        const beforeHp = playerData.hp || 0;
+        const beforeRads = playerData.rads || 0;
+
+        playerData.hp = clamp(beforeHp + healAmount, 0, playerData.maxHp || 10);
+        if (!hasLeadBelly) {
+            playerData.rads = clamp(beforeRads + 10, 0, 10);
+        }
+
+        scheduleAutoSave();
+
+        return res.json({
+            success: true,
+            message: hasLeadBelly
+                ? 'Crafted Donair-Dab Kit! Restored HP with no RAD gain (Lead Belly).'
+                : 'Crafted Donair-Dab Kit! Restored HP and gained RADS.',
+            effect: {
+                hpRestored: playerData.hp - beforeHp,
+                radsAdded: hasLeadBelly ? 0 : (playerData.rads - beforeRads),
+                hp: playerData.hp,
+                rads: playerData.rads
+            }
+        });
+    }
+
+    if (recipe.id === 'r5') {
+        const healAmount = 4;
+        const beforeHp = playerData.hp || 0;
+        const maxHp = playerData.maxHp || 10;
+        playerData.hp = clamp(beforeHp + healAmount, 0, maxHp);
+        const healed = playerData.hp - beforeHp;
+        scheduleAutoSave();
+
+        return res.json({
+            success: true,
+            message: `Crafted STIMPAK! Restored ${healed} HP.`,
+            effect: { hpRestored: healed, hp: playerData.hp, maxHp: maxHp }
+        });
+    }
+
+    if (recipe.id === 'r6') {
+        const removeRads = 2;
+        const beforeRads = playerData.rads || 0;
+        playerData.rads = clamp(beforeRads - removeRads, 0, 10);
+        const reduced = beforeRads - playerData.rads;
+        scheduleAutoSave();
+
+        return res.json({
+            success: true,
+            message: `Crafted RAD-AWAY! Removed ${reduced} RADS.`,
+            effect: { radsRemoved: reduced, rads: playerData.rads }
+        });
+    }
+
+    return res.status(400).json({ error: 'No craft effect configured for this recipe.' });
 });
 
 // GET all quarters upgrades
@@ -1230,6 +1351,7 @@ app.post('/api/reset', (req, res) => {
                 class: null,
                 unlockedPerks: [],
                 pendingPerks: 0,
+                craftedGear: [],
                 purchasedUpgrades: [],
                 activeEffects: []
             },
@@ -1252,6 +1374,7 @@ app.post('/api/reset', (req, res) => {
                 class: null,
                 unlockedPerks: [],
                 pendingPerks: 0,
+                craftedGear: [],
                 purchasedUpgrades: [],
                 activeEffects: []
             }
@@ -1346,6 +1469,71 @@ app.post('/api/reset', (req, res) => {
             { id: 'rq11', title: "CHORE: Fold Laundry", desc: "Sort and fold clean clothes.", reward: 5, xp: 1 },
             { id: 'rq12', title: "CHORE: Take Out Trash", desc: "Empty the bins and replace bags.", reward: 5, xp: 1 },
             { id: 'rq13', title: "CHORE: Organize Closet", desc: "Sort and arrange your belongings.", reward: 8, xp: 1 }
+        ],
+        recipes: [
+            {
+                id: 'r1',
+                name: 'BLUENOSE BAYONET',
+                desc: 'A reach weapon that deals extra damage to Rad-Skeeters.',
+                ingredients: [{ type: 'maritimeMetal', amount: 2 }],
+                output: { item: 'Bluenose Bayonet', qty: 1 }
+            },
+            {
+                id: 'r2',
+                name: 'TRAPPER\'S PLATE',
+                desc: 'High-resistance armor that makes the wearer immune to the Red Mud agility penalty.',
+                ingredients: [{ type: 'maritimeMetal', amount: 4 }, { type: 'plaidScraps', amount: 2 }],
+                output: { item: 'Trapper\'s Plate', qty: 1 }
+            },
+            {
+                id: 'r3',
+                name: 'PROPANE POPPER',
+                desc: 'A makeshift grenade that causes a massive fire AOE, perfect for clearing out swarms.',
+                ingredients: [{ type: 'propaneTank', amount: 1 }, { type: 'syntheticSap', amount: 2 }],
+                output: { item: 'Propane Popper', qty: 1 }
+            },
+            {
+                id: 'r4',
+                name: 'DONAIR-DAB KIT',
+                desc: 'A powerful healing item (50% HP) but adds +10 RADS unless you have LEAD BELLY perk.',
+                ingredients: [{ type: 'radMeat', amount: 1 }, { type: 'spices', amount: 1 }, { type: 'cleanWater', amount: 1 }],
+                output: { item: 'Donair-Dab Kit', qty: 1 }
+            },
+            {
+                id: 'r5',
+                name: 'STIMPAK',
+                desc: 'Restores 4 HP.',
+                ingredients: [{ type: 'syntheticSap', amount: 1 }],
+                output: { item: 'Stimpak', qty: 1 }
+            },
+            {
+                id: 'r6',
+                name: 'RAD-AWAY',
+                desc: 'Removes 2 Rads.',
+                ingredients: [{ type: 'syntheticSap', amount: 2 }],
+                output: { item: 'Rad-Away', qty: 1 }
+            },
+            {
+                id: 'r7',
+                name: 'PEGGY\'S COVE CLEATS',
+                desc: 'Studded shoreline boots. +1 Agility and +1 Hardiness when crafted (one-time).',
+                ingredients: [{ type: 'maritimeMetal', amount: 2 }, { type: 'plaidScraps', amount: 1 }],
+                output: { item: 'Peggy\'s Cove Cleats', qty: 1 }
+            },
+            {
+                id: 'r8',
+                name: 'BASIN FOG LENS',
+                desc: 'A salvaged monocle tuned for coastal haze. +1 Perception when crafted (one-time).',
+                ingredients: [{ type: 'hubCircuitry', amount: 1 }, { type: 'cleanWater', amount: 1 }],
+                output: { item: 'Basin Fog Lens', qty: 1 }
+            },
+            {
+                id: 'r9',
+                name: 'APPLE-CORE SASH',
+                desc: 'A Valley propaganda sash that boosts confidence. +1 Charm and +1 Politeness when crafted (one-time).',
+                ingredients: [{ type: 'plaidScraps', amount: 2 }, { type: 'spices', amount: 1 }],
+                output: { item: 'Apple-Core Sash', qty: 1 }
+            }
         ],
         trades: [],
         radioSignals: [
