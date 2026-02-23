@@ -68,8 +68,13 @@
     <div class="max-w-6xl mx-auto">
         <!-- HEADER -->
         <header class="mb-6 pip-border p-4 bg-black">
-            <h1 class="text-3xl font-bold text-yellow-500">GM DASHBOARD</h1>
-            <p class="text-xs opacity-70">FALLOUT: NEW NOVA SCOTIA - GAME MASTER CONTROLS</p>
+            <div class="flex justify-between items-start mb-2">
+                <div>
+                    <h1 class="text-3xl font-bold text-yellow-500">GM DASHBOARD</h1>
+                    <p class="text-xs opacity-70">FALLOUT: NEW NOVA SCOTIA - GAME MASTER CONTROLS</p>
+                </div>
+                <button onclick="resetAllData()" class="pip-btn bg-red-900 hover:bg-red-700 text-red-300 border-red-500 text-sm px-4 py-2">RESET ALL DATA</button>
+            </div>
         </header>
 
         <!-- NAVIGATION -->
@@ -464,19 +469,46 @@
             const list = document.getElementById('quest-list');
             list.innerHTML = '';
             if (gameData.quests) {
+                const categorized = {
+                    vault: [],
+                    main: [],
+                    side: []
+                };
+                
                 gameData.quests.forEach(q => {
-                    const div = document.createElement('div');
-                    div.className = 'border border-pip-green/30 p-2 text-[10px] mb-2';
-                    div.innerHTML = `
-                        <p class="font-bold text-yellow-400">${q.title}</p>
-                        <p class="text-[9px] opacity-90 mb-1">${q.desc}</p>
-                        <p class="text-[8px] opacity-70 mb-2">Reward: ${q.reward} tabs, ${q.xp} XP</p>
-                        <div class="flex gap-1">
-                            <button onclick="sendQuestToPlayer('logan', '${q.id}')" class="pip-btn text-[8px] px-2 flex-1">→ LOGAN</button>
-                            <button onclick="sendQuestToPlayer('rylyn', '${q.id}')" class="pip-btn text-[8px] px-2 flex-1">→ RYLYN</button>
-                        </div>
-                    `;
-                    list.appendChild(div);
+                    const category = q.category || 'side';
+                    if (!categorized[category]) {
+                        categorized[category] = [];
+                    }
+                    categorized[category].push(q);
+                });
+
+                const categoryLabels = { vault: 'VAULT MISSIONS', main: 'MAIN MISSIONS', side: 'SIDE MISSIONS' };
+                const categoryColors = { vault: 'text-yellow-400', main: 'text-green-400', side: 'text-blue-300' };
+
+                Object.keys(categoryLabels).forEach(cat => {
+                    if (categorized[cat].length > 0) {
+                        const categoryDiv = document.createElement('div');
+                        categoryDiv.className = 'mb-4';
+                        categoryDiv.innerHTML = `<p class="text-sm font-bold ${categoryColors[cat]} mb-2">${categoryLabels[cat]}</p>`;
+                        list.appendChild(categoryDiv);
+
+                        categorized[cat].forEach(q => {
+                            const div = document.createElement('div');
+                            div.className = 'border border-pip-green/30 p-2 text-[10px] mb-2';
+                            const scrapRewards = q.rewardScrap ? Object.entries(q.rewardScrap).map(([type, amt]) => `${type} x${amt}`).join(', ') : 'None';
+                            div.innerHTML = `
+                                <p class="font-bold text-yellow-400">${q.title}</p>
+                                <p class="text-[9px] opacity-90 mb-1">${q.desc}</p>
+                                <p class="text-[8px] opacity-70 mb-2">TABS: ${q.rewardTabs} | SCRAP: ${scrapRewards} | XP: ${q.xp}</p>
+                                <div class="flex gap-1">
+                                    <button onclick="sendQuestToPlayer('logan', '${q.id}')" class="pip-btn text-[8px] px-2 flex-1">→ LOGAN</button>
+                                    <button onclick="sendQuestToPlayer('rylyn', '${q.id}')" class="pip-btn text-[8px] px-2 flex-1">→ RYLYN</button>
+                                </div>
+                            `;
+                            list.appendChild(div);
+                        });
+                    }
                 });
             }
         }
@@ -731,6 +763,33 @@
                 }
             } catch (e) {
                 console.error('Error sending broadcast:', e);
+            }
+        }
+
+        async function resetAllData() {
+            if (!confirm('⚠️ WARNING: This will reset ALL game data to initial state. This cannot be undone! Are you sure?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_URL}/api/reset`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                if (response.ok) {
+                    alert('✓ ALL DATA RESET TO INITIAL STATE');
+                    await loadGameState();
+                    renderPlayerCards();
+                    renderPerks();
+                    renderQuests();
+                    renderRadio();
+                    renderQuarters();
+                } else {
+                    alert('Error resetting data');
+                }
+            } catch (e) {
+                console.error('Error resetting data:', e);
+                alert('Error resetting data');
             }
         }
 

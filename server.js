@@ -35,7 +35,7 @@ let gameState = {
             rads: 0,
             tabs: 10,
             stats: { charm: 1, hardiness: 1, agility: 1, perception: 1, politeness: 1, yarns: 1 },
-            scrap: { wood: 0, steel: 0, circuit: 0, adhesive: 0 },
+            scrap: { maritimeMetal: 0, syntheticSap: 0, hubCircuitry: 0, plaidScraps: 0, propaneTank: 0, radMeat: 0, spices: 0, cleanWater: 0 },
             inventory: [],
             activeQuests: [],
             completedQuests: [],
@@ -69,32 +69,31 @@ let gameState = {
         }
     },
     perks: [
-        { id: 'p1', name: "IRON CALVES", desc: "Climbing Jacob's Ladder no longer causes HP loss.", level: 1 },
-        { id: 'p2', name: "AQUA-BLUENOSER", desc: "Immune to Radiation while at the shoreline.", level: 1 },
-        { id: 'p3', name: "THRIFTY TOWNIE", desc: "Gain 2 extra Pop Tabs from every quest.", level: 2 },
-        { id: 'p4', name: "DONAIR DIGESTION", desc: "Healing items (snacks) restore double HP.", level: 1 },
-        { id: 'p5', name: "SCRAPPER", desc: "50% chance to find double scrap items.", level: 2 },
-        { id: 'p6', name: "LEAD BELLY", desc: "Eating 'Red Mud' food causes 0 Radiation.", level: 1 },
-        { id: 'p7', name: "WASTELAND WAND", desc: "+1 Agility on trails and outdoor areas.", level: 2 },
-        { id: 'p8', name: "SCAVENGER'S EYE", desc: "+1 Perception for finding hidden items.", level: 3 },
-        { id: 'p9', name: "PLAID PRIDE", desc: "+2 Charisma with faction members.", level: 2 },
-        { id: 'p10', name: "QUICK-HANDS", desc: "+10% attack speed with melee weapons.", level: 3 }
+        { id: 'p1', name: "IRON CALVES", desc: "Climbing Jacob's Ladder no longer causes HP loss.", tier: 1 },
+        { id: 'p2', name: "AQUA-BLUENOSER", desc: "Immune to Radiation while at the shoreline.", tier: 1 },
+        { id: 'p3', name: "THRIFTY TOWNIE", desc: "Gain 2 extra Pop Tabs from every quest.", tier: 2 },
+        { id: 'p4', name: "DONAIR DIGESTION", desc: "Healing items (snacks) restore double HP.", tier: 1 },
+        { id: 'p5', name: "SCRAPPER", desc: "50% chance to find double scrap items.", tier: 2 },
+        { id: 'p6', name: "LEAD BELLY", desc: "Eating 'Red Mud' food causes 0 Radiation.", tier: 1 },
+        { id: 'p7', name: "WASTELAND WAND", desc: "+1 Agility on trails and outdoor areas.", tier: 2 },
+        { id: 'p8', name: "SCAVENGER'S EYE", desc: "+1 Perception for finding hidden items.", tier: 3 },
+        { id: 'p9', name: "PLAID PRIDE", desc: "+2 Charisma with faction members.", tier: 2 },
+        { id: 'p10', name: "QUICK-HANDS", desc: "+10% attack speed with melee weapons.", tier: 3 }
     ],
     quests: [
-        { id: 'h1', title: "VAULT: Sanitize Quarters", desc: "Clean your room until no scrap remains on the floor.", reward: 10, xp: 1 },
-        { id: 'h2', title: "VAULT: Nutrient Synthesis", desc: "Assist the Overseer with preparing a family meal.", reward: 15, xp: 1 },
-        { id: 'h3', title: "VAULT: Static Discharge", desc: "Fold and put away a basket of clean laundry.", reward: 10, xp: 1 },
-        { id: 'q1', title: "Initiation: Jacob's Ladder", desc: "Climb the stairs at Victoria Park.", reward: 15, xp: 1 },
-        { id: 'q2', title: "The Great Drain", desc: "Visit Burncoat Head at low tide.", reward: 20, xp: 1 },
-        { id: 'q5', title: "Jacob's Ladder Trial", desc: "Complete the brutal 175 step challenge without falling.", reward: 50, xp: 2 },
-        { id: 'q6', title: "Witches' Cauldron Mystery", desc: "Dive into the radioactive pool and retrieve the pre-war crate.", reward: 45, xp: 2 },
-        { id: 'q11', title: "Battle for the Bazaar", desc: "Defend Masstown Market from Highway 104 Raiders.", reward: 100, xp: 3 },
-        { id: 'q12', title: "The Tidal Bore Race", desc: "Gather all Scrap and Supplies and return to safety before the 5-minute tide rush!", reward: 50, xp: 2 },
-        { id: 'q13', title: "The Plaid Patch-Up", desc: "Find Plaid Scrap and use Synthetic Sap to patch the Vault air-lock before the next Rad-Storm.", reward: 35, xp: 1 },
-        { id: 'q14', title: "Three-Crows Signal Boost", desc: "One player stands at the Highest Peak for 60 seconds while the other tunes the Pip-Boy. Recite the Wasteland Oath!", reward: 20, xp: 1 },
-        { id: 'q15', title: "The Junk-Jet Prototype", desc: "Collect 5 pieces of Scrap from different Biomes and justify each one to the Overseer.", reward: 60, xp: 2 },
-        { id: 'q16', title: "Five Islands Provincial Park (The Great Drain)", desc: "Master the Mud-Slog and survive the Tidal Rush at the Great Drain.", reward: 55, xp: 2 },
-        { id: 'q17', title: "Shubenacadie Wildlife Park (The Beast Pens)", desc: "Scout the perimeter and photograph three Wasteland Creatures without startling them.", reward: 50, xp: 2 }
+        { id: 'h1', title: "VAULT: Sanitize Quarters", desc: "Clean your room until no scrap remains on the floor.", category: 'vault', rewardTabs: 10, rewardScrap: { syntheticSap: 1 }, xp: 1 },
+        { id: 'h2', title: "VAULT: Nutrient Synthesis", desc: "Assist the Overseer with preparing a family meal.", category: 'vault', rewardTabs: 15, rewardScrap: { cleanWater: 1, spices: 1 }, xp: 1 },
+        { id: 'h3', title: "VAULT: Static Discharge", desc: "Fold and put away a basket of clean laundry.", category: 'vault', rewardTabs: 10, rewardScrap: { plaidScraps: 1 }, xp: 1 },
+        { id: 'q2', title: "The Great Drain", desc: "Visit Burncoat Head at low tide.", category: 'main', rewardTabs: 20, rewardScrap: { maritimeMetal: 2 }, xp: 1 },
+        { id: 'q5', title: "Jacob's Ladder Trial", desc: "Complete the brutal 175 step challenge without falling.", category: 'main', rewardTabs: 45, rewardScrap: { hubCircuitry: 1 }, xp: 2 },
+        { id: 'q6', title: "Witches' Cauldron Mystery", desc: "Dive into the radioactive pool and retrieve the pre-war crate.", category: 'main', rewardTabs: 45, rewardScrap: { radMeat: 1, cleanWater: 1 }, xp: 2 },
+        { id: 'q11', title: "Battle for the Bazaar", desc: "Defend Masstown Market from Highway 104 Raiders.", category: 'main', rewardTabs: 100, rewardScrap: { maritimeMetal: 2, hubCircuitry: 2 }, xp: 3 },
+        { id: 'q12', title: "The Tidal Bore Race", desc: "Gather all Scrap and Supplies and return to safety before the 5-minute tide rush!", category: 'side', rewardTabs: 50, rewardScrap: { maritimeMetal: 1, syntheticSap: 1 }, xp: 2 },
+        { id: 'q13', title: "The Plaid Patch-Up", desc: "Find Plaid Scrap and use Synthetic Sap to patch the Vault air-lock before the next Rad-Storm.", category: 'side', rewardTabs: 35, rewardScrap: { plaidScraps: 2, syntheticSap: 1 }, xp: 1 },
+        { id: 'q14', title: "Three-Crows Signal Boost", desc: "One player stands at the Highest Peak for 60 seconds while the other tunes the Pip-Boy. Recite the Wasteland Oath!", category: 'side', rewardTabs: 20, rewardScrap: { hubCircuitry: 1 }, xp: 1 },
+        { id: 'q15', title: "The Junk-Jet Prototype", desc: "Collect 5 pieces of Scrap from different Biomes and justify each one to the Overseer.", category: 'side', rewardTabs: 60, rewardScrap: { propaneTank: 1, maritimeMetal: 1 }, xp: 2 },
+        { id: 'q16', title: "Five Islands Provincial Park (The Great Drain)", desc: "Master the Mud-Slog and survive the Tidal Rush at the Great Drain.", category: 'main', rewardTabs: 55, rewardScrap: { maritimeMetal: 2, cleanWater: 1 }, xp: 2 },
+        { id: 'q17', title: "Shubenacadie Wildlife Park (The Beast Pens)", desc: "Scout the perimeter and photograph three Wasteland Creatures without startling them.", category: 'main', rewardTabs: 50, rewardScrap: { radMeat: 1, spices: 1 }, xp: 2 }
     ],
     randomQuests: [
         { id: 'rq1', title: "HOUSE: Tidy the Living Room", desc: "Pick up toys and organize the space.", reward: 5, xp: 0 },
@@ -573,9 +572,19 @@ app.post('/api/player/:player/complete-quest', (req, res) => {
         if (quest) {
             playerData.activeQuests = playerData.activeQuests.filter(q => q !== questId);
             playerData.completedQuests.push(questId);
-            playerData.tabs += quest.reward;
-            playerData.level += quest.xp;
-            playerData.pendingPerks = (playerData.pendingPerks || 0) + (quest.xp || 0);
+            const tabsReward = quest.rewardTabs || 0;
+            const xpReward = quest.xp || 0;
+            playerData.tabs += tabsReward;
+            playerData.level += xpReward;
+            if (quest.rewardScrap) {
+                Object.entries(quest.rewardScrap).forEach(([type, amount]) => {
+                    if (playerData.scrap[type] === undefined) {
+                        playerData.scrap[type] = 0;
+                    }
+                    playerData.scrap[type] += amount;
+                });
+            }
+            playerData.pendingPerks = (playerData.pendingPerks || 0) + xpReward;
             scheduleAutoSave();
             res.json({ success: true, message: `${player} completed ${quest.title}` });
         }
@@ -971,6 +980,246 @@ app.post('/api/trade/:tradeId/reject', (req, res) => {
     scheduleAutoSave();
     
     res.json({ success: true, message: 'Trade rejected', trade: trade });
+});
+
+// Reset all game data to initial state
+app.post('/api/reset', (req, res) => {
+    // Re-initialize game state to default
+    gameState = {
+        players: {
+            logan: {
+                name: 'Logan',
+                level: 1,
+                hp: 10,
+                maxHp: 10,
+                rads: 0,
+                tabs: 10,
+                stats: { charm: 1, hardiness: 1, agility: 1, perception: 1, politeness: 1, yarns: 1 },
+                scrap: { maritimeMetal: 0, syntheticSap: 0, hubCircuitry: 0, plaidScraps: 0, propaneTank: 0, radMeat: 0, spices: 0, cleanWater: 0 },
+                inventory: [],
+                activeQuests: [],
+                completedQuests: [],
+                activeRadio: null,
+                activeRadioData: null,
+                faction: null,
+                class: null,
+                unlockedPerks: [],
+                pendingPerks: 0,
+                purchasedUpgrades: []
+            },
+            rylyn: {
+                name: 'Rylyn',
+                level: 1,
+                hp: 10,
+                maxHp: 10,
+                rads: 0,
+                tabs: 10,
+                stats: { charm: 1, hardiness: 1, agility: 1, perception: 1, politeness: 1, yarns: 1 },
+                scrap: { maritimeMetal: 0, syntheticSap: 0, hubCircuitry: 0, plaidScraps: 0, propaneTank: 0, radMeat: 0, spices: 0, cleanWater: 0 },
+                inventory: [],
+                activeQuests: [],
+                completedQuests: [],
+                activeRadio: null,
+                activeRadioData: null,
+                faction: null,
+                class: null,
+                unlockedPerks: [],
+                pendingPerks: 0,
+                purchasedUpgrades: []
+            }
+        },
+        perks: [
+            { id: 'p1', name: "IRON CALVES", desc: "Climbing Jacob's Ladder no longer causes HP loss.", tier: 1 },
+            { id: 'p2', name: "AQUA-BLUENOSER", desc: "Immune to Radiation while at the shoreline.", tier: 1 },
+            { id: 'p3', name: "THRIFTY TOWNIE", desc: "Gain 2 extra Pop Tabs from every quest.", tier: 2 },
+            { id: 'p4', name: "DONAIR DIGESTION", desc: "Healing items (snacks) restore double HP.", tier: 1 },
+            { id: 'p5', name: "SCRAPPER", desc: "50% chance to find double scrap items.", tier: 2 },
+            { id: 'p6', name: "LEAD BELLY", desc: "Eating 'Red Mud' food causes 0 Radiation.", tier: 1 },
+            { id: 'p7', name: "WASTELAND WAND", desc: "+1 Agility on trails and outdoor areas.", tier: 2 },
+            { id: 'p8', name: "SCAVENGER'S EYE", desc: "+1 Perception for finding hidden items.", tier: 3 },
+            { id: 'p9', name: "PLAID PRIDE", desc: "+2 Charisma with faction members.", tier: 2 },
+            { id: 'p10', name: "QUICK-HANDS", desc: "+10% attack speed with melee weapons.", tier: 3 }
+        ],
+        quests: [
+            { id: 'h1', title: "VAULT: Sanitize Quarters", desc: "Clean your room until no scrap remains on the floor.", category: 'vault', rewardTabs: 10, rewardScrap: { syntheticSap: 1 }, xp: 1 },
+            { id: 'h2', title: "VAULT: Nutrient Synthesis", desc: "Assist the Overseer with preparing a family meal.", category: 'vault', rewardTabs: 15, rewardScrap: { cleanWater: 1, spices: 1 }, xp: 1 },
+            { id: 'h3', title: "VAULT: Static Discharge", desc: "Fold and put away a basket of clean laundry.", category: 'vault', rewardTabs: 10, rewardScrap: { plaidScraps: 1 }, xp: 1 },
+            { id: 'q2', title: "The Great Drain", desc: "Visit Burncoat Head at low tide.", category: 'main', rewardTabs: 20, rewardScrap: { maritimeMetal: 2 }, xp: 1 },
+            { id: 'q5', title: "Jacob's Ladder Trial", desc: "Complete the brutal 175 step challenge without falling.", category: 'main', rewardTabs: 45, rewardScrap: { hubCircuitry: 1 }, xp: 2 },
+            { id: 'q6', title: "Witches' Cauldron Mystery", desc: "Dive into the radioactive pool and retrieve the pre-war crate.", category: 'main', rewardTabs: 45, rewardScrap: { radMeat: 1, cleanWater: 1 }, xp: 2 },
+            { id: 'q11', title: "Battle for the Bazaar", desc: "Defend Masstown Market from Highway 104 Raiders.", category: 'main', rewardTabs: 100, rewardScrap: { maritimeMetal: 2, hubCircuitry: 2 }, xp: 3 },
+            { id: 'q12', title: "The Tidal Bore Race", desc: "Gather all Scrap and Supplies and return to safety before the 5-minute tide rush!", category: 'side', rewardTabs: 50, rewardScrap: { maritimeMetal: 1, syntheticSap: 1 }, xp: 2 },
+            { id: 'q13', title: "The Plaid Patch-Up", desc: "Find Plaid Scrap and use Synthetic Sap to patch the Vault air-lock before the next Rad-Storm.", category: 'side', rewardTabs: 35, rewardScrap: { plaidScraps: 2, syntheticSap: 1 }, xp: 1 },
+            { id: 'q14', title: "Three-Crows Signal Boost", desc: "One player stands at the Highest Peak for 60 seconds while the other tunes the Pip-Boy. Recite the Wasteland Oath!", category: 'side', rewardTabs: 20, rewardScrap: { hubCircuitry: 1 }, xp: 1 },
+            { id: 'q15', title: "The Junk-Jet Prototype", desc: "Collect 5 pieces of Scrap from different Biomes and justify each one to the Overseer.", category: 'side', rewardTabs: 60, rewardScrap: { propaneTank: 1, maritimeMetal: 1 }, xp: 2 },
+            { id: 'q16', title: "Five Islands Provincial Park (The Great Drain)", desc: "Master the Mud-Slog and survive the Tidal Rush at the Great Drain.", category: 'main', rewardTabs: 55, rewardScrap: { maritimeMetal: 2, cleanWater: 1 }, xp: 2 },
+            { id: 'q17', title: "Shubenacadie Wildlife Park (The Beast Pens)", desc: "Scout the perimeter and photograph three Wasteland Creatures without startling them.", category: 'main', rewardTabs: 50, rewardScrap: { radMeat: 1, spices: 1 }, xp: 2 }
+        ],
+        trades: [],
+        radioSignals: [
+            { id: 'r1', title: "ENTERING DEBERT", text: "You're treadin' on ancient ground now, scavengers. Debert awaits." },
+            { id: 'r2', title: "THE HERMIT'S LAST WORDS", text: "Eyes like burning pitch... it walks the northern woods..." },
+            { id: 'r3', title: "DEBERT NUMBERS STATION", text: "[SYNTHESIZED VOICE] Coordinates: North 45.3471 West 63.2851..." },
+            { id: 'r4', title: "THE MASTODON'S CALL", text: "[DEAFENING RUMBLE] The Awakening approaches..." },
+            { id: 'r5', title: "TIDAL BORE WARNING", text: "ALERT! The Tidal Bore is moving... 5 minutes until the surge. All units retreat to high ground NOW!" },
+            { id: 'r6', title: "PLAID PATCH ALERT", text: "Vault integrity compromised. Air-lock seal has failed. Patch required immediately. Plaid Scrap + Synthetic Sap needed." },
+            { id: 'r7', title: "SIGNAL BOOST REQUEST", text: "Three-Crows Radio fading... signal weakening. We need a Signal Flare at the Highest Peak. Someone hold the light!" },
+            { id: 'r8', title: "JUNK-JET BROADCAST", text: "Prototype testing in progress. Scrap collectors needed. Bring us 5 pieces from different Biomes for analysis." },
+            { id: 'r9', title: "GREAT DRAIN LOCATION", text: "Coordinates locked: Five Islands Provincial Park. Beware the Red Mud. The Tidal Rush is unpredictable. Proceed with caution." },
+            { id: 'r10', title: "BEAST PENS SIGHTING", text: "Movement detected at Shubenacadie Wildlife Park. Rad-Moose and Yao Guai variants confirmed. Scout teams deploy. Biological data required." }
+        ],
+        broadcastSignals: [
+            { id: 'b1', title: "THREE-CROWS RADIO: MUSIC HOUR", text: "[STATIC] Now playing: The Atomic Dream by The Pip-Boys..." },
+            { id: 'b2', title: "WEATHER ALERT", text: "ATTENTION: High-pressure rad-front moving in from the northeast. Recommend increasing vault shielding." },
+            { id: 'b3', title: "SURVIVOR LOG", text: "[CRACKLING VOICE] This is Overseer Sinclair... Day 847... We endure..." },
+            { id: 'b4', title: "STRANGE SIGNAL", text: "[MYSTERIOUS BEEPING] ...cannot identify source... ...repeating pattern..." },
+            { id: 'b5', title: "DISTRESS CALL", text: "[GARBLED TRANSMISSION] ...anyone... ...need help... ...coordinates unknown..." },
+            { id: 'b6', title: "OLD WORLD BROADCAST", text: "[ANCIENT RECORDING] Welcome to Three-Crows Radio, serving Halifax since 1957..." },
+            { id: 'b7', title: "VAULT-TEC ANNIVERSARY", text: "Celebrating another year of safety and security! Vault-Tec: Ensuring your family's future!" },
+            { id: 'b8', title: "UNKNOWN TRANSMISSION", text: "[WHISPERED] ...they're coming... ...prepare the defenses... ...the old ones stir..." }
+        ],
+        quarterUpgrades: [
+            {
+                id: 'qupg1',
+                name: 'STRUCTURAL REINFORCEMENT',
+                desc: 'Clothespins and binder clips reinforce tent walls against Room-Draft Rad-storms.',
+                tier: 1,
+                cost: 50,
+                stat: 'hardiness',
+                statBoost: 1,
+                effect: 'Vault walls are now taut and resistant to radiation storms.'
+            },
+            {
+                id: 'qupg2',
+                name: 'TACTICAL LUMENS',
+                desc: 'Battery-powered fairy lights illuminate the Vault at night.',
+                tier: 1,
+                cost: 75,
+                stat: 'perception',
+                statBoost: 1,
+                effect: 'Lights prevent stubbed toes and improve nighttime visibility.'
+            },
+            {
+                id: 'qupg3',
+                name: 'SOFT-FLOOR PROTOCOL',
+                desc: 'Extra yoga mats and rugs create cushioned flooring.',
+                tier: 1,
+                cost: 100,
+                stat: null,
+                hpRecovery: 'full',
+                effect: 'Sleeping in the Vault now fully restores Health.'
+            },
+            {
+                id: 'qupg4',
+                name: 'SALVAGED SUPPLY BIN',
+                desc: 'A plastic bin or cardboard crate inside the Vault for storage.',
+                tier: 1,
+                cost: 60,
+                stat: null,
+                inventorySlots: 3,
+                effect: 'Store up to 3 extra pieces of scrap without carry weight penalties.'
+            },
+            {
+                id: 'qupg5',
+                name: 'DELTA MASCOT POSTER',
+                desc: 'A drawing or photo of the Company mascot pinned to the Vault wall.',
+                tier: 1,
+                cost: 45,
+                stat: 'charm',
+                statBoost: 1,
+                effect: 'Familiar face boosts morale and negotiation with factions.'
+            },
+            {
+                id: 'qupg6',
+                name: 'AIR-LOCK SEALANT',
+                desc: 'Duct tape and masking tape seal the blanket fort seams.',
+                tier: 1,
+                cost: 40,
+                stat: null,
+                specialEffect: 'skeeterImmunity',
+                effect: 'Immune to Rad-Skeeter Swarm encounters while inside the Vault.'
+            },
+            {
+                id: 'qupg7',
+                name: 'RATION DISPENSER',
+                desc: 'A dedicated bowl or container for session snacks inside the Vault.',
+                tier: 1,
+                cost: 80,
+                stat: null,
+                specialEffect: 'fortifiedRecovery',
+                effect: '+1 Hardiness for the duration of the next Wasteland Encounter.'
+            },
+            {
+                id: 'qupg8',
+                name: 'SCRAP-COMMS LINK',
+                desc: 'Tin can phone, toy walkie-talkie, or colored string between Vaults.',
+                tier: 1,
+                cost: 100,
+                stat: null,
+                specialEffect: 'assistBonus',
+                effect: 'Once per session, call the other survivor for +1 to any C.H.A.P.P.Y. roll.'
+            }
+        ],
+        trades: [],
+        questRadioMap: {
+            q12: 'r5',
+            q13: 'r6',
+            q14: 'r7',
+            q15: 'r8',
+            q16: 'r9',
+            q17: 'r10'
+        },
+        randomEncounters: [
+            {
+                id: 'e1',
+                title: 'RAD-MOOSE SIGHTING',
+                text: 'WARNING: A glowing Rad-Moose has been spotted near your sector. Keep your distance or prepare for a fight.'
+            },
+            {
+                id: 'e2',
+                title: 'HIGHWAY 104 AMBUSH',
+                text: 'ALERT: Raiders have set up a scrap-metal barricade. They are demanding 5 Tabs for safe passage.'
+            },
+            {
+                id: 'e3',
+                title: 'FERAL GHOUL PACK',
+                text: 'RADIO STATIC: ...they are coming out of the basement! Feral pack moving fast through the ruins!'
+            },
+            {
+                id: 'e4',
+                title: 'ABANDONED SLOCUMS JOE',
+                text: 'LUCK: You have found a preserved Slocums Joe. It is dusty, but there might be some useful scrap or a snack inside.'
+            },
+            {
+                id: 'e5',
+                title: 'CRASHED VERTIBIRD',
+                text: 'SIGNAL: Emergency beacon detected. A Pre-War transport has crashed nearby. High chance of finding Steel and Circuits.'
+            },
+            {
+                id: 'e6',
+                title: 'TRAVELING MERCHANT',
+                text: "TRADER: 'Hey there! Name is Halifax. I have got the best Adhesive in the Maritimes if you have got the Tabs!'"
+            },
+            {
+                id: 'e7',
+                title: 'ACID RAIN MIST',
+                text: 'WEATHER: Yellow clouds are rolling in from the coast. Seek shelter or take +2 RADS.'
+            },
+            {
+                id: 'e8',
+                title: 'MYSTERIOUS RADIO SIGNAL',
+                text: 'SIGNAL: A strange, upbeat fiddle tune is playing on a loop. It fills you with Nova Scotian pride. (+1 Politeness temporarily).'
+            },
+            {
+                id: 'e9',
+                title: 'KITCHEN PARTY NOISE',
+                text: 'SOUND: You hear the faint sound of a kitchen party in the distance. Following the noise might lead to a safe settlement.'
+            }
+        ]
+    };
+    
+    scheduleAutoSave();
+    res.json({ success: true, message: 'Game data reset to initial state' });
 });
 
 // --- SERVER START ---
