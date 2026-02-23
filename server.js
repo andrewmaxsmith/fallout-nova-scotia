@@ -181,7 +181,16 @@ let gameState = {
         { id: 'b5', title: "DISTRESS CALL", text: "[GARBLED TRANSMISSION] ...anyone... ...need help... ...coordinates unknown..." },
         { id: 'b6', title: "OLD WORLD BROADCAST", text: "[ANCIENT RECORDING] Welcome to Three-Crows Radio, serving Halifax since 1957..." },
         { id: 'b7', title: "VAULT-TEC ANNIVERSARY", text: "Celebrating another year of safety and security! Vault-Tec: Ensuring your family's future!" },
-        { id: 'b8', title: "UNKNOWN TRANSMISSION", text: "[WHISPERED] ...they're coming... ...prepare the defenses... ...the old ones stir..." }
+        { id: 'b8', title: "UNKNOWN TRANSMISSION", text: "[WHISPERED] ...they're coming... ...prepare the defenses... ...the old ones stir..." },
+        { id: 'b9', title: "THE BIG STOP BEACON", text: "Greetings traveler! You are 400 miles from the nearest functioning IRVING Big Stop. Today's special is: Rad-Turkey Club and a side of Glow-Slaw. Please have your Tabs ready. Note: We are currently out of napkins." },
+        { id: 'b10', title: "MARITIME AUTOMATED WEATHER", text: "Conditions in the Minas Basin: 100% chance of acid rain, followed by a light dusting of nuclear soot. Wind speeds are currently high enough to throw a Rad-Cow into New Brunswick. Have a pleasant day, and stay off the black rocks." },
+        { id: 'b11', title: "EMERGENCY BROADCAST (HERITAGE MINUTE EDITION)", text: "I... I can't find a vein! Dramatic piano music plays. This has been a Maritime Heritage Minute. If you find a pre-war medicinal syringe, please return it to the nearest vault." },
+        { id: 'b12', title: "THE BRIDGE TOLL BANDIT", text: "This is a public service announcement for anyone crossing the MacKay. The toll is no longer $1.00. It is now your left boot and a roll of duct tape. Don't make me come down from the rafters, I haven't had my coffee yet." },
+        { id: 'b13', title: "THE FIDDLE-HEAD RADIO", text: "[Aggressive, high-speed fiddle music plays for 10 seconds] IF YOU CAN HEAR THIS, THE KITCHEN PARTY AT SECTOR 4 IS STILL GOING. WE HAVE THREE GALLONS OF MOON-MIST AND A RADIATED LOBSTER. NO RAIDERS ALLOWED UNLESS YOU CAN PLAY THE SPOONS." },
+        { id: 'b14', title: "PROPAGANDA FROM THE VALLEY", text: "Why settle for the salty ruins of Halifax when you can have the mutated orchards of the Annapolis Valley? Our apples are the size of basketballs and only 20% lethal! Join the Apple-Core today!" },
+        { id: 'b15', title: "THE GHOST OF THE BLUENOSE", text: "Can you hear the creaking? She's sailing on the fog again... if you see a schooner made of scrap metal and glowing sails near Lunenburg, do not wave. She doesn't want passengers. She wants your Hub Circuitry." },
+        { id: 'b16', title: "THE DOUBLE-DOUBLE LOOP", text: "[A distorted, slow-motion voice over heavy static] Large... double... double... large... double... double... screaming... I SAID LARGE DOUBLE DOUBLE." },
+        { id: 'b17', title: "THE OAK ISLAND PING", text: "Entry 4,002. We've dug another ten feet. We found a coconut fiber mat and a single pre-war bottle cap. Could this be the treasure? Or just another trap? Heavy sound of water rushing into a tunnel... Not again!" }
     ],
     questRadioMap: {
         q12: 'r5',
@@ -1262,7 +1271,16 @@ app.post('/api/reset', (req, res) => {
             { id: 'b5', title: "DISTRESS CALL", text: "[GARBLED TRANSMISSION] ...anyone... ...need help... ...coordinates unknown..." },
             { id: 'b6', title: "OLD WORLD BROADCAST", text: "[ANCIENT RECORDING] Welcome to Three-Crows Radio, serving Halifax since 1957..." },
             { id: 'b7', title: "VAULT-TEC ANNIVERSARY", text: "Celebrating another year of safety and security! Vault-Tec: Ensuring your family's future!" },
-            { id: 'b8', title: "UNKNOWN TRANSMISSION", text: "[WHISPERED] ...they're coming... ...prepare the defenses... ...the old ones stir..." }
+            { id: 'b8', title: "UNKNOWN TRANSMISSION", text: "[WHISPERED] ...they're coming... ...prepare the defenses... ...the old ones stir..." },
+            { id: 'b9', title: "THE BIG STOP BEACON", text: "Greetings traveler! You are 400 miles from the nearest functioning IRVING Big Stop. Today's special is: Rad-Turkey Club and a side of Glow-Slaw. Please have your Tabs ready. Note: We are currently out of napkins." },
+            { id: 'b10', title: "MARITIME AUTOMATED WEATHER", text: "Conditions in the Minas Basin: 100% chance of acid rain, followed by a light dusting of nuclear soot. Wind speeds are currently high enough to throw a Rad-Cow into New Brunswick. Have a pleasant day, and stay off the black rocks." },
+            { id: 'b11', title: "EMERGENCY BROADCAST (HERITAGE MINUTE EDITION)", text: "I... I can't find a vein! Dramatic piano music plays. This has been a Maritime Heritage Minute. If you find a pre-war medicinal syringe, please return it to the nearest vault." },
+            { id: 'b12', title: "THE BRIDGE TOLL BANDIT", text: "This is a public service announcement for anyone crossing the MacKay. The toll is no longer $1.00. It is now your left boot and a roll of duct tape. Don't make me come down from the rafters, I haven't had my coffee yet." },
+            { id: 'b13', title: "THE FIDDLE-HEAD RADIO", text: "[Aggressive, high-speed fiddle music plays for 10 seconds] IF YOU CAN HEAR THIS, THE KITCHEN PARTY AT SECTOR 4 IS STILL GOING. WE HAVE THREE GALLONS OF MOON-MIST AND A RADIATED LOBSTER. NO RAIDERS ALLOWED UNLESS YOU CAN PLAY THE SPOONS." },
+            { id: 'b14', title: "PROPAGANDA FROM THE VALLEY", text: "Why settle for the salty ruins of Halifax when you can have the mutated orchards of the Annapolis Valley? Our apples are the size of basketballs and only 20% lethal! Join the Apple-Core today!" },
+            { id: 'b15', title: "THE GHOST OF THE BLUENOSE", text: "Can you hear the creaking? She's sailing on the fog again... if you see a schooner made of scrap metal and glowing sails near Lunenburg, do not wave. She doesn't want passengers. She wants your Hub Circuitry." },
+            { id: 'b16', title: "THE DOUBLE-DOUBLE LOOP", text: "[A distorted, slow-motion voice over heavy static] Large... double... double... large... double... double... screaming... I SAID LARGE DOUBLE DOUBLE." },
+            { id: 'b17', title: "THE OAK ISLAND PING", text: "Entry 4,002. We've dug another ten feet. We found a coconut fiber mat and a single pre-war bottle cap. Could this be the treasure? Or just another trap? Heavy sound of water rushing into a tunnel... Not again!" }
         ],
         quarterUpgrades: [
             {
