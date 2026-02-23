@@ -44,6 +44,7 @@ let gameState = {
             faction: null,
             class: null,
             unlockedPerks: [],
+            perkPoints: 0,
             purchasedUpgrades: []
         },
         rylyn: {
@@ -63,6 +64,7 @@ let gameState = {
             faction: null,
             class: null,
             unlockedPerks: [],
+            perkPoints: 0,
             purchasedUpgrades: []
         }
     },
@@ -573,6 +575,7 @@ app.post('/api/player/:player/complete-quest', (req, res) => {
             playerData.completedQuests.push(questId);
             playerData.tabs += quest.reward;
             playerData.level += quest.xp;
+            playerData.perkPoints = (playerData.perkPoints || 0) + (quest.xp || 0);
             scheduleAutoSave();
             res.json({ success: true, message: `${player} completed ${quest.title}` });
         }
@@ -638,8 +641,12 @@ app.get('/api/player/:player/perks', (req, res) => {
 app.post('/api/player/:player/perk/:perkId', (req, res) => {
     const { player, perkId } = req.params;
     if (gameState.players[player] && gameState.perks.find(p => p.id === perkId)) {
+        if ((gameState.players[player].perkPoints || 0) <= 0) {
+            return res.status(400).json({ error: 'No perk points available' });
+        }
         if (!gameState.players[player].unlockedPerks.includes(perkId)) {
             gameState.players[player].unlockedPerks.push(perkId);
+            gameState.players[player].perkPoints -= 1;
             scheduleAutoSave();
             res.json({ success: true, message: `Perk added to ${player}` });
         } else {
