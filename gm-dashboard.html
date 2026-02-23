@@ -83,6 +83,19 @@
 
         <!-- TAB: PLAYERS -->
         <section id="players" class="tab-content active">
+            <div class="pip-border p-4 bg-black/50 mb-4">
+                <h2 class="text-xl font-bold mb-3">PLAYER JOIN LINKS</h2>
+                <div class="grid grid-cols-2 gap-4 text-[10px]">
+                    <div class="border border-blue-400 p-2">
+                        <p class="text-blue-400 font-bold mb-1">LOGAN</p>
+                        <a id="logan-join-link" href="#" target="_blank" class="underline text-blue-300 break-all">Loading...</a>
+                    </div>
+                    <div class="border border-red-400 p-2">
+                        <p class="text-red-400 font-bold mb-1">RYLYN</p>
+                        <a id="rylyn-join-link" href="#" target="_blank" class="underline text-red-300 break-all">Loading...</a>
+                    </div>
+                </div>
+            </div>
             <div class="grid grid-cols-2 gap-4 mb-6">
                 <!-- LOGAN -->
                 <div class="pip-border p-4 bg-black/50">
@@ -283,12 +296,29 @@
         let gameData = {};
 
         async function init() {
+            setJoinLinks();
             await loadGameState();
             renderQuests();
             renderActiveQuests();
             renderQuarters();
             renderPerks();
             renderRadio();
+        }
+
+        function setJoinLinks() {
+            const baseUrl = window.location.origin.replace(/\/$/, '');
+            const loganUrl = `${baseUrl}/player.html?player=logan`;
+            const rylynUrl = `${baseUrl}/player.html?player=rylyn`;
+            const loganLink = document.getElementById('logan-join-link');
+            const rylynLink = document.getElementById('rylyn-join-link');
+            if (loganLink) {
+                loganLink.href = loganUrl;
+                loganLink.textContent = loganUrl;
+            }
+            if (rylynLink) {
+                rylynLink.href = rylynUrl;
+                rylynLink.textContent = rylynUrl;
+            }
         }
 
         async function loadGameState() {
