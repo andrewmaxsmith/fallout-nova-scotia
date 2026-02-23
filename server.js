@@ -562,6 +562,29 @@ app.post('/api/player/:player/scrap/:type', (req, res) => {
     }
 });
 
+// Grant multiple scrap items at once
+app.post('/api/player/:player/scrap/multi', (req, res) => {
+    const { player } = req.params;
+    const { scrapMap } = req.body;
+    
+    if (gameState.players[player]) {
+        const playerScrap = gameState.players[player].scrap;
+        let totalGranted = 0;
+        
+        Object.entries(scrapMap).forEach(([type, amount]) => {
+            if (playerScrap[type] !== undefined && amount > 0) {
+                playerScrap[type] += amount;
+                totalGranted += amount;
+            }
+        });
+        
+        scheduleAutoSave();
+        res.json({ success: true, totalGranted, scrap: playerScrap });
+    } else {
+        res.status(404).json({ error: 'Player not found' });
+    }
+});
+
 // Complete quest for player
 app.post('/api/player/:player/complete-quest', (req, res) => {
     const { player } = req.params;

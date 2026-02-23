@@ -127,6 +127,20 @@
                         <button onclick="grantScrap('logan', 'spices', 2)" class="pip-btn text-xs w-full mb-1">+2 SPICES</button>
                         <button onclick="grantScrap('logan', 'cleanWater', 2)" class="pip-btn text-xs w-full">+2 CLEAN WATER</button>
                     </div>
+                    <div class="mt-4 p-3 border border-pip-green/50">
+                        <p class="text-xs font-bold mb-3">MULTI-GRANT SCRAP</p>
+                        <div class="grid grid-cols-2 gap-2 mb-3">
+                            <div><label class="text-[9px]">Maritime Metal: <input id="logan-mm" type="number" value="0" min="0" class="stat-input text-[10px]"></label></div>
+                            <div><label class="text-[9px]">Synthetic Sap: <input id="logan-ss" type="number" value="0" min="0" class="stat-input text-[10px]"></label></div>
+                            <div><label class="text-[9px]">Hub Circuitry: <input id="logan-hc" type="number" value="0" min="0" class="stat-input text-[10px]"></label></div>
+                            <div><label class="text-[9px]">Plaid Scraps: <input id="logan-ps" type="number" value="0" min="0" class="stat-input text-[10px]"></label></div>
+                            <div><label class="text-[9px]">Propane Tank: <input id="logan-pt" type="number" value="0" min="0" class="stat-input text-[10px]"></label></div>
+                            <div><label class="text-[9px]">Rad-Meat: <input id="logan-rm" type="number" value="0" min="0" class="stat-input text-[10px]"></label></div>
+                            <div><label class="text-[9px]">Spices: <input id="logan-sp" type="number" value="0" min="0" class="stat-input text-[10px]"></label></div>
+                            <div><label class="text-[9px]">Clean Water: <input id="logan-cw" type="number" value="0" min="0" class="stat-input text-[10px]"></label></div>
+                        </div>
+                        <button onclick="grantMultiScrap('logan')" class="pip-btn text-xs w-full bg-green-900 hover:bg-green-700">GRANT ALL</button>
+                    </div>
                 </div>
 
                 <!-- RYLYN -->
@@ -153,6 +167,20 @@
                         <button onclick="grantScrap('rylyn', 'radMeat', 2)" class="pip-btn text-xs w-full mb-1">+2 RAD-MEAT</button>
                         <button onclick="grantScrap('rylyn', 'spices', 2)" class="pip-btn text-xs w-full mb-1">+2 SPICES</button>
                         <button onclick="grantScrap('rylyn', 'cleanWater', 2)" class="pip-btn text-xs w-full">+2 CLEAN WATER</button>
+                    </div>
+                    <div class="mt-4 p-3 border border-pip-green/50">
+                        <p class="text-xs font-bold mb-3">MULTI-GRANT SCRAP</p>
+                        <div class="grid grid-cols-2 gap-2 mb-3">
+                            <div><label class="text-[9px]">Maritime Metal: <input id="rylyn-mm" type="number" value="0" min="0" class="stat-input text-[10px]"></label></div>
+                            <div><label class="text-[9px]">Synthetic Sap: <input id="rylyn-ss" type="number" value="0" min="0" class="stat-input text-[10px]"></label></div>
+                            <div><label class="text-[9px]">Hub Circuitry: <input id="rylyn-hc" type="number" value="0" min="0" class="stat-input text-[10px]"></label></div>
+                            <div><label class="text-[9px]">Plaid Scraps: <input id="rylyn-ps" type="number" value="0" min="0" class="stat-input text-[10px]"></label></div>
+                            <div><label class="text-[9px]">Propane Tank: <input id="rylyn-pt" type="number" value="0" min="0" class="stat-input text-[10px]"></label></div>
+                            <div><label class="text-[9px]">Rad-Meat: <input id="rylyn-rm" type="number" value="0" min="0" class="stat-input text-[10px]"></label></div>
+                            <div><label class="text-[9px]">Spices: <input id="rylyn-sp" type="number" value="0" min="0" class="stat-input text-[10px]"></label></div>
+                            <div><label class="text-[9px]">Clean Water: <input id="rylyn-cw" type="number" value="0" min="0" class="stat-input text-[10px]"></label></div>
+                        </div>
+                        <button onclick="grantMultiScrap('rylyn')" class="pip-btn text-xs w-full bg-green-900 hover:bg-green-700">GRANT ALL</button>
                     </div>
                 </div>
             </div>
@@ -362,6 +390,46 @@
                 alert(`Granted ${amount} ${type} to ${player}`);
             } catch (e) {
                 console.error('Error granting scrap:', e);
+            }
+        }
+
+        async function grantMultiScrap(player) {
+            try {
+                const scrapMap = {
+                    maritimeMetal: parseInt(document.getElementById(`${player}-mm`).value) || 0,
+                    syntheticSap: parseInt(document.getElementById(`${player}-ss`).value) || 0,
+                    hubCircuitry: parseInt(document.getElementById(`${player}-hc`).value) || 0,
+                    plaidScraps: parseInt(document.getElementById(`${player}-ps`).value) || 0,
+                    propaneTank: parseInt(document.getElementById(`${player}-pt`).value) || 0,
+                    radMeat: parseInt(document.getElementById(`${player}-rm`).value) || 0,
+                    spices: parseInt(document.getElementById(`${player}-sp`).value) || 0,
+                    cleanWater: parseInt(document.getElementById(`${player}-cw`).value) || 0
+                };
+                
+                const totalScrap = Object.values(scrapMap).reduce((a, b) => a + b, 0);
+                if (totalScrap === 0) {
+                    alert('Please enter amounts for at least one scrap type');
+                    return;
+                }
+                
+                const response = await fetch(`${API_URL}/api/player/${player}/scrap/multi`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ scrapMap })
+                });
+                
+                if (response.ok) {
+                    alert(`Granted ${totalScrap} items to ${player}`);
+                    // Reset inputs
+                    Object.keys(scrapMap).forEach(type => {
+                        document.getElementById(`${player}-${type.substring(0, 2).toLowerCase()}`).value = 0;
+                    });
+                    await loadGameState();
+                } else {
+                    alert('Error granting scrap');
+                }
+            } catch (e) {
+                console.error('Error granting multi-scrap:', e);
             }
         }
 
