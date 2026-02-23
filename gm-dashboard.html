@@ -78,11 +78,12 @@
         </header>
 
         <!-- NAVIGATION -->
-        <nav class="grid grid-cols-5 gap-2 mb-6">
+        <nav class="grid grid-cols-6 gap-2 mb-6">
             <button onclick="showTab('players')" class="pip-btn">PLAYERS</button>
             <button onclick="showTab('quarters')" class="pip-btn">QUARTERS</button>
             <button onclick="showTab('perks')" class="pip-btn">PERKS</button>
             <button onclick="showTab('quests')" class="pip-btn">QUESTS</button>
+            <button onclick="showTab('effects')" class="pip-btn">EFFECTS</button>
             <button onclick="showTab('radio')" class="pip-btn">RADIO</button>
         </nav>
 
@@ -296,6 +297,49 @@
             </div>
         </section>
 
+        <!-- TAB: STATUS EFFECTS -->
+        <section id="effects" class="tab-content">
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <!-- LOGAN EFFECTS -->
+                <div class="pip-border p-4 bg-black/50">
+                    <h2 class="text-xl font-bold text-blue-400 mb-4">LOGAN EFFECTS</h2>
+                    <div id="logan-effects-list" class="space-y-2 mb-4 text-[10px]">
+                        <!-- Logan's active effects shown here -->
+                    </div>
+                    <div class="border border-pip-green/30 p-3">
+                        <p class="text-xs font-bold mb-2">APPLY EFFECT</p>
+                        <select id="logan-effect-select" class="w-full p-2 bg-black border border-pip-green text-pip-green text-[9px] mb-2">
+                            <option value="">-- SELECT EFFECT --</option>
+                        </select>
+                        <button onclick="applyEffect('logan')" class="pip-btn text-xs w-full">APPLY</button>
+                    </div>
+                </div>
+
+                <!-- RYLYN EFFECTS -->
+                <div class="pip-border p-4 bg-black/50">
+                    <h2 class="text-xl font-bold text-red-400 mb-4">RYLYN EFFECTS</h2>
+                    <div id="rylyn-effects-list" class="space-y-2 mb-4 text-[10px]">
+                        <!-- Rylyn's active effects shown here -->
+                    </div>
+                    <div class="border border-pip-green/30 p-3">
+                        <p class="text-xs font-bold mb-2">APPLY EFFECT</p>
+                        <select id="rylyn-effect-select" class="w-full p-2 bg-black border border-pip-green text-pip-green text-[9px] mb-2">
+                            <option value="">-- SELECT EFFECT --</option>
+                        </select>
+                        <button onclick="applyEffect('rylyn')" class="pip-btn text-xs w-full">APPLY</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EFFECTS REFERENCE -->
+            <div class="pip-border p-4 bg-black/50">
+                <h2 class="text-xl font-bold mb-4">AVAILABLE EFFECTS</h2>
+                <div id="effects-reference" class="grid grid-cols-2 gap-4">
+                    <!-- Effect descriptions populated by JS -->
+                </div>
+            </div>
+        </section>
+
         <!-- TAB: RADIO -->
         <section id="radio" class="tab-content">
             <div class="pip-border p-4 bg-black/50">
@@ -335,6 +379,7 @@
             renderActiveQuests();
             renderQuarters();
             renderPerks();
+            renderEffects();
             renderRadio();
         }
 
@@ -730,6 +775,130 @@
                 } else {
                     rylynPerkStatus.innerHTML = '<span class="opacity-70">No perks</span>';
                 }
+            }
+        }
+
+        function renderEffects() {
+            const loganEffectsList = document.getElementById('logan-effects-list');
+            const rylynEffectsList = document.getElementById('rylyn-effects-list');
+            const loganSelect = document.getElementById('logan-effect-select');
+            const rylynSelect = document.getElementById('rylyn-effect-select');
+            const effectsReference = document.getElementById('effects-reference');
+            
+            loganEffectsList.innerHTML = '';
+            rylynEffectsList.innerHTML = '';
+            loganSelect.innerHTML = '<option value="">-- SELECT EFFECT --</option>';
+            rylynSelect.innerHTML = '<option value="">-- SELECT EFFECT --</option>';
+            effectsReference.innerHTML = '';
+            
+            // Populate effect dropdowns and reference
+            if (gameData.statusEffects) {
+                gameData.statusEffects.forEach(effect => {
+                    const option = document.createElement('option');
+                    option.value = effect.id;
+                    option.textContent = effect.name;
+                    loganSelect.appendChild(option.cloneNode(true));
+                    rylynSelect.appendChild(option.cloneNode(true));
+                    
+                    // Add to effects reference
+                    const refDiv = document.createElement('div');
+                    refDiv.className = 'border border-pip-green/30 p-2 text-[10px]';
+                    const typeColor = effect.type === 'buff' ? 'text-green-400' : 'text-red-400';
+                    refDiv.innerHTML = `
+                        <p class="font-bold ${typeColor}">${effect.name}</p>
+                        <p class="opacity-80 mb-1">${effect.desc}</p>
+                        <p class="text-[8px] opacity-70"><strong>Trigger:</strong> ${effect.trigger}</p>
+                    `;
+                    effectsReference.appendChild(refDiv);
+                });
+            }
+            
+            // Show active effects for Logan
+            if (gameData.players.logan && gameData.players.logan.activeEffects) {
+                if (gameData.players.logan.activeEffects.length > 0) {
+                    gameData.players.logan.activeEffects.forEach(effectId => {
+                        const effect = gameData.statusEffects.find(e => e.id === effectId);
+                        if (effect) {
+                            const div = document.createElement('div');
+                            const typeColor = effect.type === 'buff' ? 'border-green-500 bg-green-950/20' : 'border-red-500 bg-red-950/20';
+                            div.className = `border-l-2 ${typeColor} pl-2 py-1`;
+                            div.innerHTML = `
+                                <span class="font-bold">${effect.name}</span>
+                                <button onclick="removeEffect('logan', '${effect.id}')" class="text-red-400 text-[8px] float-right cursor-pointer hover:text-red-300">REMOVE</button>
+                            `;
+                            loganEffectsList.appendChild(div);
+                        }
+                    });
+                } else {
+                    loganEffectsList.innerHTML = '<span class="opacity-70 text-[9px]">No active effects</span>';
+                }
+            }
+            
+            // Show active effects for Rylyn
+            if (gameData.players.rylyn && gameData.players.rylyn.activeEffects) {
+                if (gameData.players.rylyn.activeEffects.length > 0) {
+                    gameData.players.rylyn.activeEffects.forEach(effectId => {
+                        const effect = gameData.statusEffects.find(e => e.id === effectId);
+                        if (effect) {
+                            const div = document.createElement('div');
+                            const typeColor = effect.type === 'buff' ? 'border-green-500 bg-green-950/20' : 'border-red-500 bg-red-950/20';
+                            div.className = `border-l-2 ${typeColor} pl-2 py-1`;
+                            div.innerHTML = `
+                                <span class="font-bold">${effect.name}</span>
+                                <button onclick="removeEffect('rylyn', '${effect.id}')" class="text-red-400 text-[8px] float-right cursor-pointer hover:text-red-300">REMOVE</button>
+                            `;
+                            rylynEffectsList.appendChild(div);
+                        }
+                    });
+                } else {
+                    rylynEffectsList.innerHTML = '<span class="opacity-70 text-[9px]">No active effects</span>';
+                }
+            }
+        }
+
+        async function applyEffect(player) {
+            const selectId = `${player}-effect-select`;
+            const select = document.getElementById(selectId);
+            const effectId = select.value;
+            
+            if (!effectId) {
+                alert('Please select an effect');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_URL}/api/player/${player}/effect/${effectId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                if (response.ok) {
+                    const result = await response.json();
+                    alert(`Applied: ${result.effect.name}`);
+                    select.value = '';
+                    await loadGameState();
+                    renderEffects();
+                } else {
+                    const result = await response.json();
+                    alert(`Error: ${result.error}`);
+                }
+            } catch (e) {
+                console.error('Error applying effect:', e);
+            }
+        }
+
+        async function removeEffect(player, effectId) {
+            try {
+                const response = await fetch(`${API_URL}/api/player/${player}/effect/${effectId}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                if (response.ok) {
+                    alert('Effect removed');
+                    await loadGameState();
+                    renderEffects();
+                }
+            } catch (e) {
+                console.error('Error removing effect:', e);
             }
         }
 

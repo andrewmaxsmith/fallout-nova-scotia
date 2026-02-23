@@ -45,7 +45,8 @@ let gameState = {
             class: null,
             unlockedPerks: [],
             pendingPerks: 0,
-            purchasedUpgrades: []
+            purchasedUpgrades: [],
+            activeEffects: []
         },
         rylyn: {
             name: 'Rylyn',
@@ -65,7 +66,8 @@ let gameState = {
             class: null,
             unlockedPerks: [],
             pendingPerks: 0,
-            purchasedUpgrades: []
+            purchasedUpgrades: [],
+            activeEffects: []
         }
     },
     perks: [
@@ -79,6 +81,55 @@ let gameState = {
         { id: 'p8', name: "SCAVENGER'S EYE", desc: "+1 Perception for finding hidden items.", tier: 3 },
         { id: 'p9', name: "PLAID PRIDE", desc: "+2 Charisma with faction members.", tier: 2 },
         { id: 'p10', name: "QUICK-HANDS", desc: "+10% attack speed with melee weapons.", tier: 3 }
+    ],
+    statusEffects: [
+        {
+            id: 'se1',
+            name: "DONAIR SWEATS",
+            desc: "You smell so strongly of garlic and spiced beef that you can't sneak, and people don't want to talk to you.",
+            trigger: "Consuming low-quality Mystery Meat",
+            type: 'debuff',
+            effects: { agility: -1, politeness: -1 },
+            recovery: "Drink clean water or wait 30 minutes",
+            durationMinutes: 30
+        },
+        {
+            id: 'se2',
+            name: "FOG-BRAIN",
+            desc: "Your vision is obscured by a thick, glowing pea-soup fog. You might be walking toward a cliff or a Tim Hortons; you can't tell.",
+            trigger: "Spending too long in the irradiated coastal mist",
+            type: 'debuff',
+            effects: { perception: -2 },
+            recovery: "Find a campfire or high ground",
+            durationMinutes: null
+        },
+        {
+            id: 'se3',
+            name: "KITCHEN PARTY HYPE",
+            desc: "A surge of local pride makes you feel invincible and incredibly talkative.",
+            trigger: "Hearing a fiddle tune or successfully telling a Yarn",
+            type: 'buff',
+            effects: { charm: 2, hardiness: 1 },
+            durationMinutes: 15
+        },
+        {
+            id: 'se4',
+            name: "BLACK ROCK SLIP",
+            desc: "You didn't stay off the black rocks at Peggy's Cove. The Atlantic Ocean humbled you.",
+            trigger: "Rolling a 1 near the coastline",
+            type: 'debuff',
+            effects: { hp: -3, hardiness: -1 },
+            permanent: true
+        },
+        {
+            id: 'se5',
+            name: "OVER-POLITE STANDOFF",
+            desc: "A classic Nova Scotian deadlock where nobody wants to be the one to go first.",
+            trigger: "Encountering another player at a doorway or loot pile",
+            type: 'mutual_debuff',
+            effects: { skipNextTurn: true },
+            durationTurns: 1
+        }
     ],
     quests: [
         { id: 'h1', title: "VAULT: Sanitize Quarters", desc: "Clean your room until no scrap remains on the floor.", category: 'vault', rewardTabs: 10, rewardScrap: { syntheticSap: 1 }, xp: 1 },
@@ -701,6 +752,67 @@ app.delete('/api/player/:player/perk/:perkId', (req, res) => {
     }
 });
 
+// Apply a status effect to a player
+app.post('/api/player/:player/effect/:effectId', (req, res) => {
+    const { player, effectId } = req.params;
+    const playerData = gameState.players[player];
+    const effect = gameState.statusEffects.find(e => e.id === effectId);
+    
+    if (!playerData) {
+        return res.status(404).json({ error: 'Player not found' });
+    }
+    if (!effect) {
+        return res.status(404).json({ error: 'Effect not found' });
+    }
+    
+    // Apply effect to player (checked for existing effects to avoid duplicates)
+    if (!playerData.activeEffects.includes(effectId)) {
+        playerData.activeEffects.push(effectId);
+        
+        // Apply stat modifications if any
+        if (effect.effects) {
+            Object.entries(effect.effects).forEach(([stat, value]) => {
+                if (stat === 'hp' && typeof value === 'number') {
+                    playerData.hp = Math.max(0, playerData.hp + value);
+                } else if (playerData.stats && playerData.stats[stat] !== undefined) {
+                    playerData.stats[stat] += value;
+                }
+            });
+        }
+        
+        scheduleAutoSave();
+        res.json({ success: true, message: `Effect "${effect.name}" applied to ${player}`, effect });
+    } else {
+        res.status(400).json({ error: 'Player already has this effect' });
+    }
+});
+
+// Remove status effect from player
+app.delete('/api/player/:player/effect/:effectId', (req, res) => {
+    const { player, effectId } = req.params;
+    const effect = gameState.statusEffects.find(e => e.id === effectId);
+    
+    if (!gameState.players[player]) {
+        return res.status(404).json({ error: 'Player not found' });
+    }
+    
+    gameState.players[player].activeEffects = gameState.players[player].activeEffects.filter(e => e !== effectId);
+    
+    // Reverse stat modifications if any
+    if (effect && effect.effects) {
+        Object.entries(effect.effects).forEach(([stat, value]) => {
+            if (stat === 'hp' && typeof value === 'number') {
+                gameState.players[player].hp = Math.max(0, gameState.players[player].hp - value);
+            } else if (gameState.players[player].stats && gameState.players[player].stats[stat] !== undefined) {
+                gameState.players[player].stats[stat] -= value;
+            }
+        });
+    }
+    
+    scheduleAutoSave();
+    res.json({ success: true, message: `Effect removed from ${player}` });
+});
+
 // Craft an item
 app.post('/api/player/:player/craft/:recipeId', (req, res) => {
     const { player, recipeId } = req.params;
@@ -1028,7 +1140,8 @@ app.post('/api/reset', (req, res) => {
                 class: null,
                 unlockedPerks: [],
                 pendingPerks: 0,
-                purchasedUpgrades: []
+                purchasedUpgrades: [],
+                activeEffects: []
             },
             rylyn: {
                 name: 'Rylyn',
@@ -1048,7 +1161,8 @@ app.post('/api/reset', (req, res) => {
                 class: null,
                 unlockedPerks: [],
                 pendingPerks: 0,
-                purchasedUpgrades: []
+                purchasedUpgrades: [],
+                activeEffects: []
             }
         },
         perks: [
@@ -1062,6 +1176,55 @@ app.post('/api/reset', (req, res) => {
             { id: 'p8', name: "SCAVENGER'S EYE", desc: "+1 Perception for finding hidden items.", tier: 3 },
             { id: 'p9', name: "PLAID PRIDE", desc: "+2 Charisma with faction members.", tier: 2 },
             { id: 'p10', name: "QUICK-HANDS", desc: "+10% attack speed with melee weapons.", tier: 3 }
+        ],
+        statusEffects: [
+            {
+                id: 'se1',
+                name: "DONAIR SWEATS",
+                desc: "You smell so strongly of garlic and spiced beef that you can't sneak, and people don't want to talk to you.",
+                trigger: "Consuming low-quality Mystery Meat",
+                type: 'debuff',
+                effects: { agility: -1, politeness: -1 },
+                recovery: "Drink clean water or wait 30 minutes",
+                durationMinutes: 30
+            },
+            {
+                id: 'se2',
+                name: "FOG-BRAIN",
+                desc: "Your vision is obscured by a thick, glowing pea-soup fog. You might be walking toward a cliff or a Tim Hortons; you can't tell.",
+                trigger: "Spending too long in the irradiated coastal mist",
+                type: 'debuff',
+                effects: { perception: -2 },
+                recovery: "Find a campfire or high ground",
+                durationMinutes: null
+            },
+            {
+                id: 'se3',
+                name: "KITCHEN PARTY HYPE",
+                desc: "A surge of local pride makes you feel invincible and incredibly talkative.",
+                trigger: "Hearing a fiddle tune or successfully telling a Yarn",
+                type: 'buff',
+                effects: { charm: 2, hardiness: 1 },
+                durationMinutes: 15
+            },
+            {
+                id: 'se4',
+                name: "BLACK ROCK SLIP",
+                desc: "You didn't stay off the black rocks at Peggy's Cove. The Atlantic Ocean humbled you.",
+                trigger: "Rolling a 1 near the coastline",
+                type: 'debuff',
+                effects: { hp: -3, hardiness: -1 },
+                permanent: true
+            },
+            {
+                id: 'se5',
+                name: "OVER-POLITE STANDOFF",
+                desc: "A classic Nova Scotian deadlock where nobody wants to be the one to go first.",
+                trigger: "Encountering another player at a doorway or loot pile",
+                type: 'mutual_debuff',
+                effects: { skipNextTurn: true },
+                durationTurns: 1
+            }
         ],
         quests: [
             { id: 'h1', title: "VAULT: Sanitize Quarters", desc: "Clean your room until no scrap remains on the floor.", category: 'vault', rewardTabs: 10, rewardScrap: { syntheticSap: 1 }, xp: 1 },
