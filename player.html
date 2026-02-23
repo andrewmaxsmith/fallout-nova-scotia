@@ -668,10 +668,14 @@
             const broadcast = document.getElementById('radio-broadcast');
             if (playerData.activeRadioData) {
                 const safeText = playerData.activeRadioData.text.replace(/\n/g, '<br>');
+                const resolveButton = playerData.activeRadioData.requiresResolve
+                    ? '<button onclick="resolveEncounter()" class="pip-btn w-full py-2 text-[10px] mt-3">RESOLVE</button>'
+                    : '';
                 broadcast.innerHTML = `
                     <div class="radio-alert">
                         <h3 class="font-bold text-sm mb-2">${playerData.activeRadioData.title}</h3>
                         <p class="text-[10px] italic leading-relaxed">${safeText}</p>
+                        ${resolveButton}
                     </div>
                 `;
                 notify(`RADIO SIGNAL: ${playerData.activeRadioData.title}`);
@@ -689,6 +693,25 @@
                     `;
                     notify(`RADIO SIGNAL: ${signal.title}`);
                 }
+            }
+        }
+
+        async function resolveEncounter() {
+            try {
+                const response = await fetch(`${API_URL}/api/player/${playerName}/encounter/resolve`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                if (response.ok) {
+                    await loadData();
+                    notify('ENCOUNTER RESOLVED');
+                } else {
+                    const result = await response.json();
+                    notify(`ERROR: ${result.error}`);
+                }
+            } catch (e) {
+                console.error('Error resolving encounter:', e);
+                notify('ERROR: Could not resolve encounter');
             }
         }
 

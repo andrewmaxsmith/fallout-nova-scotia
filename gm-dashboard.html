@@ -670,15 +670,10 @@
                     const result = await response.json();
                     alert(`ENCOUNTER: ${result.encounter.title}`);
                     const log = document.getElementById('random-encounter-log');
-                    const logan = result.results?.logan;
-                    const rylyn = result.results?.rylyn;
-                    const loganText = logan ? `LOGAN: D20 ${logan.roll} (${logan.label}) - ${logan.effects}` : 'LOGAN: N/A';
-                    const rylynText = rylyn ? `RYLYN: D20 ${rylyn.roll} (${rylyn.label}) - ${rylyn.effects}` : 'RYLYN: N/A';
                     log.innerHTML = `
                         <p class="font-bold text-yellow-400 mb-1">${result.encounter.title}</p>
                         <p class="opacity-90 mb-1">${result.encounter.text}</p>
-                        <p class="text-green-400">${loganText}</p>
-                        <p class="text-red-400">${rylynText}</p>
+                        <p class="opacity-70">AWAITING PLAYER RESOLVE</p>
                     `;
                     await loadGameState();
                 } else {

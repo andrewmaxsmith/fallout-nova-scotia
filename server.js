@@ -433,6 +433,42 @@ function resolveEncounterOutcome(player, encounter) {
     };
 }
 
+function addInventoryItem(player, name) {
+    const item = {
+        id: `item-${Date.now()}`,
+        name: name,
+        qty: 1
+    };
+    gameState.players[player].inventory.push(item);
+}
+
+function applyEncounterOutcome(player) {
+    const outcomes = [
+        { id: 'lose_hp', text: 'LOSE 2 HEALTH', apply: (p) => { p.hp = clamp((p.hp || 0) - 2, 0, p.maxHp || 10); } },
+        { id: 'gain_rads_2', text: 'GAIN 2 RADS', apply: (p) => { p.rads = clamp((p.rads || 0) + 2, 0, 10); } },
+        { id: 'gain_rads_4', text: 'GAIN 4 RADS', apply: (p) => { p.rads = clamp((p.rads || 0) + 4, 0, 10); } },
+        { id: 'gain_tabs_2', text: 'GAIN 2 TABS', apply: (p) => { p.tabs = (p.tabs || 0) + 2; } },
+        { id: 'gain_resource', text: 'GAIN RANDOM RESOURCE', apply: (p) => {
+            const scrapType = getRandomScrapType(player);
+            if (scrapType) {
+                p.scrap[scrapType] = (p.scrap[scrapType] || 0) + 1;
+                return `${scrapType} +1`;
+            }
+            return 'NO SCRAP AVAILABLE';
+        } },
+        { id: 'gain_stimpak', text: 'GAIN STIMPAK', apply: (p) => { addInventoryItem(player, 'Stimpak'); } },
+        { id: 'gain_radaway', text: 'GAIN RAD-AWAY', apply: (p) => { addInventoryItem(player, 'Rad-Away'); } }
+    ];
+
+    const outcome = outcomes[Math.floor(Math.random() * outcomes.length)];
+    const extra = outcome.apply(gameState.players[player]);
+    return {
+        id: outcome.id,
+        text: outcome.text,
+        extra: extra || null
+    };
+}
+
 loadGameStateFromDisk();
 
 process.on('SIGINT', () => {
@@ -769,20 +805,36 @@ app.post('/api/encounter/random', (req, res) => {
     }
 
     const encounter = gameState.randomEncounters[Math.floor(Math.random() * gameState.randomEncounters.length)];
-    const results = {};
 
     for (let player in gameState.players) {
-        const outcome = resolveEncounterOutcome(player, encounter);
-        results[player] = outcome;
         gameState.players[player].activeRadio = null;
         gameState.players[player].activeRadioData = {
             title: encounter.title,
-            text: `${encounter.text}\n\nD20 ROLL: ${outcome.roll} (${outcome.label})\nOUTCOME: ${outcome.effects}`
+            text: encounter.text,
+            encounterId: encounter.id,
+            requiresResolve: true
         };
     }
 
     scheduleAutoSave();
-    res.json({ success: true, message: 'Encounter sent to all players', encounter: encounter, results: results });
+    res.json({ success: true, message: 'Encounter sent to all players', encounter: encounter });
+});
+
+// Resolve a pending encounter for a player
+app.post('/api/player/:player/encounter/resolve', (req, res) => {
+    const { player } = req.params;
+    const playerData = gameState.players[player];
+    if (!playerData || !playerData.activeRadioData || !playerData.activeRadioData.requiresResolve) {
+        return res.status(400).json({ error: 'No encounter to resolve' });
+    }
+
+    const outcome = applyEncounterOutcome(player);
+    const extraText = outcome.extra ? ` (${outcome.extra})` : '';
+    playerData.activeRadioData.text = `${playerData.activeRadioData.text}\n\nRESOLVED: ${outcome.text}${extraText}`;
+    playerData.activeRadioData.requiresResolve = false;
+
+    scheduleAutoSave();
+    res.json({ success: true, outcome: outcome, radio: playerData.activeRadioData });
 });
 
 // Get trade offers
