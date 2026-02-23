@@ -1042,11 +1042,12 @@
                 if (response.ok) {
                     alert('✓ ALL DATA RESET TO INITIAL STATE');
                     await loadGameState();
-                    renderPlayerCards();
+                    renderActiveQuests();
                     renderPerks();
                     renderQuests();
                     renderRadio();
                     renderQuarters();
+                    renderEffects();
                 } else {
                     alert('Error resetting data');
                 }
