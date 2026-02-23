@@ -30,6 +30,7 @@ let gameState = {
         logan: {
             name: 'Logan',
             level: 1,
+            xp: 0,
             hp: 10,
             maxHp: 10,
             rads: 0,
@@ -51,6 +52,7 @@ let gameState = {
         rylyn: {
             name: 'Rylyn',
             level: 1,
+            xp: 0,
             hp: 10,
             maxHp: 10,
             rads: 0,
@@ -404,6 +406,7 @@ function loadGameStateFromDisk() {
         const loadedState = JSON.parse(fileContent);
         if (loadedState && typeof loadedState === 'object' && loadedState.players) {
             gameState = loadedState;
+            Object.values(gameState.players).forEach(ensurePlayerProgressFields);
             console.log('Loaded saved game state from disk.');
         }
     } catch (error) {
@@ -421,6 +424,27 @@ function flushSaveOnExit() {
 
 function clamp(value, min, max) {
     return Math.max(min, Math.min(max, value));
+}
+
+function getXpRequiredForLevel(level) {
+    const safeLevel = Math.max(1, Number(level) || 1);
+    return 5 + ((safeLevel - 1) * 3);
+}
+
+function ensurePlayerProgressFields(playerData) {
+    if (!playerData || typeof playerData !== 'object') {
+        return;
+    }
+
+    if (!Number.isFinite(playerData.level) || playerData.level < 1) {
+        playerData.level = 1;
+    }
+
+    if (!Number.isFinite(playerData.xp) || playerData.xp < 0) {
+        playerData.xp = 0;
+    }
+
+    playerData.xpToNext = getXpRequiredForLevel(playerData.level);
 }
 
 function getRandomScrapType(player) {
@@ -546,6 +570,7 @@ process.on('SIGTERM', () => {
 
 // GET game state for GM dashboard
 app.get('/api/game-state', (req, res) => {
+    Object.values(gameState.players).forEach(ensurePlayerProgressFields);
     res.json(gameState);
 });
 
@@ -651,6 +676,7 @@ app.post('/api/player/:player/complete-quest', (req, res) => {
     const { questId } = req.body;
     const playerData = gameState.players[player];
     if (playerData) {
+        ensurePlayerProgressFields(playerData);
         const quest = gameState.quests.find(q => q.id === questId);
         if (quest) {
             playerData.activeQuests = playerData.activeQuests.filter(q => q !== questId);
@@ -658,7 +684,17 @@ app.post('/api/player/:player/complete-quest', (req, res) => {
             const tabsReward = quest.rewardTabs || 0;
             const xpReward = quest.xp || 0;
             playerData.tabs += tabsReward;
-            playerData.level += xpReward;
+            playerData.xp += xpReward;
+
+            let levelsGained = 0;
+            let xpNeeded = getXpRequiredForLevel(playerData.level);
+            while (playerData.xp >= xpNeeded) {
+                playerData.xp -= xpNeeded;
+                playerData.level += 1;
+                levelsGained += 1;
+                xpNeeded = getXpRequiredForLevel(playerData.level);
+            }
+
             if (quest.rewardScrap) {
                 Object.entries(quest.rewardScrap).forEach(([type, amount]) => {
                     if (playerData.scrap[type] === undefined) {
@@ -667,7 +703,8 @@ app.post('/api/player/:player/complete-quest', (req, res) => {
                     playerData.scrap[type] += amount;
                 });
             }
-            playerData.pendingPerks = (playerData.pendingPerks || 0) + xpReward;
+            playerData.pendingPerks = (playerData.pendingPerks || 0) + levelsGained;
+            playerData.xpToNext = getXpRequiredForLevel(playerData.level);
             scheduleAutoSave();
             res.json({ success: true, message: `${player} completed ${quest.title}` });
         }
@@ -680,6 +717,7 @@ app.post('/api/player/:player/complete-quest', (req, res) => {
 app.get('/api/player/:player', (req, res) => {
     const { player } = req.params;
     if (gameState.players[player]) {
+        ensurePlayerProgressFields(gameState.players[player]);
         res.json(gameState.players[player]);
     } else {
         res.status(404).json({ error: 'Player not found' });
@@ -1134,6 +1172,7 @@ app.post('/api/reset', (req, res) => {
             logan: {
                 name: 'Logan',
                 level: 1,
+                xp: 0,
                 hp: 10,
                 maxHp: 10,
                 rads: 0,
@@ -1155,6 +1194,7 @@ app.post('/api/reset', (req, res) => {
             rylyn: {
                 name: 'Rylyn',
                 level: 1,
+                xp: 0,
                 hp: 10,
                 maxHp: 10,
                 rads: 0,

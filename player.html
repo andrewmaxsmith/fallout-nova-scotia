@@ -210,6 +210,10 @@
                         <div class="flex justify-between text-[10px]"><span>RADS</span><span id="rad-val">0/10</span></div>
                         <div class="stat-bar"><div id="rad-bar" class="stat-fill rad-fill" style="width: 0%"></div></div>
                     </div>
+                    <div>
+                        <div class="flex justify-between text-[10px]"><span>XP</span><span id="xp-val">0/5</span></div>
+                        <div class="stat-bar"><div id="xp-bar" class="stat-fill" style="width: 0%"></div></div>
+                    </div>
                 </div>
             </div>
 
@@ -600,13 +604,20 @@
             document.getElementById('display-tabs').textContent = playerData.tabs || 0;
             document.getElementById('display-faction').textContent = playerData.faction || 'NONE';
 
+            const currentLevel = Math.max(1, playerData.level || 1);
+            const xpToNext = Math.max(1, playerData.xpToNext || (5 + ((currentLevel - 1) * 3)));
+            const xpCurrent = Math.max(0, playerData.xp || 0);
+
             // Update health bars
             const hpPercent = ((playerData.hp || 10) / (playerData.maxHp || 10)) * 100;
             const radPercent = ((playerData.rads || 0) / 10) * 100;
+            const xpPercent = Math.min(100, (xpCurrent / xpToNext) * 100);
             document.getElementById('hp-bar').style.width = hpPercent + '%';
             document.getElementById('rad-bar').style.width = radPercent + '%';
+            document.getElementById('xp-bar').style.width = xpPercent + '%';
             document.getElementById('hp-val').textContent = `${playerData.hp || 10}/${playerData.maxHp || 10}`;
             document.getElementById('rad-val').textContent = `${playerData.rads || 0}/10`;
+            document.getElementById('xp-val').textContent = `${xpCurrent}/${xpToNext}`;
 
             // Update stats
             const statsList = document.getElementById('stats-list');
