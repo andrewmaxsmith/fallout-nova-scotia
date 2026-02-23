@@ -455,6 +455,33 @@
         let allRecipes = [];
         let allQuartersUpgrades = [];
         let playerQuarters = [];
+        let cachedAvailablePerkChoiceIds = [];
+        let cachedTierPerkChoiceIds = [];
+        let cachedTierForPerkChoices = null;
+        let cachedUpgradeChoiceIds = [];
+
+        function getStableRandomChoices(sourceItems, cachedIds, maxChoices) {
+            const targetCount = Math.min(maxChoices, sourceItems.length);
+            if (targetCount <= 0) {
+                return [];
+            }
+
+            const itemById = new Map(sourceItems.map(item => [item.id, item]));
+            const existing = (cachedIds || [])
+                .map(id => itemById.get(id))
+                .filter(Boolean);
+
+            const chosen = [...existing];
+            const remaining = sourceItems.filter(item => !chosen.some(c => c.id === item.id));
+
+            while (chosen.length < targetCount && remaining.length > 0) {
+                const idx = Math.floor(Math.random() * remaining.length);
+                const [picked] = remaining.splice(idx, 1);
+                chosen.push(picked);
+            }
+
+            return chosen.slice(0, targetCount);
+        }
 
         async function init() {
             document.getElementById('player-name').textContent = playerName.toUpperCase();
@@ -932,39 +959,32 @@
                 activeList.innerHTML = '<p class="text-[10px] opacity-70">No perks unlocked yet.</p>';
             }
 
-            // Show available perks by tier
+            // Show 3 random available perks
             if (allPerks && allPerks.length > 0) {
                 const lockedPerks = allPerks.filter(p => !playerData.unlockedPerks || !playerData.unlockedPerks.includes(p.id));
                 
                 if (lockedPerks.length > 0) {
-                    const tierGroups = { 1: [], 2: [], 3: [] };
-                    lockedPerks.forEach(p => {
-                        if (tierGroups[p.tier]) {
-                            tierGroups[p.tier].push(p);
-                        }
-                    });
+                    const randomPerks = getStableRandomChoices(lockedPerks, cachedAvailablePerkChoiceIds, 3);
+                    cachedAvailablePerkChoiceIds = randomPerks.map(p => p.id);
 
-                    ['1', '2', '3'].forEach(tier => {
-                        if (tierGroups[tier].length > 0) {
-                            const tierTitle = document.createElement('p');
-                            tierTitle.className = 'text-xs font-bold text-yellow-400 mt-3 mb-2';
-                            tierTitle.textContent = `TIER ${tier} PERKS`;
-                            availableList.appendChild(tierTitle);
+                    const sectionTitle = document.createElement('p');
+                    sectionTitle.className = 'text-xs font-bold text-yellow-400 mb-2';
+                    sectionTitle.textContent = 'RANDOM CHOICES';
+                    availableList.appendChild(sectionTitle);
 
-                            tierGroups[tier].forEach(perk => {
-                                const canSelect = (playerData.pendingPerks || 0) > 0;
-                                const disabledAttr = canSelect ? '' : 'disabled';
-                                const disabledClass = canSelect ? '' : 'opacity-50 cursor-not-allowed';
-                                const div = document.createElement('div');
-                                div.className = 'border border-pip-green/30 p-2 cursor-pointer hover:border-pip-green transition';
-                                div.innerHTML = `
-                                    <h4 class="font-bold text-sm">${perk.name}</h4>
-                                    <p class="text-[10px] opacity-80 mb-2">${perk.desc}</p>
-                                    <button onclick="selectPerk('${perk.id}')" class="pip-btn text-[8px] w-full ${disabledClass}" ${disabledAttr}>SELECT PERK</button>
-                                `;
-                                availableList.appendChild(div);
-                            });
-                        }
+                    randomPerks.forEach(perk => {
+                        const canSelect = (playerData.pendingPerks || 0) > 0;
+                        const disabledAttr = canSelect ? '' : 'disabled';
+                        const disabledClass = canSelect ? '' : 'opacity-50 cursor-not-allowed';
+                        const div = document.createElement('div');
+                        div.className = 'border border-pip-green/30 p-2 cursor-pointer hover:border-pip-green transition';
+                        div.innerHTML = `
+                            <h4 class="font-bold text-sm">${perk.name}</h4>
+                            <p class="text-[10px] opacity-80 mb-1">${perk.desc}</p>
+                            <p class="text-[8px] text-yellow-500 mb-2">TIER ${perk.tier}</p>
+                            <button onclick="selectPerk('${perk.id}')" class="pip-btn text-[8px] w-full ${disabledClass}" ${disabledAttr}>SELECT PERK</button>
+                        `;
+                        availableList.appendChild(div);
                     });
                 } else {
                     availableList.innerHTML = '<p class="text-[10px] opacity-70">All available perks are unlocked!</p>';
@@ -980,9 +1000,13 @@
                 const tierPerks = allPerks.filter(p => p.tier === currentTier && (!playerData.unlockedPerks || !playerData.unlockedPerks.includes(p.id)));
                 
                 if (tierPerks.length > 0) {
-                    // Shuffle and select 3 random perks
-                    const shuffled = [...tierPerks].sort(() => Math.random() - 0.5);
-                    const selectedPerks = shuffled.slice(0, Math.min(3, shuffled.length));
+                    if (cachedTierForPerkChoices !== currentTier) {
+                        cachedTierForPerkChoices = currentTier;
+                        cachedTierPerkChoiceIds = [];
+                    }
+
+                    const selectedPerks = getStableRandomChoices(tierPerks, cachedTierPerkChoiceIds, 3);
+                    cachedTierPerkChoiceIds = selectedPerks.map(p => p.id);
                     
                     selectedPerks.forEach(perk => {
                         const choice = document.createElement('div');
@@ -1036,7 +1060,10 @@
                 const available = allQuartersUpgrades.filter(u => !playerData.purchasedUpgrades || !playerData.purchasedUpgrades.includes(u.id));
                 
                 if (available.length > 0) {
-                    available.forEach(upgrade => {
+                    const randomUpgrades = getStableRandomChoices(available, cachedUpgradeChoiceIds, 3);
+                    cachedUpgradeChoiceIds = randomUpgrades.map(u => u.id);
+
+                    randomUpgrades.forEach(upgrade => {
                         const canAfford = playerData.tabs >= upgrade.cost;
                         const div = document.createElement('div');
                         div.className = canAfford ? 'border border-yellow-500/50 p-2 cursor-pointer hover:border-yellow-500 transition' : 'border border-red-500/30 p-2 opacity-60';

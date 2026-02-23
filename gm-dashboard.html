@@ -60,6 +60,10 @@
             padding: 4px;
             width: 60px;
         }
+        .no-scroll-box {
+            overflow: visible !important;
+            max-height: none !important;
+        }
     </style>
 </head>
 <body class="p-4">
@@ -173,7 +177,7 @@
                 <!-- AVAILABLE UPGRADES -->
                 <div class="pip-border p-4 bg-black/50">
                     <h2 class="text-xl font-bold mb-4">UPGRADE CATALOG</h2>
-                    <div id="quarters-catalog" class="space-y-2">
+                    <div id="quarters-catalog" class="space-y-2 no-scroll-box">
                         <!-- Upgrades injected here -->
                     </div>
                 </div>
@@ -185,14 +189,14 @@
                         <!-- LOGAN QUARTERS -->
                         <div class="border border-blue-400 p-3">
                             <h3 class="text-blue-400 font-bold text-sm mb-2">LOGAN'S UPGRADES</h3>
-                            <div id="logan-quarters" class="space-y-1 text-[10px]">
+                            <div id="logan-quarters" class="space-y-1 text-[10px] no-scroll-box">
                                 <!-- Logan's upgrades -->
                             </div>
                         </div>
                         <!-- RYLYN QUARTERS -->
                         <div class="border border-red-400 p-3">
                             <h3 class="text-red-400 font-bold text-sm mb-2">RYLYN'S UPGRADES</h3>
-                            <div id="rylyn-quarters" class="space-y-1 text-[10px]">
+                            <div id="rylyn-quarters" class="space-y-1 text-[10px] no-scroll-box">
                                 <!-- Rylyn's upgrades -->
                             </div>
                         </div>
@@ -207,7 +211,7 @@
                 <!-- PERKS LIST -->
                 <div class="pip-border p-4 bg-black/50">
                     <h2 class="text-xl font-bold mb-4">AVAILABLE PERKS</h2>
-                    <div id="perks-list" class="space-y-2">
+                    <div id="perks-list" class="space-y-2 no-scroll-box">
                         <!-- Perks injected here -->
                     </div>
                 </div>
@@ -218,13 +222,13 @@
                     <div class="grid grid-cols-2 gap-2">
                         <div class="border border-blue-400 p-3">
                             <p class="text-blue-400 text-xs font-bold mb-2">LOGAN</p>
-                            <div id="logan-perks-status" class="text-[10px] space-y-1">
+                            <div id="logan-perks-status" class="text-[10px] space-y-1 no-scroll-box">
                                 <!-- Logan's perks -->
                             </div>
                         </div>
                         <div class="border border-red-400 p-3">
                             <p class="text-red-400 text-xs font-bold mb-2">RYLYN</p>
-                            <div id="rylyn-perks-status" class="text-[10px] space-y-1">
+                            <div id="rylyn-perks-status" class="text-[10px] space-y-1 no-scroll-box">
                                 <!-- Rylyn's perks -->
                             </div>
                         </div>
