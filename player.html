@@ -153,7 +153,7 @@
         <div class="pip-border p-6 bg-black max-w-md w-full">
             <h1 class="text-2xl font-bold text-yellow-500 mb-2 text-center">LEVEL UP!</h1>
             <p class="text-xs opacity-70 mb-4 text-center">CHOOSE 1 PERK</p>
-            <p class="text-[10px] text-center opacity-70 mb-4">PERK POINTS: <span id="perk-points">0</span></p>
+            <p class="text-[10px] text-center opacity-70 mb-4">PERKS TO PICK: <span id="perk-picks">0</span></p>
             <div id="perk-choice-list" class="space-y-2">
                 <!-- Perk choices injected here -->
             </div>
@@ -889,7 +889,7 @@
             const availableList = document.getElementById('available-perks-list');
             const perkOverlay = document.getElementById('perk-overlay');
             const perkChoiceList = document.getElementById('perk-choice-list');
-            const perkPointsDisplay = document.getElementById('perk-points');
+            const perkPicksDisplay = document.getElementById('perk-picks');
             
             activeList.innerHTML = '';
             availableList.innerHTML = '';
@@ -919,7 +919,7 @@
                 
                 if (lockedPerks.length > 0) {
                     lockedPerks.forEach(perk => {
-                        const canSelect = (playerData.perkPoints || 0) > 0;
+                        const canSelect = (playerData.pendingPerks || 0) > 0;
                         const disabledAttr = canSelect ? '' : 'disabled';
                         const disabledClass = canSelect ? '' : 'opacity-50 cursor-not-allowed';
                         const div = document.createElement('div');
@@ -948,8 +948,8 @@
             }
 
             // Show perk overlay when player has perk points
-            if ((playerData.perkPoints || 0) > 0 && perkChoiceList.children.length > 0) {
-                perkPointsDisplay.textContent = playerData.perkPoints;
+            if ((playerData.pendingPerks || 0) > 0 && perkChoiceList.children.length > 0) {
+                perkPicksDisplay.textContent = playerData.pendingPerks;
                 perkOverlay.classList.remove('hidden');
             } else {
                 perkOverlay.classList.add('hidden');
