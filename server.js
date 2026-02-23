@@ -85,7 +85,14 @@ let gameState = {
         { id: 'p7', name: "WASTELAND WAND", desc: "+1 Agility on trails and outdoor areas.", tier: 2 },
         { id: 'p8', name: "SCAVENGER'S EYE", desc: "+1 Perception for finding hidden items.", tier: 3 },
         { id: 'p9', name: "PLAID PRIDE", desc: "+2 Charisma with faction members.", tier: 2 },
-        { id: 'p10', name: "QUICK-HANDS", desc: "+10% attack speed with melee weapons.", tier: 3 }
+        { id: 'p10', name: "QUICK-HANDS", desc: "+10% attack speed with melee weapons.", tier: 3 },
+        { id: 'p11', name: "TIDAL MASTER", desc: "Predict Tidal Bore patterns; cross safely at any time.", tier: 2 },
+        { id: 'p12', name: "FOG WALKER", desc: "Move freely through radioactive fog without vision penalty.", tier: 3 },
+        { id: 'p13', name: "COVE CLIMBER", desc: "Scaling any cliff or rock formation grants +1 to next action.", tier: 2 },
+        { id: 'p14', name: "KITCHEN PARTY", desc: "Social encounters grant +15% charm and +10% tabs reward.", tier: 1 },
+        { id: 'p15', name: "LOBSTER REFLEXES", desc: "Dodge incoming damage with +2 to agility checks.", tier: 3 },
+        { id: 'p16', name: "HIGHLAND HARDNESS", desc: "+3 Max HP. You're built for the brutal Nova Scotia terrain.", tier: 2 },
+        { id: 'p17', name: "RADIO TUNER", desc: "Unlock 3 additional radio signals beyond normal broadcasts.", tier: 1 }
     ],
     statusEffects: [
         {
