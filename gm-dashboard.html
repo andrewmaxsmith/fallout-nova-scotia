@@ -64,6 +64,26 @@
             overflow: visible !important;
             max-height: none !important;
         }
+        @media (max-width: 768px) {
+            .max-w-6xl {
+                max-width: 100%;
+            }
+            nav.grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .grid.grid-cols-6 {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .grid.grid-cols-2 {
+                grid-template-columns: 1fr;
+            }
+            h1.text-3xl {
+                font-size: 1.5rem;
+            }
+            .text-[10px] {
+                font-size: 8px;
+            }
+        }
     </style>
 </head>
 <body class="p-4">
@@ -331,6 +351,14 @@
                 <div class="pip-border p-3 border-dashed border-yellow-500 bg-yellow-950/10 mb-6">
                     <h3 class="text-sm font-bold text-yellow-500 mb-2">RANDOM BROADCAST</h3>
                     <button onclick="sendRandomBroadcast()" class="pip-btn w-full py-2 text-sm font-bold">SEND RANDOM SIGNAL</button>
+                </div>
+                <div class="pip-border p-3 border-dashed border-cyan-500 bg-cyan-950/10 mb-6">
+                    <h3 class="text-sm font-bold text-cyan-400 mb-2">CUSTOM SIGNAL</h3>
+                    <textarea id="custom-radio-text" class="w-full p-2 bg-black border border-pip-green text-pip-green text-[10px] font-mono mb-2" rows="3" placeholder="Enter custom radio signal message..."></textarea>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="sendCustomRadioToPlayer('logan')" class="pip-btn text-xs py-2">• LOGAN</button>
+                        <button onclick="sendCustomRadioToPlayer('rylyn')" class="pip-btn text-xs py-2">• RYLYN</button>
+                    </div>
                 </div>
                 <div class="grid grid-cols-2 gap-2 mb-6">
                     <div class="border border-blue-400 p-2">
@@ -971,6 +999,33 @@
                 }
             } catch (e) {
                 console.error('Error sending broadcast:', e);
+            }
+        }
+
+        async function sendCustomRadioToPlayer(player) {
+            const message = document.getElementById('custom-radio-text').value.trim();
+            if (!message) {
+                alert('Please enter a message');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/api/player/${player}/radio-message`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message })
+                });
+                if (response.ok) {
+                    const result = await response.json();
+                    alert(`Custom signal sent to ${player}!`);
+                    document.getElementById('custom-radio-text').value = '';
+                    await loadGameState();
+                } else {
+                    const error = await response.json();
+                    alert(`Error: ${error.error}`);
+                }
+            } catch (e) {
+                console.error('Error sending custom radio:', e);
             }
         }
 

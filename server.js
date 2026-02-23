@@ -660,6 +660,32 @@ app.post('/api/player/:player/radio', (req, res) => {
     }
 });
 
+// Send custom radio message to player
+app.post('/api/player/:player/radio-message', (req, res) => {
+    const { player } = req.params;
+    const { message } = req.body;
+    if (!gameState.players[player]) {
+        return res.status(404).json({ error: 'Player not found' });
+    }
+    if (!message || message.trim().length === 0) {
+        return res.status(400).json({ error: 'Message cannot be empty' });
+    }
+    
+    // Create a custom radio signal
+    const customSignal = {
+        id: `custom_${Date.now()}`,
+        title: 'OVERSEER TRANSMISSION',
+        frequency: '88.5 FM',
+        message: message.trim(),
+        type: 'custom'
+    };
+    
+    gameState.players[player].activeRadio = customSignal.id;
+    gameState.players[player].activeRadioData = customSignal;
+    scheduleAutoSave();
+    res.json({ success: true, message: 'Custom signal sent', signal: customSignal });
+});
+
 // Modify player scrap/inventory
 app.post('/api/player/:player/scrap/:type', (req, res) => {
     const { player, type } = req.params;
