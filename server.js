@@ -10,6 +10,7 @@ const PORT = process.env.PORT || 5000;
 const DATA_DIR = process.env.DATA_VOLUME_PATH || __dirname;
 const SAVE_FILE_PATH = path.join(DATA_DIR, 'game-state.json');
 const SAVE_DEBOUNCE_MS = 500;
+const GAME_STATE_VERSION = 2; // Increment when schema changes
 
 let saveTimeout = null;
 
@@ -25,8 +26,9 @@ app.get('/healthz', (req, res) => {
     res.status(200).json({ ok: true });
 });
 
-// Game state
+// Game state with version tracking for migration
 let gameState = {
+    version: GAME_STATE_VERSION,
     players: {
         logan: {
             name: 'Logan',
@@ -419,6 +421,7 @@ function scheduleAutoSave() {
     }
 
     saveTimeout = setTimeout(() => {
+        gameState.version = GAME_STATE_VERSION;
         fs.writeFile(SAVE_FILE_PATH, JSON.stringify(gameState, null, 2), 'utf8', (error) => {
             if (error) {
                 console.error('Auto-save failed:', error.message);
@@ -427,18 +430,45 @@ function scheduleAutoSave() {
     }, SAVE_DEBOUNCE_MS);
 }
 
+function migrateGameState(loadedState) {
+    if (!loadedState) return null;
+    
+    const savedVersion = loadedState.version || 1;
+    
+    // Version 1 to 2: Add any new fields that didn't exist before
+    if (savedVersion < 2) {
+        // Ensure all players have required fields
+        if (loadedState.players) {
+            Object.entries(loadedState.players).forEach(([playerName, playerData]) => {
+                ensurePlayerProgressFields(playerData);
+            });
+        }
+    }
+    
+    // Always update version to current
+    loadedState.version = GAME_STATE_VERSION;
+    
+    return loadedState;
+}
+
 function loadGameStateFromDisk() {
     if (!fs.existsSync(SAVE_FILE_PATH)) {
+        console.log('No existing save file found; starting with fresh game state.');
         return;
     }
 
     try {
         const fileContent = fs.readFileSync(SAVE_FILE_PATH, 'utf8');
         const loadedState = JSON.parse(fileContent);
+        
         if (loadedState && typeof loadedState === 'object' && loadedState.players) {
-            gameState = loadedState;
-            Object.values(gameState.players).forEach(ensurePlayerProgressFields);
-            console.log('Loaded saved game state from disk.');
+            // Migrate old save format to new format
+            const migratedState = migrateGameState(loadedState);
+            if (migratedState) {
+                gameState = migratedState;
+                const oldVer = loadedState.version || 1;
+                console.log(`Loaded saved game state from disk (version ${oldVer} -> ${GAME_STATE_VERSION}).`);
+            }
         }
     } catch (error) {
         console.error('Failed to load saved game state:', error.message);
@@ -447,7 +477,9 @@ function loadGameStateFromDisk() {
 
 function flushSaveOnExit() {
     try {
+        gameState.version = GAME_STATE_VERSION;
         fs.writeFileSync(SAVE_FILE_PATH, JSON.stringify(gameState, null, 2), 'utf8');
+        console.log('Game state saved on server shutdown.');
     } catch (error) {
         console.error('Final save failed:', error.message);
     }
@@ -1746,6 +1778,8 @@ app.post('/api/reset', (req, res) => {
 });
 
 // --- SERVER START ---
+loadGameStateFromDisk();
+
 app.listen(PORT, () => {
     const hostname = os.hostname();
     const interfaces = os.networkInterfaces();
@@ -1780,4 +1814,18 @@ app.listen(PORT, () => {
 ║                                                            ║
 ╚════════════════════════════════════════════════════════════╝
     `);
+});
+
+
+// Graceful shutdown handlers to save game state
+process.on('SIGINT', () => {
+    console.log('\nServer shutting down. Saving game state...');
+    flushSaveOnExit();
+    process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+    console.log('\nServer terminating. Saving game state...');
+    flushSaveOnExit();
+    process.exit(0);
 });
