@@ -149,19 +149,19 @@ let gameState = {
         { id: 'q17', title: "Shubenacadie Wildlife Park (The Beast Pens)", desc: "Scout the perimeter and photograph three Wasteland Creatures without startling them.", category: 'main', rewardTabs: 50, rewardScrap: { radMeat: 1, spices: 1 }, xp: 2 }
     ],
     randomQuests: [
-        { id: 'rq1', title: "HOUSE: Tidy the Living Room", desc: "Pick up toys and organize the space.", reward: 5, xp: 0 },
-        { id: 'rq2', title: "HOUSE: Wash the Dishes", desc: "Clean and rinse all dishes in the sink.", reward: 5, xp: 0 },
-        { id: 'rq3', title: "HOUSE: Make Your Bed", desc: "Pull covers tight and arrange pillows.", reward: 5, xp: 0 },
-        { id: 'rq4', title: "HOUSE: Sweep the Kitchen", desc: "Clear crumbs and debris from the floor.", reward: 5, xp: 0 },
-        { id: 'rq5', title: "CRAFT: Build a Lego Structure", desc: "Create and complete any Lego model.", reward: 8, xp: 0 },
-        { id: 'rq6', title: "CRAFT: Draw or Paint", desc: "Create a piece of art and show it off.", reward: 8, xp: 0 },
-        { id: 'rq7', title: "CRAFT: Assemble a Model", desc: "Build something cool from a kit.", reward: 10, xp: 0 },
-        { id: 'rq8', title: "SPORT: Play Soccer in the Yard", desc: "Get some exercise kicking the ball.", reward: 8, xp: 0 },
-        { id: 'rq9', title: "SPORT: Go for a Bike Ride", desc: "Ride your bike around the neighborhood.", reward: 10, xp: 0 },
-        { id: 'rq10', title: "SPORT: Play Catch", desc: "Toss a ball back and forth.", reward: 5, xp: 0 },
-        { id: 'rq11', title: "CHORE: Fold Laundry", desc: "Sort and fold clean clothes.", reward: 5, xp: 0 },
-        { id: 'rq12', title: "CHORE: Take Out Trash", desc: "Empty the bins and replace bags.", reward: 5, xp: 0 },
-        { id: 'rq13', title: "CHORE: Organize Closet", desc: "Sort and arrange your belongings.", reward: 8, xp: 0 }
+        { id: 'rq1', title: "HOUSE: Tidy the Living Room", desc: "Pick up toys and organize the space.", reward: 5, xp: 1 },
+        { id: 'rq2', title: "HOUSE: Wash the Dishes", desc: "Clean and rinse all dishes in the sink.", reward: 5, xp: 1 },
+        { id: 'rq3', title: "HOUSE: Make Your Bed", desc: "Pull covers tight and arrange pillows.", reward: 5, xp: 1 },
+        { id: 'rq4', title: "HOUSE: Sweep the Kitchen", desc: "Clear crumbs and debris from the floor.", reward: 5, xp: 1 },
+        { id: 'rq5', title: "CRAFT: Build a Lego Structure", desc: "Create and complete any Lego model.", reward: 8, xp: 1 },
+        { id: 'rq6', title: "CRAFT: Draw or Paint", desc: "Create a piece of art and show it off.", reward: 8, xp: 1 },
+        { id: 'rq7', title: "CRAFT: Assemble a Model", desc: "Build something cool from a kit.", reward: 10, xp: 1 },
+        { id: 'rq8', title: "SPORT: Play Soccer in the Yard", desc: "Get some exercise kicking the ball.", reward: 8, xp: 1 },
+        { id: 'rq9', title: "SPORT: Go for a Bike Ride", desc: "Ride your bike around the neighborhood.", reward: 10, xp: 1 },
+        { id: 'rq10', title: "SPORT: Play Catch", desc: "Toss a ball back and forth.", reward: 5, xp: 1 },
+        { id: 'rq11', title: "CHORE: Fold Laundry", desc: "Sort and fold clean clothes.", reward: 5, xp: 1 },
+        { id: 'rq12', title: "CHORE: Take Out Trash", desc: "Empty the bins and replace bags.", reward: 5, xp: 1 },
+        { id: 'rq13', title: "CHORE: Organize Closet", desc: "Sort and arrange your belongings.", reward: 8, xp: 1 }
     ],
     radioSignals: [
         { id: 'r1', title: "ENTERING DEBERT", text: "You're treadin' on ancient ground now, scavengers. Debert awaits." },
@@ -739,9 +739,57 @@ app.get('/api/random-quest', (req, res) => {
     }
 });
 
+// Complete random household task for player
+app.post('/api/player/:player/complete-random-quest', (req, res) => {
+    const { player } = req.params;
+    const { questId } = req.body;
+    const playerData = gameState.players[player];
+
+    if (!playerData) {
+        return res.status(404).json({ error: 'Player not found' });
+    }
+
+    const quest = gameState.randomQuests.find(q => q.id === questId);
+    if (!quest) {
+        return res.status(404).json({ error: 'Random task not found' });
+    }
+
+    ensurePlayerProgressFields(playerData);
+
+    const tabsReward = quest.reward || 0;
+    const xpReward = quest.xp || 0;
+    playerData.tabs += tabsReward;
+    playerData.xp += xpReward;
+
+    let levelsGained = 0;
+    let xpNeeded = getXpRequiredForLevel(playerData.level);
+    while (playerData.xp >= xpNeeded) {
+        playerData.xp -= xpNeeded;
+        playerData.level += 1;
+        levelsGained += 1;
+        xpNeeded = getXpRequiredForLevel(playerData.level);
+    }
+
+    playerData.pendingPerks = (playerData.pendingPerks || 0) + levelsGained;
+    playerData.xpToNext = getXpRequiredForLevel(playerData.level);
+
+    scheduleAutoSave();
+
+    res.json({
+        success: true,
+        message: `${player} completed ${quest.title}`,
+        reward: {
+            tabs: tabsReward,
+            xp: xpReward,
+            levelsGained
+        }
+    });
+});
+
 // GET all radio signals
 app.get('/api/radio', (req, res) => {
-    res.json(gameState.radioSignals);
+    const allSignals = [...(gameState.radioSignals || []), ...(gameState.broadcastSignals || [])];
+    res.json(allSignals);
 });
 
 // GET all perks
@@ -965,12 +1013,6 @@ app.post('/api/player/:player/quarters/:upgradeId', (req, res) => {
         upgrade: upgrade,
         remainingTabs: gameState.players[player].tabs
     });
-});
-
-// GET all radio signals
-app.get('/api/radio', (req, res) => {
-    const allSignals = [...gameState.radioSignals, ...gameState.broadcastSignals];
-    res.json(allSignals);
 });
 
 // GET all broadcast signals
@@ -1289,6 +1331,21 @@ app.post('/api/reset', (req, res) => {
             { id: 'q15', title: "The Junk-Jet Prototype", desc: "Collect 5 pieces of Scrap from different Biomes and justify each one to the Overseer.", category: 'side', rewardTabs: 60, rewardScrap: { propaneTank: 1, maritimeMetal: 1 }, xp: 2 },
             { id: 'q16', title: "Five Islands Provincial Park (The Great Drain)", desc: "Master the Mud-Slog and survive the Tidal Rush at the Great Drain.", category: 'main', rewardTabs: 55, rewardScrap: { maritimeMetal: 2, cleanWater: 1 }, xp: 2 },
             { id: 'q17', title: "Shubenacadie Wildlife Park (The Beast Pens)", desc: "Scout the perimeter and photograph three Wasteland Creatures without startling them.", category: 'main', rewardTabs: 50, rewardScrap: { radMeat: 1, spices: 1 }, xp: 2 }
+        ],
+        randomQuests: [
+            { id: 'rq1', title: "HOUSE: Tidy the Living Room", desc: "Pick up toys and organize the space.", reward: 5, xp: 1 },
+            { id: 'rq2', title: "HOUSE: Wash the Dishes", desc: "Clean and rinse all dishes in the sink.", reward: 5, xp: 1 },
+            { id: 'rq3', title: "HOUSE: Make Your Bed", desc: "Pull covers tight and arrange pillows.", reward: 5, xp: 1 },
+            { id: 'rq4', title: "HOUSE: Sweep the Kitchen", desc: "Clear crumbs and debris from the floor.", reward: 5, xp: 1 },
+            { id: 'rq5', title: "CRAFT: Build a Lego Structure", desc: "Create and complete any Lego model.", reward: 8, xp: 1 },
+            { id: 'rq6', title: "CRAFT: Draw or Paint", desc: "Create a piece of art and show it off.", reward: 8, xp: 1 },
+            { id: 'rq7', title: "CRAFT: Assemble a Model", desc: "Build something cool from a kit.", reward: 10, xp: 1 },
+            { id: 'rq8', title: "SPORT: Play Soccer in the Yard", desc: "Get some exercise kicking the ball.", reward: 8, xp: 1 },
+            { id: 'rq9', title: "SPORT: Go for a Bike Ride", desc: "Ride your bike around the neighborhood.", reward: 10, xp: 1 },
+            { id: 'rq10', title: "SPORT: Play Catch", desc: "Toss a ball back and forth.", reward: 5, xp: 1 },
+            { id: 'rq11', title: "CHORE: Fold Laundry", desc: "Sort and fold clean clothes.", reward: 5, xp: 1 },
+            { id: 'rq12', title: "CHORE: Take Out Trash", desc: "Empty the bins and replace bags.", reward: 5, xp: 1 },
+            { id: 'rq13', title: "CHORE: Organize Closet", desc: "Sort and arrange your belongings.", reward: 8, xp: 1 }
         ],
         trades: [],
         radioSignals: [

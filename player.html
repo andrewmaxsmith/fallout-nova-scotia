@@ -832,7 +832,7 @@
                 // Display the quest
                 document.getElementById('daily-quest-title').textContent = currentRandomQuest.title;
                 document.getElementById('daily-quest-desc').textContent = currentRandomQuest.desc;
-                document.getElementById('daily-quest-reward').textContent = `${currentRandomQuest.reward} TABS`;
+                document.getElementById('daily-quest-reward').textContent = `${currentRandomQuest.reward} TABS | ${currentRandomQuest.xp || 0} XP`;
                 document.getElementById('daily-quest-display').classList.remove('hidden');
                 
                 notify(`NEW TASK: ${currentRandomQuest.title}`);
@@ -849,8 +849,17 @@
             }
 
             try {
-                // Award tabs and add to completed list
-                playerData.tabs += currentRandomQuest.reward;
+                const response = await fetch(`${API_URL}/api/player/${playerName}/complete-random-quest`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ questId: currentRandomQuest.id })
+                });
+
+                const result = await response.json();
+                if (!response.ok) {
+                    notify(`ERROR: ${result.error}`);
+                    return;
+                }
                 
                 // Add to session completed quests
                 if (!playerData.dailyCompleted) {
@@ -859,17 +868,18 @@
                 playerData.dailyCompleted.push({
                     title: currentRandomQuest.title,
                     reward: currentRandomQuest.reward,
+                    xp: currentRandomQuest.xp || 0,
                     time: new Date().toLocaleTimeString()
                 });
 
-                notify(`TASK COMPLETE! +${currentRandomQuest.reward} TABS`);
+                notify(`TASK COMPLETE! +${currentRandomQuest.reward} TABS, +${currentRandomQuest.xp || 0} XP`);
                 
                 // Hide quest and reset
                 document.getElementById('daily-quest-display').classList.add('hidden');
-                updateDailyCompleted();
-                updateUI();
-                
                 currentRandomQuest = null;
+
+                await loadData();
+                updateDailyCompleted();
             } catch (e) {
                 console.error('Error completing quest:', e);
                 notify('ERROR: Could not complete task');
@@ -884,7 +894,7 @@
                     const div = document.createElement('div');
                     div.className = 'border-l-2 border-yellow-500 pl-2 text-yellow-500';
                     div.innerHTML = `
-                        <span class="font-bold">${quest.title}</span> - +${quest.reward} TABS<br>
+                        <span class="font-bold">${quest.title}</span> - +${quest.reward} TABS, +${quest.xp || 0} XP<br>
                         <span class="text-[8px] opacity-70">${quest.time}</span>
                     `;
                     list.appendChild(div);
