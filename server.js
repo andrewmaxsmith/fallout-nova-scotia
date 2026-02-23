@@ -683,7 +683,7 @@ app.post('/api/player/:player/radio-message', (req, res) => {
         id: `custom_${Date.now()}`,
         title: 'OVERSEER TRANSMISSION',
         frequency: '88.5 FM',
-        message: message.trim(),
+        text: message.trim(),
         type: 'custom'
     };
     
