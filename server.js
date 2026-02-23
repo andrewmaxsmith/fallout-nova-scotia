@@ -7,7 +7,8 @@ const QRCode = require('qrcode');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const SAVE_FILE_PATH = path.join(__dirname, 'game-state.json');
+const DATA_DIR = process.env.DATA_VOLUME_PATH || __dirname;
+const SAVE_FILE_PATH = path.join(DATA_DIR, 'game-state.json');
 const SAVE_DEBOUNCE_MS = 500;
 
 let saveTimeout = null;
