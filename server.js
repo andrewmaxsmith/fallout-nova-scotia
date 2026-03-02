@@ -11,6 +11,11 @@ const SAVE_DEBOUNCE_MS = 500;
 const PERIODIC_SAVE_MS = Number(process.env.PERIODIC_SAVE_MS || 60000);
 const SAVE_BACKUP_LIMIT = Number(process.env.SAVE_BACKUP_LIMIT || 20);
 const GAME_STATE_VERSION = 2; // Increment when schema changes
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_TABLE = process.env.SUPABASE_TABLE || 'game_state';
+const SUPABASE_STATE_ID = 'primary';
+const SUPABASE_ENABLED = Boolean(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY);
 
 function canWriteToDir(dirPath) {
     try {
@@ -50,6 +55,8 @@ let saveTimeout = null;
 let periodicSaveTimer = null;
 let hasUnsavedChanges = false;
 let lastSavedAt = null;
+let saveInFlight = false;
+let saveQueued = false;
 
 app.use(cors());
 app.use(express.json());
@@ -62,6 +69,9 @@ app.get('/', (req, res) => {
 app.get('/healthz', (req, res) => {
     res.status(200).json({
         ok: true,
+        storageMode: SUPABASE_ENABLED ? 'supabase' : 'filesystem',
+        supabaseEnabled: SUPABASE_ENABLED,
+        supabaseTable: SUPABASE_TABLE,
         dataDir: DATA_DIR,
         saveFile: SAVE_FILE_PATH,
         backupDir: BACKUP_DIR,
@@ -493,26 +503,93 @@ function writeBackupSnapshot() {
     }
 }
 
-function persistGameState(reason = 'autosave', force = false) {
+function parseLoadedState(candidateState, sourceLabel) {
+    if (!candidateState || typeof candidateState !== 'object' || !candidateState.players) {
+        return false;
+    }
+
+    const oldVer = candidateState.version || 1;
+    const migratedState = migrateGameState(candidateState);
+    if (!migratedState) {
+        return false;
+    }
+
+    gameState = migratedState;
+    console.log(`Loaded game state (${oldVer} -> ${GAME_STATE_VERSION}) from ${sourceLabel}`);
+    return true;
+}
+
+async function persistGameStateToSupabase(reason = 'autosave') {
+    const timestamp = new Date().toISOString();
+    const endpoint = `${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}?on_conflict=id`;
+    const payload = [{
+        id: SUPABASE_STATE_ID,
+        state: gameState,
+        updated_at: timestamp
+    }];
+
+    const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+            apikey: SUPABASE_SERVICE_ROLE_KEY,
+            Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+            'Content-Type': 'application/json',
+            Prefer: 'resolution=merge-duplicates,return=minimal'
+        },
+        body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+        const body = await response.text();
+        throw new Error(`Supabase save failed (${response.status}): ${body}`);
+    }
+
+    lastSavedAt = timestamp;
+    if (reason !== 'debounced') {
+        console.log(`Game state persisted to Supabase (${reason}) at ${lastSavedAt}`);
+    }
+}
+
+function persistGameStateToDisk(reason = 'autosave') {
+    ensureSaveDirectories();
+    const tempPath = `${SAVE_FILE_PATH}.tmp`;
+    fs.writeFileSync(tempPath, JSON.stringify(gameState, null, 2), 'utf8');
+    fs.renameSync(tempPath, SAVE_FILE_PATH);
+    writeBackupSnapshot();
+    lastSavedAt = new Date().toISOString();
+    if (reason !== 'debounced') {
+        console.log(`Game state persisted (${reason}) at ${lastSavedAt}`);
+    }
+}
+
+async function persistGameState(reason = 'autosave', force = false) {
     if (!force && !hasUnsavedChanges) {
         return;
     }
 
-    try {
-        ensureSaveDirectories();
-        gameState.version = GAME_STATE_VERSION;
-        const tempPath = `${SAVE_FILE_PATH}.tmp`;
-        fs.writeFileSync(tempPath, JSON.stringify(gameState, null, 2), 'utf8');
-        fs.renameSync(tempPath, SAVE_FILE_PATH);
-        writeBackupSnapshot();
-        hasUnsavedChanges = false;
-        lastSavedAt = new Date().toISOString();
-        if (reason !== 'debounced') {
-            console.log(`Game state persisted (${reason}) at ${lastSavedAt}`);
-        }
-    } catch (error) {
-        console.error(`Save failed (${reason}):`, error.message);
+    if (saveInFlight) {
+        saveQueued = true;
+        return;
     }
+
+    saveInFlight = true;
+
+    do {
+        saveQueued = false;
+        try {
+            gameState.version = GAME_STATE_VERSION;
+            if (SUPABASE_ENABLED) {
+                await persistGameStateToSupabase(reason);
+            } else {
+                persistGameStateToDisk(reason);
+            }
+            hasUnsavedChanges = false;
+        } catch (error) {
+            console.error(`Save failed (${reason}):`, error.message);
+        }
+    } while (saveQueued && (force || hasUnsavedChanges));
+
+    saveInFlight = false;
 }
 
 function scheduleAutoSave() {
@@ -522,7 +599,9 @@ function scheduleAutoSave() {
     }
 
     saveTimeout = setTimeout(() => {
-        persistGameState('debounced');
+        persistGameState('debounced').catch(error => {
+            console.error('Debounced save failed:', error.message);
+        });
     }, SAVE_DEBOUNCE_MS);
 }
 
@@ -532,7 +611,9 @@ function startPeriodicAutoSave() {
     }
 
     periodicSaveTimer = setInterval(() => {
-        persistGameState('periodic');
+        persistGameState('periodic').catch(error => {
+            console.error('Periodic save failed:', error.message);
+        });
     }, PERIODIC_SAVE_MS);
 }
 
@@ -563,16 +644,7 @@ function loadGameStateFromDisk() {
     const parseSaveFile = (filePath) => {
         const fileContent = fs.readFileSync(filePath, 'utf8');
         const loadedState = JSON.parse(fileContent);
-        if (loadedState && typeof loadedState === 'object' && loadedState.players) {
-            const migratedState = migrateGameState(loadedState);
-            if (migratedState) {
-                gameState = migratedState;
-                const oldVer = loadedState.version || 1;
-                console.log(`Loaded game state (${oldVer} -> ${GAME_STATE_VERSION}) from ${filePath}`);
-                return true;
-            }
-        }
-        return false;
+        return parseLoadedState(loadedState, filePath);
     };
 
     if (fs.existsSync(SAVE_FILE_PATH)) {
@@ -612,6 +684,53 @@ function loadGameStateFromDisk() {
     console.log('No valid save found; starting with fresh game state.');
 }
 
+async function loadGameStateFromSupabase() {
+    const endpoint = `${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}?id=eq.${SUPABASE_STATE_ID}&select=state,updated_at&limit=1`;
+    const response = await fetch(endpoint, {
+        method: 'GET',
+        headers: {
+            apikey: SUPABASE_SERVICE_ROLE_KEY,
+            Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`
+        }
+    });
+
+    if (!response.ok) {
+        const body = await response.text();
+        throw new Error(`Supabase load failed (${response.status}): ${body}`);
+    }
+
+    const rows = await response.json();
+    if (!Array.isArray(rows) || rows.length === 0) {
+        console.log('No Supabase save row found; starting with fresh game state.');
+        return;
+    }
+
+    const loaded = rows[0]?.state;
+    if (parseLoadedState(loaded, 'Supabase')) {
+        lastSavedAt = rows[0]?.updated_at || null;
+        return;
+    }
+
+    console.log('Supabase row found but invalid; starting with fresh game state.');
+}
+
+async function initializeGameState() {
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+        if (SUPABASE_URL || SUPABASE_SERVICE_ROLE_KEY) {
+            console.warn('Supabase env is partially configured; using filesystem persistence fallback.');
+        }
+        loadGameStateFromDisk();
+        return;
+    }
+
+    try {
+        await loadGameStateFromSupabase();
+    } catch (error) {
+        console.error('Supabase load unavailable, falling back to filesystem:', error.message);
+        loadGameStateFromDisk();
+    }
+}
+
 function flushSaveOnExit() {
     if (saveTimeout) {
         clearTimeout(saveTimeout);
@@ -621,7 +740,7 @@ function flushSaveOnExit() {
         clearInterval(periodicSaveTimer);
         periodicSaveTimer = null;
     }
-    persistGameState('shutdown', true);
+    return persistGameState('shutdown', true);
 }
 
 function clamp(value, min, max) {
@@ -1905,10 +2024,11 @@ app.post('/api/reset', (req, res) => {
 });
 
 // --- SERVER START ---
-loadGameStateFromDisk();
-startPeriodicAutoSave();
+async function startServer() {
+    await initializeGameState();
+    startPeriodicAutoSave();
 
-app.listen(PORT, () => {
+    app.listen(PORT, () => {
     const hostname = os.hostname();
     const interfaces = os.networkInterfaces();
     let localIP = '127.0.0.1';
@@ -1926,7 +2046,7 @@ app.listen(PORT, () => {
     const loganUrl = `http://${localIP}:${PORT}/player.html?player=logan`;
     const rylynUrl = `http://${localIP}:${PORT}/player.html?player=rylyn`;
     
-    console.log(`
+        console.log(`
 ╔════════════════════════════════════════════════════════════╗
 ║  FALLOUT: NEW NOVA SCOTIA - GAME MASTER SERVER STARTED    ║
 ╠════════════════════════════════════════════════════════════╣
@@ -1942,18 +2062,22 @@ app.listen(PORT, () => {
 ║                                                            ║
 ╚════════════════════════════════════════════════════════════╝
     `);
+    });
+}
+
+startServer().catch(error => {
+    console.error('Failed to start server:', error.message);
+    process.exit(1);
 });
 
 
 // Graceful shutdown handlers to save game state
 process.on('SIGINT', () => {
     console.log('\nServer shutting down. Saving game state...');
-    flushSaveOnExit();
-    process.exit(0);
+    flushSaveOnExit().finally(() => process.exit(0));
 });
 
 process.on('SIGTERM', () => {
     console.log('\nServer terminating. Saving game state...');
-    flushSaveOnExit();
-    process.exit(0);
+    flushSaveOnExit().finally(() => process.exit(0));
 });

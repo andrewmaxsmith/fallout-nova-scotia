@@ -57,8 +57,10 @@ You'll see output like:
    - **Environment**: `Node`
    - **Build Command**: `npm install`
    - **Start Command**: `npm start`
-   - **Persistent Disk**: mount at `/var/data`
-   - **Environment Variable**: `DATA_VOLUME_PATH=/var/data`
+   - **Environment Variables**:
+     - `SUPABASE_URL=<your-project-url>`
+     - `SUPABASE_SERVICE_ROLE_KEY=<your-service-role-key>`
+     - `SUPABASE_TABLE=game_state`
 4. Deploy, then open:
    - `https://<your-service>.onrender.com/gm-dashboard.html`
    - `https://<your-service>.onrender.com/player.html?player=logan`
@@ -67,14 +69,39 @@ You'll see output like:
 Notes:
 - The app now uses Render's `PORT` automatically.
 - API calls use the same domain as the page, so no manual URL changes are needed.
-- Save persistence depends on a writable volume path (recommended: Render disk mount `/var/data`).
+- Save persistence is reliable on free Render when Supabase env vars are set.
 
 Local env example:
 ```bash
 DATA_VOLUME_PATH=./data
 PERIODIC_SAVE_MS=60000
 SAVE_BACKUP_LIMIT=20
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+SUPABASE_TABLE=game_state
 ```
+
+### Supabase one-time SQL setup
+
+Run this in **Supabase SQL Editor**:
+
+```sql
+create table if not exists public.game_state (
+  id text primary key,
+  state jsonb not null,
+  updated_at timestamptz not null default now()
+);
+```
+
+Then insert a starter row once:
+
+```sql
+insert into public.game_state (id, state)
+values ('primary', '{"version":2,"players":{}}'::jsonb)
+on conflict (id) do nothing;
+```
+
+The server will upsert this `primary` row automatically after the first in-game change.
 
 ---
 
@@ -139,13 +166,13 @@ Players see real-time updates (polls every 2 seconds):
 
 - **Polling Interval**: 2 seconds
 - **Backend**: Express.js (Node.js)
-- **Data Storage**: Auto-saved to `game-state.json` on each state-changing action
+- **Data Storage**: Auto-saved to Supabase (`game_state` table) when Supabase env vars are present; otherwise falls back to local `game-state.json`
 - **Network**: Local WiFi only (no internet required)
 
 Auto-save notes:
-- State is loaded from `game-state.json` on server start.
+- State is loaded from Supabase on server start when configured.
 - State is saved automatically after player/GM changes (quests, stats, perks, crafting, upgrades, etc.).
-- On Render free web services, local disk can be ephemeral between deploys/restarts, so use an external DB for permanent cloud saves.
+- On Render free web services, local disk is ephemeral between deploys/restarts, so Supabase is the recommended permanent save backend.
 
 ---
 
