@@ -153,6 +153,7 @@ const BASE_GAME_STATE = {
             xp: 0,
             hp: 10,
             maxHp: 10,
+            maxRads: 10,
             rads: 0,
             tabs: 10,
             stats: { charm: 1, hardiness: 1, agility: 1, perception: 1, politeness: 1, yarns: 1 },
@@ -178,6 +179,7 @@ const BASE_GAME_STATE = {
             xp: 0,
             hp: 10,
             maxHp: 10,
+            maxRads: 10,
             rads: 0,
             tabs: 10,
             stats: { charm: 1, hardiness: 1, agility: 1, perception: 1, politeness: 1, yarns: 1 },
@@ -204,7 +206,7 @@ const BASE_GAME_STATE = {
         { id: 'p3', name: "THRIFTY TOWNIE", desc: "Gain 2 extra Pop Tabs from every quest.", tier: 2 },
         { id: 'p4', name: "DONAIR DIGESTION", desc: "Healing items (snacks) restore double HP.", tier: 1 },
         { id: 'p5', name: "SCRAPPER", desc: "50% chance to find double scrap items.", tier: 2 },
-        { id: 'p6', name: "LEAD BELLY", desc: "Eating 'Red Mud' food causes 0 Radiation.", tier: 1 },
+        { id: 'p6', name: "LEAD BELLY", desc: "Eating 'Red Mud' food causes 0 Radiation. Also grants +2 Max RADS.", tier: 1, maxRadsBonus: 2 },
         { id: 'p7', name: "WASTELAND WAND", desc: "+1 Agility on trails and outdoor areas.", tier: 2 },
         { id: 'p8', name: "SCAVENGER'S EYE", desc: "+1 Perception for finding hidden items.", tier: 3 },
         { id: 'p9', name: "PLAID PRIDE", desc: "+2 Charisma with faction members.", tier: 2 },
@@ -214,7 +216,7 @@ const BASE_GAME_STATE = {
         { id: 'p13', name: "COVE CLIMBER", desc: "Scaling any cliff or rock formation grants +1 to next action.", tier: 2 },
         { id: 'p14', name: "KITCHEN PARTY", desc: "Social encounters grant +15% charm and +10% tabs reward.", tier: 1 },
         { id: 'p15', name: "LOBSTER REFLEXES", desc: "Dodge incoming damage with +2 to agility checks.", tier: 3 },
-        { id: 'p16', name: "HIGHLAND HARDNESS", desc: "+3 Max HP. You're built for the brutal Nova Scotia terrain.", tier: 2 },
+        { id: 'p16', name: "HIGHLAND HARDNESS", desc: "+3 Max HP. You're built for the brutal Nova Scotia terrain.", tier: 2, maxHpBonus: 3 },
         { id: 'p17', name: "RADIO TUNER", desc: "Unlock 3 additional radio signals beyond normal broadcasts.", tier: 1 }
     ],
     statusEffects: [
@@ -1161,6 +1163,33 @@ function ensurePlayerProgressFields(playerData) {
         playerData.xp = 0;
     }
 
+    const baseMaxHp = 10;
+    const baseMaxRads = 10;
+    const levelBasedBonus = Math.max(0, playerData.level - 1);
+    const unlockedPerks = Array.isArray(playerData.unlockedPerks) ? playerData.unlockedPerks : [];
+    const perkCatalogById = new Map((BASE_GAME_STATE.perks || []).map((perk) => [perk.id, perk]));
+
+    const perkCapBonuses = unlockedPerks.reduce((acc, perkId) => {
+        const perk = perkCatalogById.get(perkId);
+        if (!perk) {
+            return acc;
+        }
+        acc.maxHp += Number(perk.maxHpBonus || 0);
+        acc.maxRads += Number(perk.maxRadsBonus || 0);
+        return acc;
+    }, { maxHp: 0, maxRads: 0 });
+
+    const requiredMaxHp = baseMaxHp + levelBasedBonus + perkCapBonuses.maxHp;
+    const requiredMaxRads = baseMaxRads + levelBasedBonus + perkCapBonuses.maxRads;
+
+    const currentMaxHp = Number(playerData.maxHp);
+    const currentMaxRads = Number(playerData.maxRads);
+    playerData.maxHp = Number.isFinite(currentMaxHp) ? Math.max(currentMaxHp, requiredMaxHp) : requiredMaxHp;
+    playerData.maxRads = Number.isFinite(currentMaxRads) ? Math.max(currentMaxRads, requiredMaxRads) : requiredMaxRads;
+
+    playerData.hp = clamp(Number(playerData.hp || 0), 0, playerData.maxHp);
+    playerData.rads = clamp(Number(playerData.rads || 0), 0, playerData.maxRads);
+
     playerData.xpToNext = getXpRequiredForLevel(playerData.level);
 }
 
@@ -1208,7 +1237,7 @@ function resolveEncounterOutcome(player, encounter) {
 
     const playerData = gameState.players[player];
     playerData.hp = clamp((playerData.hp || 0) + hpDelta, 0, playerData.maxHp || 10);
-    playerData.rads = clamp((playerData.rads || 0) + radDelta, 0, 10);
+    playerData.rads = clamp((playerData.rads || 0) + radDelta, 0, playerData.maxRads || 10);
     playerData.tabs = Math.max(0, (playerData.tabs || 0) + tabsDelta);
     if (scrapType) {
         playerData.scrap[scrapType] = (playerData.scrap[scrapType] || 0) + scrapDelta;
@@ -1247,8 +1276,8 @@ function addInventoryItem(player, name) {
 function applyEncounterOutcome(player) {
     const outcomes = [
         { id: 'lose_hp', text: 'LOSE 2 HEALTH', apply: (p) => { p.hp = clamp((p.hp || 0) - 2, 0, p.maxHp || 10); } },
-        { id: 'gain_rads_2', text: 'GAIN 2 RADS', apply: (p) => { p.rads = clamp((p.rads || 0) + 2, 0, 10); } },
-        { id: 'gain_rads_4', text: 'GAIN 4 RADS', apply: (p) => { p.rads = clamp((p.rads || 0) + 4, 0, 10); } },
+        { id: 'gain_rads_2', text: 'GAIN 2 RADS', apply: (p) => { p.rads = clamp((p.rads || 0) + 2, 0, p.maxRads || 10); } },
+        { id: 'gain_rads_4', text: 'GAIN 4 RADS', apply: (p) => { p.rads = clamp((p.rads || 0) + 4, 0, p.maxRads || 10); } },
         { id: 'gain_tabs_2', text: 'GAIN 2 TABS', apply: (p) => { p.tabs = (p.tabs || 0) + 2; } },
         { id: 'gain_resource', text: 'GAIN RANDOM RESOURCE', apply: (p) => {
             const scrapType = getRandomScrapType(player);

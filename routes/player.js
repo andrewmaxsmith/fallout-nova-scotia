@@ -521,6 +521,27 @@ function registerPlayerRoutes(app, deps) {
         scheduleAutoSave
     } = deps;
 
+    function addXpWithLeveling(playerData, xpAmount) {
+        let levelsGained = 0;
+        const safeXp = Number(xpAmount || 0);
+        if (safeXp <= 0) {
+            return levelsGained;
+        }
+
+        playerData.xp = (playerData.xp || 0) + safeXp;
+        let xpNeeded = getXpRequiredForLevel(playerData.level);
+        while (playerData.xp >= xpNeeded) {
+            playerData.xp -= xpNeeded;
+            playerData.level += 1;
+            levelsGained += 1;
+            xpNeeded = getXpRequiredForLevel(playerData.level);
+        }
+
+        playerData.pendingPerks = (playerData.pendingPerks || 0) + levelsGained;
+        ensurePlayerProgressFields(playerData);
+        return levelsGained;
+    }
+
     app.get('/api/player/:player', (req, res) => {
         const { player } = req.params;
         const gameState = getGameState();
@@ -648,19 +669,7 @@ function registerPlayerRoutes(app, deps) {
         const tabsReward = quest.reward || 0;
         const xpReward = quest.xp || 0;
         playerData.tabs += tabsReward;
-        playerData.xp += xpReward;
-
-        let levelsGained = 0;
-        let xpNeeded = getXpRequiredForLevel(playerData.level);
-        while (playerData.xp >= xpNeeded) {
-            playerData.xp -= xpNeeded;
-            playerData.level += 1;
-            levelsGained += 1;
-            xpNeeded = getXpRequiredForLevel(playerData.level);
-        }
-
-        playerData.pendingPerks = (playerData.pendingPerks || 0) + levelsGained;
-        playerData.xpToNext = getXpRequiredForLevel(playerData.level);
+        const levelsGained = addXpWithLeveling(playerData, xpReward);
         if (playerData.activeRandomQuest && playerData.activeRandomQuest.id === questId) {
             playerData.activeRandomQuest = null;
         }
@@ -711,19 +720,7 @@ function registerPlayerRoutes(app, deps) {
         const tabsReward = isCorrect ? Number(quest.rewardTabs || 0) : 0;
         const xpReward = isCorrect ? Number(quest.rewardXp || 0) : 0;
         playerData.tabs = (playerData.tabs || 0) + tabsReward;
-        playerData.xp = (playerData.xp || 0) + xpReward;
-
-        let levelsGained = 0;
-        let xpNeeded = getXpRequiredForLevel(playerData.level);
-        while (playerData.xp >= xpNeeded) {
-            playerData.xp -= xpNeeded;
-            playerData.level += 1;
-            levelsGained += 1;
-            xpNeeded = getXpRequiredForLevel(playerData.level);
-        }
-
-        playerData.pendingPerks = (playerData.pendingPerks || 0) + levelsGained;
-        playerData.xpToNext = getXpRequiredForLevel(playerData.level);
+        const levelsGained = addXpWithLeveling(playerData, xpReward);
 
         let hpPenalty = 0;
         let radsPenalty = 0;
@@ -734,7 +731,7 @@ function registerPlayerRoutes(app, deps) {
                 playerData.hp = Math.max(0, (playerData.hp || 0) - hpPenalty);
             }
             if (radsPenalty > 0) {
-                playerData.rads = Math.min(10, (playerData.rads || 0) + radsPenalty);
+                playerData.rads = Math.min(playerData.maxRads || 10, (playerData.rads || 0) + radsPenalty);
             }
         }
 

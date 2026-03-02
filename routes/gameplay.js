@@ -101,7 +101,7 @@ function registerGameplayRoutes(app, deps) {
         }
 
         playerData.pendingPerks = (playerData.pendingPerks || 0) + levelsGained;
-        playerData.xpToNext = getXpRequiredForLevel(playerData.level);
+        ensurePlayerProgressFields(playerData);
         return levelsGained;
     }
 
@@ -538,7 +538,7 @@ function registerGameplayRoutes(app, deps) {
             const hpLoss = Number(gameState.radioConsequences?.failure?.hpLoss || 1);
             const radsGain = Number(gameState.radioConsequences?.failure?.radsGain || 1);
             playerData.hp = clamp((playerData.hp || 0) - hpLoss, 0, playerData.maxHp || 10);
-            playerData.rads = clamp((playerData.rads || 0) + radsGain, 0, 10);
+            playerData.rads = clamp((playerData.rads || 0) + radsGain, 0, playerData.maxRads || 10);
             activeData.verified = true;
             activeData.text = `${activeData.text}\n\nFAILURE: It was a trap. You took damage and radiation.`;
             notes.push(`HP -${hpLoss}`);
@@ -726,6 +726,7 @@ function registerGameplayRoutes(app, deps) {
             if (!gameState.players[player].unlockedPerks.includes(perkId)) {
                 gameState.players[player].unlockedPerks.push(perkId);
                 gameState.players[player].pendingPerks -= 1;
+                ensurePlayerProgressFields(gameState.players[player]);
                 scheduleAutoSave();
                 res.json({ success: true, message: `Perk added to ${player}` });
             } else {
@@ -742,6 +743,7 @@ function registerGameplayRoutes(app, deps) {
 
         if (gameState.players[player]) {
             gameState.players[player].unlockedPerks = gameState.players[player].unlockedPerks.filter(p => p !== perkId);
+            ensurePlayerProgressFields(gameState.players[player]);
             scheduleAutoSave();
             res.json({ success: true, message: `Perk removed from ${player}` });
         } else {
@@ -911,7 +913,7 @@ function registerGameplayRoutes(app, deps) {
 
             playerData.hp = clamp(beforeHp + healAmount, 0, playerData.maxHp || 10);
             if (!hasLeadBelly) {
-                playerData.rads = clamp(beforeRads + 10, 0, 10);
+                playerData.rads = clamp(beforeRads + 10, 0, playerData.maxRads || 10);
             }
 
             return finalizeCraft({
@@ -944,7 +946,7 @@ function registerGameplayRoutes(app, deps) {
         if (recipe.id === 'r6') {
             const removeRads = 2;
             const beforeRads = playerData.rads || 0;
-            playerData.rads = clamp(beforeRads - removeRads, 0, 10);
+            playerData.rads = clamp(beforeRads - removeRads, 0, playerData.maxRads || 10);
             const reduced = beforeRads - playerData.rads;
             return finalizeCraft({
                 success: true,
@@ -1322,7 +1324,7 @@ function registerGameplayRoutes(app, deps) {
         Object.keys(gameState.players || {}).forEach((playerKey) => {
             const playerData = gameState.players[playerKey];
             if (effect.rads) {
-                playerData.rads = clamp((playerData.rads || 0) + Number(effect.rads), 0, 10);
+                playerData.rads = clamp((playerData.rads || 0) + Number(effect.rads), 0, playerData.maxRads || 10);
             }
             if (effect.hp) {
                 playerData.hp = clamp((playerData.hp || 0) + Number(effect.hp), 0, playerData.maxHp || 10);
