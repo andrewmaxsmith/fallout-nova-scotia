@@ -459,6 +459,8 @@
         let cachedTierPerkChoiceIds = [];
         let cachedTierForPerkChoices = null;
         let cachedUpgradeChoiceIds = [];
+        let hasInitializedRadioSignal = false;
+        let lastSeenRadioSignalKey = null;
 
         function getStableRandomChoices(sourceItems, cachedIds, maxChoices) {
             const targetCount = Math.min(maxChoices, sourceItems.length);
@@ -767,6 +769,9 @@
 
         function updateRadio() {
             const broadcast = document.getElementById('radio-broadcast');
+            let activeSignalKey = null;
+            let activeSignalTitle = null;
+
             if (playerData.activeRadioData) {
                 const safeText = playerData.activeRadioData.text.replace(/\n/g, '<br>');
                 const resolveButton = playerData.activeRadioData.requiresResolve
@@ -779,11 +784,9 @@
                         ${resolveButton}
                     </div>
                 `;
-                notify(`RADIO SIGNAL: ${playerData.activeRadioData.title}`);
-                return;
-            }
-
-            if (playerData.activeRadio) {
+                activeSignalKey = `data:${playerData.activeRadioData.id || ''}:${playerData.activeRadioData.text || ''}`;
+                activeSignalTitle = playerData.activeRadioData.title || 'TRANSMISSION';
+            } else if (playerData.activeRadio) {
                 const signal = allRadio.find(r => r.id === playerData.activeRadio);
                 if (signal) {
                     broadcast.innerHTML = `
@@ -792,9 +795,24 @@
                             <p class="text-[10px] italic leading-relaxed">${signal.text}</p>
                         </div>
                     `;
-                    notify(`RADIO SIGNAL: ${signal.title}`);
+                    activeSignalKey = `signal:${signal.id}`;
+                    activeSignalTitle = signal.title || 'TRANSMISSION';
                 }
+            } else {
+                broadcast.innerHTML = '<p class="text-[10px] italic opacity-70">WAITING FOR BROADCAST...</p>';
             }
+
+            if (!hasInitializedRadioSignal) {
+                hasInitializedRadioSignal = true;
+                lastSeenRadioSignalKey = activeSignalKey;
+                return;
+            }
+
+            if (activeSignalKey && activeSignalKey !== lastSeenRadioSignalKey) {
+                notify(`RADIO SIGNAL: ${activeSignalTitle}`);
+            }
+
+            lastSeenRadioSignalKey = activeSignalKey;
         }
 
         async function resolveEncounter(button) {

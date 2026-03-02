@@ -366,6 +366,12 @@
         <section id="radio" class="tab-content">
             <div class="pip-border p-4 bg-black/50">
                 <h2 class="text-xl font-bold mb-4">BROADCAST SIGNALS</h2>
+                <div class="pip-border p-3 border-dashed border-green-500 bg-green-950/10 mb-6">
+                    <h3 class="text-sm font-bold text-green-400 mb-2">INCOMING PLAYER TRANSMISSIONS</h3>
+                    <div id="overseer-inbox" class="space-y-2 text-[10px]">
+                        <p class="opacity-60">No transmissions yet.</p>
+                    </div>
+                </div>
                 <div class="pip-border p-3 border-dashed border-yellow-500 bg-yellow-950/10 mb-6">
                     <h3 class="text-sm font-bold text-yellow-500 mb-2">RANDOM BROADCAST</h3>
                     <button onclick="sendRandomBroadcast(this)" class="pip-btn w-full py-2 text-sm font-bold">SEND RANDOM SIGNAL</button>
@@ -392,12 +398,6 @@
                         </div>
                     </div>
                 </div>
-                <div class="pip-border p-3 border-dashed border-green-500 bg-green-950/10">
-                    <h3 class="text-sm font-bold text-green-400 mb-2">INCOMING PLAYER TRANSMISSIONS</h3>
-                    <div id="overseer-inbox" class="space-y-2 text-[10px]">
-                        <p class="opacity-60">No transmissions yet.</p>
-                    </div>
-                </div>
             </div>
         </section>
 
@@ -411,6 +411,8 @@
         const pendingStatUpdates = {};
         let statSyncToastTimer = null;
         const statSyncPlayers = new Set();
+        let hasInitializedOverseerInbox = false;
+        let lastSeenOverseerTransmissionId = null;
         const statRules = {
             level: { min: 1, max: 99 },
             hp: { min: 0, max: 999 },
@@ -837,6 +839,20 @@
             }
 
             const inbox = Array.isArray(gameData.overseerInbox) ? gameData.overseerInbox : [];
+            const latestTransmission = inbox[0] || null;
+            const latestTransmissionId = latestTransmission?.id || null;
+
+            if (!hasInitializedOverseerInbox) {
+                hasInitializedOverseerInbox = true;
+                lastSeenOverseerTransmissionId = latestTransmissionId;
+            } else if (latestTransmissionId && latestTransmissionId !== lastSeenOverseerTransmissionId) {
+                const fromPlayer = latestTransmission?.player
+                    ? latestTransmission.player.toUpperCase()
+                    : 'PLAYER';
+                showNotice(`NEW RADIO TRANSMISSION FROM ${fromPlayer}`, 'info', 3200);
+                lastSeenOverseerTransmissionId = latestTransmissionId;
+            }
+
             if (inbox.length === 0) {
                 overseerInbox.innerHTML = '<p class="opacity-60">No transmissions yet.</p>';
                 return;
