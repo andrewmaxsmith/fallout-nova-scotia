@@ -265,51 +265,51 @@ const BASE_GAME_STATE = {
         }
     ],
     quests: [
-        { id: 'h1', title: "VAULT: Sanitize Quarters", desc: "Set a 10-minute timer. Put toys in bins, books on shelves, and dirty clothes in the hamper. Show the floor is clear.", category: 'vault', rewardTabs: 10, rewardScrap: { syntheticSap: 1 }, xp: 1 },
-        { id: 'h2', title: "VAULT: Nutrient Synthesis", desc: "Help with one meal job: wash produce, set the table, or stir with an adult. Finish your job and report back.", category: 'vault', rewardTabs: 15, rewardScrap: { cleanWater: 1, spices: 1 }, xp: 1 },
-        { id: 'h3', title: "VAULT: Static Discharge", desc: "Fold 8 pieces of clean laundry (or one small basket) and place them in the correct room or drawer.", category: 'vault', rewardTabs: 10, rewardScrap: { plaidScraps: 1 }, xp: 1 },
-        { id: 'q2', title: "The Great Drain", desc: "Take a 15-minute outdoor walk with an adult. Find 3 cool nature things (rock, leaf, stick) and describe them.", category: 'main', rewardTabs: 20, rewardScrap: { maritimeMetal: 2 }, xp: 1 },
-        { id: 'q5', title: "Jacob's Ladder Trial", desc: "Do a safe stair or movement challenge: 5 up-and-down stair trips or 30 step-ups. Go slow and keep good balance.", category: 'main', rewardTabs: 45, rewardScrap: { hubCircuitry: 1 }, xp: 2 },
-        { id: 'q6', title: "Witches' Cauldron Mystery", desc: "Complete a water mission: fill water bottles for the family and wipe one counter or table area.", category: 'main', rewardTabs: 45, rewardScrap: { radMeat: 1, cleanWater: 1 }, xp: 2 },
-        { id: 'q11', title: "Battle for the Bazaar", desc: "Do a teamwork clean-up in a shared room for 15 minutes. Pick up, sort, and put away items in the right spots.", category: 'main', rewardTabs: 100, rewardScrap: { maritimeMetal: 2, hubCircuitry: 2 }, xp: 3 },
-        { id: 'q12', title: "The Tidal Bore Race", desc: "Before a 5-minute timer ends, collect 10 scattered items and return them to their homes.", category: 'side', rewardTabs: 50, rewardScrap: { maritimeMetal: 1, syntheticSap: 1 }, xp: 2 },
-        { id: 'q13', title: "The Plaid Patch-Up", desc: "Find 3 things out of place in your room and fix them. Then make your bed so it looks mission-ready.", category: 'side', rewardTabs: 35, rewardScrap: { plaidScraps: 2, syntheticSap: 1 }, xp: 1 },
-        { id: 'q14', title: "Three-Crows Signal Boost", desc: "Two-player mission: one player holds a balance pose for 30 seconds while the other reads a short message clearly.", category: 'side', rewardTabs: 20, rewardScrap: { hubCircuitry: 1 }, xp: 1 },
-        { id: 'q15', title: "The Junk-Jet Prototype", desc: "Collect 5 safe recycle items (paper/plastic/cardboard). Tell what each could become in a new invention.", category: 'side', rewardTabs: 60, rewardScrap: { propaneTank: 1, maritimeMetal: 1 }, xp: 2 },
-        { id: 'q16', title: "Five Islands Provincial Park (The Great Drain)", desc: "Do an outdoor obstacle mission with an adult: hop, walk, and climb safely for 10 minutes without quitting.", category: 'main', rewardTabs: 55, rewardScrap: { maritimeMetal: 2, cleanWater: 1 }, xp: 2 },
-        { id: 'q17', title: "Shubenacadie Wildlife Park (The Beast Pens)", desc: "Spot and name 3 animals (outside, in books, or in a video). Share one fact about each animal.", category: 'main', rewardTabs: 50, rewardScrap: { radMeat: 1, spices: 1 }, xp: 2 },
-        { id: 'h4', title: "VAULT: Supply Check", desc: "Check your school bag: put in homework folder, water bottle, and one reading book. Show it is ready.", category: 'vault', rewardTabs: 12, rewardScrap: { hubCircuitry: 1 }, xp: 1 },
-        { id: 'h5', title: "VAULT: Snack Station", desc: "Help prepare a healthy snack plate with an adult and clean the prep area after.", category: 'vault', rewardTabs: 12, rewardScrap: { spices: 1 }, xp: 1 },
-        { id: 'q18', title: "Harbor Signal Sweep", desc: "Do a 12-minute tidy patrol: clear one room section and sort items into keep, trash, and donate piles.", category: 'main', rewardTabs: 60, rewardScrap: { maritimeMetal: 1, plaidScraps: 1 }, xp: 2 },
-        { id: 'q19', title: "Maple Grid Calibration", desc: "Practice learning skills: read for 10 minutes, then tell 3 key facts from what you read.", category: 'main', rewardTabs: 55, rewardScrap: { hubCircuitry: 1, cleanWater: 1 }, xp: 2 },
-        { id: 'q20', title: "Lighthouse Relay Run", desc: "Run a relay with an adult: 3 rounds of carry-and-return with safe objects between two spots.", category: 'side', rewardTabs: 35, rewardScrap: { syntheticSap: 1, maritimeMetal: 1 }, xp: 1 },
-        { id: 'q21', title: "Moon-Mist Mixer", desc: "Create a simple recipe with help (like fruit and yogurt), then clean up dishes and table.", category: 'side', rewardTabs: 40, rewardScrap: { spices: 1, cleanWater: 1 }, xp: 1 },
-        { id: 'q22', title: "Radar Blanket Fort", desc: "Build a small fort with 2 rules: safe walkway and tidy cleanup in under 5 minutes after play.", category: 'side', rewardTabs: 45, rewardScrap: { plaidScraps: 2 }, xp: 2 },
-        { id: 'q23', title: "Fogline Fitness Drill", desc: "Complete 3 movement sets: 10 jumps, 10 squats, and 20-second balance hold (repeat 2 times).", category: 'main', rewardTabs: 65, rewardScrap: { propaneTank: 1, syntheticSap: 1 }, xp: 2 }
+        { id: 'h1', title: "VAULT: Sanitize Quarters", desc: "Set a 10-minute timer. Put toys in bins, books on shelves, and dirty clothes in the hamper. Show the floor is clear.", category: 'vault', rewardTabs: 3, rewardScrap: { syntheticSap: 1 }, xp: 0 },
+        { id: 'h2', title: "VAULT: Nutrient Synthesis", desc: "Help with one meal job: wash produce, set the table, or stir with an adult. Finish your job and report back.", category: 'vault', rewardTabs: 4, rewardScrap: { cleanWater: 1, spices: 1 }, xp: 1 },
+        { id: 'h3', title: "VAULT: Static Discharge", desc: "Fold 8 pieces of clean laundry (or one small basket) and place them in the correct room or drawer.", category: 'vault', rewardTabs: 3, rewardScrap: { plaidScraps: 1 }, xp: 0 },
+        { id: 'q2', title: "The Great Drain", desc: "Take a 15-minute outdoor walk with an adult. Find 3 cool nature things (rock, leaf, stick) and describe them.", category: 'main', rewardTabs: 8, rewardScrap: { maritimeMetal: 2 }, xp: 1 },
+        { id: 'q5', title: "Jacob's Ladder Trial", desc: "Do a safe stair or movement challenge: 5 up-and-down stair trips or 30 step-ups. Go slow and keep good balance.", category: 'main', rewardTabs: 14, rewardScrap: { hubCircuitry: 1 }, xp: 1 },
+        { id: 'q6', title: "Witches' Cauldron Mystery", desc: "Complete a water mission: fill water bottles for the family and wipe one counter or table area.", category: 'main', rewardTabs: 14, rewardScrap: { radMeat: 1, cleanWater: 1 }, xp: 1 },
+        { id: 'q11', title: "Battle for the Bazaar", desc: "Do a teamwork clean-up in a shared room for 15 minutes. Pick up, sort, and put away items in the right spots.", category: 'main', rewardTabs: 28, rewardScrap: { maritimeMetal: 2, hubCircuitry: 2 }, xp: 2 },
+        { id: 'q12', title: "The Tidal Bore Race", desc: "Before a 5-minute timer ends, collect 10 scattered items and return them to their homes.", category: 'side', rewardTabs: 12, rewardScrap: { maritimeMetal: 1, syntheticSap: 1 }, xp: 1 },
+        { id: 'q13', title: "The Plaid Patch-Up", desc: "Find 3 things out of place in your room and fix them. Then make your bed so it looks mission-ready.", category: 'side', rewardTabs: 9, rewardScrap: { plaidScraps: 2, syntheticSap: 1 }, xp: 1 },
+        { id: 'q14', title: "Three-Crows Signal Boost", desc: "Two-player mission: one player holds a balance pose for 30 seconds while the other reads a short message clearly.", category: 'side', rewardTabs: 6, rewardScrap: { hubCircuitry: 1 }, xp: 0 },
+        { id: 'q15', title: "The Junk-Jet Prototype", desc: "Collect 5 safe recycle items (paper/plastic/cardboard). Tell what each could become in a new invention.", category: 'side', rewardTabs: 15, rewardScrap: { propaneTank: 1, maritimeMetal: 1 }, xp: 1 },
+        { id: 'q16', title: "Five Islands Provincial Park (The Great Drain)", desc: "Do an outdoor obstacle mission with an adult: hop, walk, and climb safely for 10 minutes without quitting.", category: 'main', rewardTabs: 16, rewardScrap: { maritimeMetal: 2, cleanWater: 1 }, xp: 1 },
+        { id: 'q17', title: "Shubenacadie Wildlife Park (The Beast Pens)", desc: "Spot and name 3 animals (outside, in books, or in a video). Share one fact about each animal.", category: 'main', rewardTabs: 15, rewardScrap: { radMeat: 1, spices: 1 }, xp: 1 },
+        { id: 'h4', title: "VAULT: Supply Check", desc: "Check your school bag: put in homework folder, water bottle, and one reading book. Show it is ready.", category: 'vault', rewardTabs: 3, rewardScrap: { hubCircuitry: 1 }, xp: 0 },
+        { id: 'h5', title: "VAULT: Snack Station", desc: "Help prepare a healthy snack plate with an adult and clean the prep area after.", category: 'vault', rewardTabs: 4, rewardScrap: { spices: 1 }, xp: 0 },
+        { id: 'q18', title: "Harbor Signal Sweep", desc: "Do a 12-minute tidy patrol: clear one room section and sort items into keep, trash, and donate piles.", category: 'main', rewardTabs: 16, rewardScrap: { maritimeMetal: 1, plaidScraps: 1 }, xp: 1 },
+        { id: 'q19', title: "Maple Grid Calibration", desc: "Practice learning skills: read for 10 minutes, then tell 3 key facts from what you read.", category: 'main', rewardTabs: 16, rewardScrap: { hubCircuitry: 1, cleanWater: 1 }, xp: 1 },
+        { id: 'q20', title: "Lighthouse Relay Run", desc: "Run a relay with an adult: 3 rounds of carry-and-return with safe objects between two spots.", category: 'side', rewardTabs: 10, rewardScrap: { syntheticSap: 1, maritimeMetal: 1 }, xp: 1 },
+        { id: 'q21', title: "Moon-Mist Mixer", desc: "Create a simple recipe with help (like fruit and yogurt), then clean up dishes and table.", category: 'side', rewardTabs: 10, rewardScrap: { spices: 1, cleanWater: 1 }, xp: 1 },
+        { id: 'q22', title: "Radar Blanket Fort", desc: "Build a small fort with 2 rules: safe walkway and tidy cleanup in under 5 minutes after play.", category: 'side', rewardTabs: 12, rewardScrap: { plaidScraps: 2 }, xp: 1 },
+        { id: 'q23', title: "Fogline Fitness Drill", desc: "Complete 3 movement sets: 10 jumps, 10 squats, and 20-second balance hold (repeat 2 times).", category: 'main', rewardTabs: 18, rewardScrap: { propaneTank: 1, syntheticSap: 1 }, xp: 1 }
     ],
     randomQuests: [
-        { id: 'rq1', title: "HOUSE: Tidy the Living Room", desc: "Put away 10 items from the floor, then fluff pillows and fold one blanket.", reward: 5, xp: 1 },
-        { id: 'rq2', title: "HOUSE: Wash the Dishes", desc: "With adult help, wash or dry 8 dishes, then place them where they belong.", reward: 5, xp: 1 },
-        { id: 'rq3', title: "HOUSE: Make Your Bed", desc: "Straighten sheets, pull blanket flat, and place pillows neatly in 3 minutes.", reward: 5, xp: 1 },
-        { id: 'rq4', title: "HOUSE: Sweep the Kitchen", desc: "Sweep one kitchen area and collect crumbs into the dustpan.", reward: 5, xp: 1 },
-        { id: 'rq5', title: "CRAFT: Build a Lego Structure", desc: "Build a model with at least 15 pieces and give it a cool name.", reward: 8, xp: 1 },
-        { id: 'rq6', title: "CRAFT: Draw or Paint", desc: "Draw or paint a picture with at least 3 colors and show it to the GM.", reward: 8, xp: 1 },
-        { id: 'rq7', title: "CRAFT: Assemble a Model", desc: "Complete one model step-by-step and clean up pieces when finished.", reward: 10, xp: 1 },
-        { id: 'rq8', title: "SPORT: Play Soccer in the Yard", desc: "Do 20 kicks or passes and 5 goal shots safely with clear space.", reward: 8, xp: 1 },
-        { id: 'rq9', title: "SPORT: Go for a Bike Ride", desc: "Ride for 10 minutes with helmet on and follow adult safety rules.", reward: 10, xp: 1 },
-        { id: 'rq10', title: "SPORT: Play Catch", desc: "Complete 20 catches with a partner (or wall tosses) without giving up.", reward: 5, xp: 1 },
-        { id: 'rq11', title: "CHORE: Fold Laundry", desc: "Fold 8 clothing items and place them in the correct room.", reward: 5, xp: 1 },
-        { id: 'rq12', title: "CHORE: Take Out Trash", desc: "Collect one full bin, tie bag safely, and replace it with a new bag.", reward: 5, xp: 1 },
-        { id: 'rq13', title: "CHORE: Organize Closet", desc: "Sort one shelf or drawer: keep, put away, and remove 5 out-of-place items.", reward: 8, xp: 1 },
-        { id: 'rq14', title: "HOUSE: Entryway Reset", desc: "Line up shoes, hang coats, and clear backpacks from the floor.", reward: 6, xp: 1 },
-        { id: 'rq15', title: "HOUSE: Table Wipe-Down", desc: "Wipe the table and 4 chairs with help, then push chairs in neatly.", reward: 6, xp: 1 },
-        { id: 'rq16', title: "CRAFT: Story Comic", desc: "Draw a 3-panel comic about your wasteland hero and read it out loud.", reward: 9, xp: 1 },
-        { id: 'rq17', title: "CRAFT: Build-and-Explain", desc: "Build something from blocks and explain what each part does.", reward: 9, xp: 1 },
-        { id: 'rq18', title: "SPORT: Mini Obstacle Course", desc: "Complete a safe obstacle course with 5 checkpoints.", reward: 9, xp: 1 },
-        { id: 'rq19', title: "SPORT: Stretch Session", desc: "Do 5 stretches and hold each for 15 seconds.", reward: 6, xp: 1 },
-        { id: 'rq20', title: "CHORE: Toy Sort", desc: "Sort toys into 3 groups and put each group away in the correct place.", reward: 7, xp: 1 },
-        { id: 'rq21', title: "CHORE: Bedside Reset", desc: "Clear your bedside area and place books and water neatly.", reward: 5, xp: 1 },
-        { id: 'rq22', title: "LEARNING: Math Sprint", desc: "Solve 10 math questions at your level and check answers with an adult.", reward: 8, xp: 1 }
+        { id: 'rq1', title: "HOUSE: Tidy the Living Room", desc: "Put away 10 items from the floor, then fluff pillows and fold one blanket.", reward: 2, xp: 0 },
+        { id: 'rq2', title: "HOUSE: Wash the Dishes", desc: "With adult help, wash or dry 8 dishes, then place them where they belong.", reward: 2, xp: 0 },
+        { id: 'rq3', title: "HOUSE: Make Your Bed", desc: "Straighten sheets, pull blanket flat, and place pillows neatly in 3 minutes.", reward: 2, xp: 0 },
+        { id: 'rq4', title: "HOUSE: Sweep the Kitchen", desc: "Sweep one kitchen area and collect crumbs into the dustpan.", reward: 2, xp: 0 },
+        { id: 'rq5', title: "CRAFT: Build a Lego Structure", desc: "Build a model with at least 15 pieces and give it a cool name.", reward: 3, xp: 0 },
+        { id: 'rq6', title: "CRAFT: Draw or Paint", desc: "Draw or paint a picture with at least 3 colors and show it to the GM.", reward: 3, xp: 0 },
+        { id: 'rq7', title: "CRAFT: Assemble a Model", desc: "Complete one model step-by-step and clean up pieces when finished.", reward: 3, xp: 1 },
+        { id: 'rq8', title: "SPORT: Play Soccer in the Yard", desc: "Do 20 kicks or passes and 5 goal shots safely with clear space.", reward: 3, xp: 1 },
+        { id: 'rq9', title: "SPORT: Go for a Bike Ride", desc: "Ride for 10 minutes with helmet on and follow adult safety rules.", reward: 4, xp: 1 },
+        { id: 'rq10', title: "SPORT: Play Catch", desc: "Complete 20 catches with a partner (or wall tosses) without giving up.", reward: 2, xp: 0 },
+        { id: 'rq11', title: "CHORE: Fold Laundry", desc: "Fold 8 clothing items and place them in the correct room.", reward: 2, xp: 0 },
+        { id: 'rq12', title: "CHORE: Take Out Trash", desc: "Collect one full bin, tie bag safely, and replace it with a new bag.", reward: 2, xp: 0 },
+        { id: 'rq13', title: "CHORE: Organize Closet", desc: "Sort one shelf or drawer: keep, put away, and remove 5 out-of-place items.", reward: 3, xp: 1 },
+        { id: 'rq14', title: "HOUSE: Entryway Reset", desc: "Line up shoes, hang coats, and clear backpacks from the floor.", reward: 2, xp: 0 },
+        { id: 'rq15', title: "HOUSE: Table Wipe-Down", desc: "Wipe the table and 4 chairs with help, then push chairs in neatly.", reward: 2, xp: 0 },
+        { id: 'rq16', title: "CRAFT: Story Comic", desc: "Draw a 3-panel comic about your wasteland hero and read it out loud.", reward: 3, xp: 1 },
+        { id: 'rq17', title: "CRAFT: Build-and-Explain", desc: "Build something from blocks and explain what each part does.", reward: 3, xp: 1 },
+        { id: 'rq18', title: "SPORT: Mini Obstacle Course", desc: "Complete a safe obstacle course with 5 checkpoints.", reward: 3, xp: 1 },
+        { id: 'rq19', title: "SPORT: Stretch Session", desc: "Do 5 stretches and hold each for 15 seconds.", reward: 2, xp: 0 },
+        { id: 'rq20', title: "CHORE: Toy Sort", desc: "Sort toys into 3 groups and put each group away in the correct place.", reward: 3, xp: 0 },
+        { id: 'rq21', title: "CHORE: Bedside Reset", desc: "Clear your bedside area and place books and water neatly.", reward: 2, xp: 0 },
+        { id: 'rq22', title: "LEARNING: Math Sprint", desc: "Solve 10 math questions at your level and check answers with an adult.", reward: 3, xp: 1 }
     ],
     educationalQuests: [
         {
@@ -319,8 +319,8 @@ const BASE_GAME_STATE = {
             question: 'Which word is a color? "The blue boat is fast."',
             options: ['boat', 'blue', 'fast'],
             correctOptionIndex: 1,
-            rewardTabs: 4,
-            rewardXp: 1,
+            rewardTabs: 1,
+            rewardXp: 0,
             wrongPenalty: { hp: 1 }
         },
         {
@@ -330,7 +330,7 @@ const BASE_GAME_STATE = {
             question: 'What is 4 + 3?',
             options: ['6', '7', '8'],
             correctOptionIndex: 1,
-            rewardTabs: 3,
+            rewardTabs: 1,
             rewardXp: 1,
             wrongPenalty: { rads: 1 }
         },
@@ -341,8 +341,8 @@ const BASE_GAME_STATE = {
             question: 'Which spelling is correct?',
             options: ['frend', 'friend', 'freind'],
             correctOptionIndex: 1,
-            rewardTabs: 4,
-            rewardXp: 1,
+            rewardTabs: 1,
+            rewardXp: 0,
             wrongPenalty: { hp: 1 }
         },
         {
@@ -352,7 +352,7 @@ const BASE_GAME_STATE = {
             question: 'What do plants need to grow best?',
             options: ['Sunlight and water', 'Only candy', 'Only TV'],
             correctOptionIndex: 0,
-            rewardTabs: 5,
+            rewardTabs: 2,
             rewardXp: 1,
             wrongPenalty: { rads: 1 }
         },
@@ -363,8 +363,8 @@ const BASE_GAME_STATE = {
             question: 'Which sentence ends correctly?',
             options: ['I like dogs', 'I like dogs.', 'I like dogs..'],
             correctOptionIndex: 1,
-            rewardTabs: 4,
-            rewardXp: 1,
+            rewardTabs: 1,
+            rewardXp: 0,
             wrongPenalty: { hp: 1 }
         },
         {
@@ -374,7 +374,7 @@ const BASE_GAME_STATE = {
             question: 'If north is up, what direction is right?',
             options: ['West', 'East', 'South'],
             correctOptionIndex: 1,
-            rewardTabs: 3,
+            rewardTabs: 1,
             rewardXp: 1,
             wrongPenalty: { rads: 1 }
         }
@@ -439,8 +439,8 @@ const BASE_GAME_STATE = {
             name: 'TIDEWATCH PROTOCOL',
             questIds: ['q12', 'q13', 'q14'],
             finalReward: {
-                tabs: 20,
-                xp: 2,
+                tabs: 8,
+                xp: 1,
                 perkId: 'p17',
                 item: 'Tidewatch Signal Decoder'
             }
@@ -450,7 +450,7 @@ const BASE_GAME_STATE = {
             name: 'WILD FRONTIER SWEEP',
             questIds: ['q16', 'q17'],
             finalReward: {
-                tabs: 15,
+                tabs: 6,
                 xp: 1,
                 item: 'Park Warden Field Kit'
             }
@@ -460,8 +460,8 @@ const BASE_GAME_STATE = {
             name: 'HARBORLINE RECOVERY',
             questIds: ['q18', 'q20', 'q22'],
             finalReward: {
-                tabs: 25,
-                xp: 2,
+                tabs: 10,
+                xp: 1,
                 item: 'Harborline Relay Badge'
             }
         }
@@ -487,8 +487,8 @@ const BASE_GAME_STATE = {
         {
             id: 'ev_merchant_visit',
             name: 'MERCHANT VISIT',
-            text: 'A roaming merchant appears. All players gain +10 Tabs.',
-            effect: { tabs: 10 }
+            text: 'A roaming merchant appears. All players gain +4 Tabs.',
+            effect: { tabs: 4 }
         },
         {
             id: 'ev_vault_breach',
@@ -520,25 +520,25 @@ const BASE_GAME_STATE = {
             id: 'ach_first_craft',
             name: 'FIRST CRAFT',
             desc: 'Craft your first item.',
-            reward: { tabs: 3, xp: 1 }
+            reward: { tabs: 2, xp: 1 }
         },
         {
             id: 'ach_quest_runner',
             name: 'QUEST RUNNER',
             desc: 'Complete 10 quests.',
-            reward: { tabs: 10, xp: 2 }
+            reward: { tabs: 5, xp: 1 }
         },
         {
             id: 'ach_chappy_master',
             name: 'CHAPPY MASTER',
             desc: 'Reach 8 in any C.H.A.P.P.Y. stat.',
-            reward: { tabs: 5, xp: 1 }
+            reward: { tabs: 3, xp: 1 }
         },
         {
             id: 'ach_team_player',
             name: 'TEAM PLAYER',
             desc: 'Contribute to 3 shared team objectives.',
-            reward: { tabs: 8, xp: 2 }
+            reward: { tabs: 4, xp: 1 }
         }
     ],
     classPassives: {
@@ -568,31 +568,31 @@ const BASE_GAME_STATE = {
             id: 'team_signal_tower',
             name: 'SIGNAL TOWER STABILIZATION',
             desc: 'Both players each complete one task: one tidy mission and one movement mission, then report done.',
-            reward: { tabs: 10, xp: 1 }
+            reward: { tabs: 5, xp: 1 }
         },
         {
             id: 'team_convoy_escort',
             name: 'CONVOY ESCORT',
             desc: 'Work together: one player gathers supplies while the other clears a path. Finish both jobs to complete.',
-            reward: { tabs: 12, xp: 1 }
+            reward: { tabs: 6, xp: 1 }
         },
         {
             id: 'team_fog_survey',
             name: 'FOG SURVEY',
             desc: 'Each player explores a different room/area, finds 3 things, and reports findings to the GM.',
-            reward: { tabs: 8, xp: 1 }
+            reward: { tabs: 4, xp: 1 }
         },
         {
             id: 'team_home_base_reset',
             name: 'HOME BASE RESET',
             desc: 'One player tidies play zone while the other organizes supplies. Switch and verify both tasks complete.',
-            reward: { tabs: 9, xp: 1 }
+            reward: { tabs: 4, xp: 1 }
         },
         {
             id: 'team_story_transmission',
             name: 'STORY TRANSMISSION',
             desc: 'Both players create and share one short mission story with a clear beginning, middle, and end.',
-            reward: { tabs: 10, xp: 1 }
+            reward: { tabs: 5, xp: 1 }
         }
     ],
     activeTeamObjective: null,
