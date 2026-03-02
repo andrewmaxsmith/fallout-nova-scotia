@@ -1,6 +1,6 @@
 {
   "name": "fallout-nova-scotia-gm",
-  "version": "1.0.0",
+  "version": "1.4.2",
   "description": "Fallout: New Nova Scotia - Game Master System for 2 players",
   "main": "server.js",
   "scripts": {
