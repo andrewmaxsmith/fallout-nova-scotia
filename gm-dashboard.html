@@ -192,7 +192,7 @@
                         <label>HP: <input type="number" id="logan-hp" class="stat-input" value="10" min="0" max="999" oninput="queuePlayerStatUpdate('logan', 'hp', this)"> / <input type="number" id="logan-maxhp" class="stat-input" value="10" min="1" max="999" oninput="queuePlayerStatUpdate('logan', 'maxHp', this)"></label>
                     </div>
                     <div class="player-card">
-                        <label>RADS: <input type="number" id="logan-rads" class="stat-input" value="0" min="0" max="1000" oninput="queuePlayerStatUpdate('logan', 'rads', this)"></label>
+                        <label>RADS: <input type="number" id="logan-rads" class="stat-input" value="0" min="0" max="1000" oninput="queuePlayerStatUpdate('logan', 'rads', this)"> / <input type="number" id="logan-maxrads" class="stat-input" value="10" min="1" max="1000" oninput="queuePlayerStatUpdate('logan', 'maxRads', this)"></label>
                     </div>
                     <div class="player-card">
                         <label>TABS: <input type="number" id="logan-tabs" class="stat-input" value="10" min="0" max="999999" oninput="queuePlayerStatUpdate('logan', 'tabs', this)"></label>
@@ -220,7 +220,7 @@
                         <label>HP: <input type="number" id="rylyn-hp" class="stat-input" value="10" min="0" max="999" oninput="queuePlayerStatUpdate('rylyn', 'hp', this)"> / <input type="number" id="rylyn-maxhp" class="stat-input" value="10" min="1" max="999" oninput="queuePlayerStatUpdate('rylyn', 'maxHp', this)"></label>
                     </div>
                     <div class="player-card">
-                        <label>RADS: <input type="number" id="rylyn-rads" class="stat-input" value="0" min="0" max="1000" oninput="queuePlayerStatUpdate('rylyn', 'rads', this)"></label>
+                        <label>RADS: <input type="number" id="rylyn-rads" class="stat-input" value="0" min="0" max="1000" oninput="queuePlayerStatUpdate('rylyn', 'rads', this)"> / <input type="number" id="rylyn-maxrads" class="stat-input" value="10" min="1" max="1000" oninput="queuePlayerStatUpdate('rylyn', 'maxRads', this)"></label>
                     </div>
                     <div class="player-card">
                         <label>TABS: <input type="number" id="rylyn-tabs" class="stat-input" value="10" min="0" max="999999" oninput="queuePlayerStatUpdate('rylyn', 'tabs', this)"></label>
@@ -481,6 +481,7 @@
             hp: { min: 0, max: 999 },
             maxHp: { min: 1, max: 999 },
             rads: { min: 0, max: 1000 },
+            maxRads: { min: 1, max: 1000 },
             tabs: { min: 0, max: 999999 },
             xp: { min: 0, max: 999999 }
         };
@@ -629,6 +630,7 @@
             setInputValueIfIdle(`${playerKey}-hp`, player.hp || 0);
             setInputValueIfIdle(`${playerKey}-maxhp`, player.maxHp || 10);
             setInputValueIfIdle(`${playerKey}-rads`, player.rads || 0);
+            setInputValueIfIdle(`${playerKey}-maxrads`, player.maxRads || 10);
             setInputValueIfIdle(`${playerKey}-tabs`, player.tabs || 0);
 
             const xpNext = document.getElementById(`${playerKey}-xp-next`);
