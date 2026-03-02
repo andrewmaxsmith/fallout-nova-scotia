@@ -345,6 +345,7 @@ function registerGameplayRoutes(app, deps) {
 
         if (gameState.players[player] && gameState.players[player][stat] !== undefined) {
             gameState.players[player][stat] = validation.value;
+            ensurePlayerProgressFields(gameState.players[player]);
             syncPlayerPassive(gameState, player);
             const unlocked = evaluateAchievements(gameState, player);
             scheduleAutoSave();

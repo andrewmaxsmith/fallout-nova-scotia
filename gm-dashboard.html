@@ -186,6 +186,9 @@
                         <label>LEVEL: <input type="number" id="logan-level" class="stat-input" value="1" min="1" max="99" oninput="queuePlayerStatUpdate('logan', 'level', this)"></label>
                     </div>
                     <div class="player-card">
+                        <label>XP: <input type="number" id="logan-xp" class="stat-input" value="0" min="0" max="999999" oninput="queuePlayerStatUpdate('logan', 'xp', this)"> / <span id="logan-xp-next">5</span></label>
+                    </div>
+                    <div class="player-card">
                         <label>HP: <input type="number" id="logan-hp" class="stat-input" value="10" min="0" max="999" oninput="queuePlayerStatUpdate('logan', 'hp', this)"> / <input type="number" id="logan-maxhp" class="stat-input" value="10" min="1" max="999" oninput="queuePlayerStatUpdate('logan', 'maxHp', this)"></label>
                     </div>
                     <div class="player-card">
@@ -193,6 +196,14 @@
                     </div>
                     <div class="player-card">
                         <label>TABS: <input type="number" id="logan-tabs" class="stat-input" value="10" min="0" max="999999" oninput="queuePlayerStatUpdate('logan', 'tabs', this)"></label>
+                    </div>
+                    <div class="player-card text-[10px]">
+                        <p class="font-bold text-blue-300 mb-1">STATUS</p>
+                        <div id="logan-player-meta" class="space-y-1 opacity-80"></div>
+                    </div>
+                    <div class="player-card text-[10px]">
+                        <p class="font-bold text-blue-300 mb-1">C.H.A.P.P.Y.</p>
+                        <div id="logan-player-stats" class="grid grid-cols-2 gap-1 opacity-80"></div>
                     </div>
                 </div>
 
@@ -203,6 +214,9 @@
                         <label>LEVEL: <input type="number" id="rylyn-level" class="stat-input" value="1" min="1" max="99" oninput="queuePlayerStatUpdate('rylyn', 'level', this)"></label>
                     </div>
                     <div class="player-card">
+                        <label>XP: <input type="number" id="rylyn-xp" class="stat-input" value="0" min="0" max="999999" oninput="queuePlayerStatUpdate('rylyn', 'xp', this)"> / <span id="rylyn-xp-next">5</span></label>
+                    </div>
+                    <div class="player-card">
                         <label>HP: <input type="number" id="rylyn-hp" class="stat-input" value="10" min="0" max="999" oninput="queuePlayerStatUpdate('rylyn', 'hp', this)"> / <input type="number" id="rylyn-maxhp" class="stat-input" value="10" min="1" max="999" oninput="queuePlayerStatUpdate('rylyn', 'maxHp', this)"></label>
                     </div>
                     <div class="player-card">
@@ -210,6 +224,14 @@
                     </div>
                     <div class="player-card">
                         <label>TABS: <input type="number" id="rylyn-tabs" class="stat-input" value="10" min="0" max="999999" oninput="queuePlayerStatUpdate('rylyn', 'tabs', this)"></label>
+                    </div>
+                    <div class="player-card text-[10px]">
+                        <p class="font-bold text-red-300 mb-1">STATUS</p>
+                        <div id="rylyn-player-meta" class="space-y-1 opacity-80"></div>
+                    </div>
+                    <div class="player-card text-[10px]">
+                        <p class="font-bold text-red-300 mb-1">C.H.A.P.P.Y.</p>
+                        <div id="rylyn-player-stats" class="grid grid-cols-2 gap-1 opacity-80"></div>
                     </div>
                 </div>
             </div>
@@ -459,7 +481,17 @@
             hp: { min: 0, max: 999 },
             maxHp: { min: 1, max: 999 },
             rads: { min: 0, max: 1000 },
-            tabs: { min: 0, max: 999999 }
+            tabs: { min: 0, max: 999999 },
+            xp: { min: 0, max: 999999 }
+        };
+
+        const CHAPPY_LABELS = {
+            charm: 'CHARM',
+            hardiness: 'HARDINESS',
+            agility: 'AGILITY',
+            perception: 'PERCEPTION',
+            politeness: 'POLITENESS',
+            yarns: 'YARNS'
         };
 
         function showNotice(message, type = 'info', timeoutMs = 2600) {
@@ -574,10 +606,63 @@
                 const state = await apiRequest('/api/game-state', { showError: false });
                 if (state && typeof state === 'object') {
                     gameData = state;
+                    renderPlayerPanels();
                 }
             } catch (e) {
                 console.error('Failed to load game state:', e);
             }
+        }
+
+        function setInputValueIfIdle(inputId, value) {
+            const input = document.getElementById(inputId);
+            if (!input) return;
+            if (document.activeElement === input) return;
+            input.value = Number.isFinite(Number(value)) ? Number(value) : 0;
+        }
+
+        function renderPlayerPanel(playerKey) {
+            const player = gameData?.players?.[playerKey];
+            if (!player) return;
+
+            setInputValueIfIdle(`${playerKey}-level`, player.level || 1);
+            setInputValueIfIdle(`${playerKey}-xp`, player.xp || 0);
+            setInputValueIfIdle(`${playerKey}-hp`, player.hp || 0);
+            setInputValueIfIdle(`${playerKey}-maxhp`, player.maxHp || 10);
+            setInputValueIfIdle(`${playerKey}-rads`, player.rads || 0);
+            setInputValueIfIdle(`${playerKey}-tabs`, player.tabs || 0);
+
+            const xpNext = document.getElementById(`${playerKey}-xp-next`);
+            if (xpNext) {
+                xpNext.textContent = String(Math.max(1, Number(player.xpToNext || 1)));
+            }
+
+            const meta = document.getElementById(`${playerKey}-player-meta`);
+            if (meta) {
+                const activeCount = Array.isArray(player.activeQuests) ? player.activeQuests.length : 0;
+                const completedCount = Array.isArray(player.completedQuests) ? player.completedQuests.length : 0;
+                const eduAttempts = Array.isArray(player.educationalCompleted) ? player.educationalCompleted.length : 0;
+                meta.innerHTML = `
+                    <p>CLASS: ${(player.class || 'UNCLASSIFIED')}</p>
+                    <p>FACTION: ${(player.faction || 'NONE')}</p>
+                    <p>PENDING PERKS: ${Number(player.pendingPerks || 0)}</p>
+                    <p>ACTIVE QUESTS: ${activeCount}</p>
+                    <p>COMPLETED QUESTS: ${completedCount}</p>
+                    <p>EDU ATTEMPTS: ${eduAttempts}</p>
+                `;
+            }
+
+            const statsContainer = document.getElementById(`${playerKey}-player-stats`);
+            if (statsContainer) {
+                const stats = player.stats || {};
+                statsContainer.innerHTML = Object.keys(CHAPPY_LABELS)
+                    .map((statKey) => `<p>${CHAPPY_LABELS[statKey]}: <span class="font-bold">${Number(stats[statKey] || 0)}</span></p>`)
+                    .join('');
+            }
+        }
+
+        function renderPlayerPanels() {
+            renderPlayerPanel('logan');
+            renderPlayerPanel('rylyn');
         }
 
         function setStorageStatusUi(status, isError = false) {
