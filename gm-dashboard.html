@@ -149,10 +149,11 @@
             <p class="text-[10px] opacity-70 mb-3">EXPORT A JSON BACKUP OR IMPORT A PREVIOUS SAVE FILE.</p>
             <div id="storage-status" class="border border-pip-green/40 bg-black/60 p-2 text-[10px] mb-3 opacity-80">STORAGE STATUS: CHECKING...</div>
             <input id="save-import-file" type="file" accept="application/json,.json" class="hidden" onchange="importSaveFromFile(this)">
-            <div class="grid grid-cols-3 gap-2">
+            <div class="grid grid-cols-4 gap-2">
                 <button onclick="exportSaveBackup(this)" class="pip-btn">EXPORT SAVE JSON</button>
                 <button id="import-save-btn" onclick="openImportSaveFilePicker()" class="pip-btn">IMPORT SAVE JSON</button>
                 <button onclick="refreshStorageStatus(this)" class="pip-btn">REFRESH STATUS</button>
+                <button onclick="testSaveNow(this)" class="pip-btn">TEST SAVE NOW</button>
             </div>
         </section>
 
@@ -536,10 +537,27 @@
             const mode = String(status.storageMode || 'unknown').toUpperCase();
             const healthy = Boolean(status.providerHealthy);
             const message = status.providerMessage || 'Unknown status';
+            const lastSavedRaw = status.lastSavedAt;
+            const hasUnsavedChanges = Boolean(status.hasUnsavedChanges);
+
+            let lastSavedLabel = 'NEVER';
+            if (lastSavedRaw) {
+                const parsed = new Date(lastSavedRaw);
+                if (!Number.isNaN(parsed.getTime())) {
+                    lastSavedLabel = parsed.toLocaleString();
+                } else {
+                    lastSavedLabel = String(lastSavedRaw);
+                }
+            }
+
+            if (hasUnsavedChanges) {
+                lastSavedLabel = `${lastSavedLabel} (PENDING CHANGES)`;
+            }
+
             statusEl.className = healthy && !isError
                 ? 'border border-green-500/60 bg-black/60 p-2 text-[10px] mb-3 text-green-300'
                 : 'border border-red-500/60 bg-black/60 p-2 text-[10px] mb-3 text-red-300';
-            statusEl.textContent = `STORAGE STATUS: ${mode} • ${message}`;
+            statusEl.textContent = `STORAGE STATUS: ${mode} • ${message} • LAST SAVE: ${lastSavedLabel}`;
         }
 
         async function loadStorageStatus() {
@@ -557,6 +575,25 @@
             try {
                 await loadStorageStatus();
                 showNotice('Storage status refreshed', 'info', 1400);
+            } finally {
+                setButtonBusy(button, false);
+            }
+        }
+
+        async function testSaveNow(button) {
+            setButtonBusy(button, true, 'SAVING...');
+            try {
+                await apiRequest('/api/storage/test-save', {
+                    method: 'POST',
+                    button,
+                    busyText: 'SAVING...'
+                });
+
+                await loadStorageStatus();
+                showNotice('Test save completed', 'success', 1800);
+            } catch (e) {
+                console.error('Test save failed:', e);
+                showNotice('Test save failed', 'error', 2200);
             } finally {
                 setButtonBusy(button, false);
             }

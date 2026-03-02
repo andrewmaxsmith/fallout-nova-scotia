@@ -145,6 +145,29 @@ app.get('/api/storage/status', async (req, res) => {
     res.status(statusCode).json(status);
 });
 
+app.post('/api/storage/test-save', async (req, res) => {
+    try {
+        const savedAtBefore = lastSavedAt;
+        await persistGameState('manual-test', true);
+        const status = await getStorageStatus();
+
+        res.json({
+            ok: true,
+            message: 'Test save completed',
+            savedAtBefore,
+            savedAtAfter: lastSavedAt,
+            status
+        });
+    } catch (error) {
+        const status = await getStorageStatus();
+        res.status(500).json({
+            ok: false,
+            error: error.message,
+            status
+        });
+    }
+});
+
 // Game state with version tracking for migration
 let gameState = {
     version: GAME_STATE_VERSION,
