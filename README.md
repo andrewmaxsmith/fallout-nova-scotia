@@ -212,6 +212,8 @@ g:\My Drive\fallout\
 - `POST /api/player/:player/scrap/:type` - Grant scrap
 - `POST /api/player/:player/complete-quest` - Complete quest
 - `GET /api/game-state` - Get full game state
+- `GET /api/save/export` - Export full save backup JSON
+- `POST /api/save/import` - Import full save backup JSON (`{ "state": { ... } }` or raw state)
 
 ### Player Endpoints
 - `GET /api/player/:player` - Get player data

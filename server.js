@@ -883,6 +883,53 @@ app.get('/api/game-state', (req, res) => {
     res.json(gameState);
 });
 
+// Export full game state for backup
+app.get('/api/save/export', (req, res) => {
+    Object.values(gameState.players).forEach(ensurePlayerProgressFields);
+    res.json({
+        exportedAt: new Date().toISOString(),
+        version: GAME_STATE_VERSION,
+        state: gameState
+    });
+});
+
+// Import full game state from backup
+app.post('/api/save/import', async (req, res) => {
+    const incomingState = req.body?.state || req.body;
+
+    if (!incomingState || typeof incomingState !== 'object') {
+        return res.status(400).json({ error: 'Invalid payload. Provide a game state object or { state: ... }.' });
+    }
+
+    const migratedState = migrateGameState(incomingState);
+    if (!migratedState || !migratedState.players || typeof migratedState.players !== 'object') {
+        return res.status(400).json({ error: 'Invalid game state structure.' });
+    }
+
+    const playerKeys = Object.keys(migratedState.players);
+    if (playerKeys.length === 0) {
+        return res.status(400).json({ error: 'Imported game state must include at least one player.' });
+    }
+
+    const previousState = gameState;
+
+    try {
+        gameState = migratedState;
+        Object.values(gameState.players).forEach(ensurePlayerProgressFields);
+        hasUnsavedChanges = true;
+        await persistGameState('import', true);
+
+        return res.json({
+            success: true,
+            message: 'Game state imported successfully.',
+            players: playerKeys
+        });
+    } catch (error) {
+        gameState = previousState;
+        return res.status(500).json({ error: `Import failed: ${error.message}` });
+    }
+});
+
 // Update player stat
 app.post('/api/player/:player/stat/:stat', (req, res) => {
     const { player, stat } = req.params;
