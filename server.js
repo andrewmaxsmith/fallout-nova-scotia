@@ -7,12 +7,49 @@ const QRCode = require('qrcode');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const DATA_DIR = process.env.DATA_VOLUME_PATH || __dirname;
-const SAVE_FILE_PATH = path.join(DATA_DIR, 'game-state.json');
 const SAVE_DEBOUNCE_MS = 500;
+const PERIODIC_SAVE_MS = Number(process.env.PERIODIC_SAVE_MS || 60000);
+const SAVE_BACKUP_LIMIT = Number(process.env.SAVE_BACKUP_LIMIT || 20);
 const GAME_STATE_VERSION = 2; // Increment when schema changes
 
+function canWriteToDir(dirPath) {
+    try {
+        fs.mkdirSync(dirPath, { recursive: true });
+        const probeFile = path.join(dirPath, '.write-test');
+        fs.writeFileSync(probeFile, 'ok', 'utf8');
+        fs.unlinkSync(probeFile);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+function resolveDataDirectory() {
+    const candidateDirs = [
+        process.env.DATA_VOLUME_PATH,
+        process.env.RENDER_DISK_PATH,
+        path.join(__dirname, 'data'),
+        __dirname,
+        os.tmpdir()
+    ].filter(Boolean);
+
+    for (const candidate of candidateDirs) {
+        if (canWriteToDir(candidate)) {
+            return candidate;
+        }
+    }
+
+    throw new Error('No writable data directory available for save files.');
+}
+
+const DATA_DIR = resolveDataDirectory();
+const SAVE_FILE_PATH = path.join(DATA_DIR, 'game-state.json');
+const BACKUP_DIR = path.join(DATA_DIR, 'save-backups');
+
 let saveTimeout = null;
+let periodicSaveTimer = null;
+let hasUnsavedChanges = false;
+let lastSavedAt = null;
 
 app.use(cors());
 app.use(express.json());
@@ -23,7 +60,14 @@ app.get('/', (req, res) => {
 });
 
 app.get('/healthz', (req, res) => {
-    res.status(200).json({ ok: true });
+    res.status(200).json({
+        ok: true,
+        dataDir: DATA_DIR,
+        saveFile: SAVE_FILE_PATH,
+        backupDir: BACKUP_DIR,
+        lastSavedAt,
+        hasUnsavedChanges
+    });
 });
 
 // Game state with version tracking for migration
@@ -415,19 +459,81 @@ let gameState = {
     trades: []
 };
 
+function ensureSaveDirectories() {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.mkdirSync(BACKUP_DIR, { recursive: true });
+}
+
+function rotateBackups() {
+    try {
+        const backupFiles = fs.readdirSync(BACKUP_DIR)
+            .filter(name => name.endsWith('.json'))
+            .map(name => ({
+                name,
+                fullPath: path.join(BACKUP_DIR, name),
+                mtime: fs.statSync(path.join(BACKUP_DIR, name)).mtimeMs
+            }))
+            .sort((a, b) => b.mtime - a.mtime);
+
+        const removable = backupFiles.slice(Math.max(0, SAVE_BACKUP_LIMIT));
+        removable.forEach(file => fs.unlinkSync(file.fullPath));
+    } catch (error) {
+        console.error('Backup rotation failed:', error.message);
+    }
+}
+
+function writeBackupSnapshot() {
+    try {
+        const stamp = new Date().toISOString().replace(/[.:]/g, '-');
+        const backupFile = path.join(BACKUP_DIR, `game-state-${stamp}.json`);
+        fs.copyFileSync(SAVE_FILE_PATH, backupFile);
+        rotateBackups();
+    } catch (error) {
+        console.error('Backup snapshot failed:', error.message);
+    }
+}
+
+function persistGameState(reason = 'autosave', force = false) {
+    if (!force && !hasUnsavedChanges) {
+        return;
+    }
+
+    try {
+        ensureSaveDirectories();
+        gameState.version = GAME_STATE_VERSION;
+        const tempPath = `${SAVE_FILE_PATH}.tmp`;
+        fs.writeFileSync(tempPath, JSON.stringify(gameState, null, 2), 'utf8');
+        fs.renameSync(tempPath, SAVE_FILE_PATH);
+        writeBackupSnapshot();
+        hasUnsavedChanges = false;
+        lastSavedAt = new Date().toISOString();
+        if (reason !== 'debounced') {
+            console.log(`Game state persisted (${reason}) at ${lastSavedAt}`);
+        }
+    } catch (error) {
+        console.error(`Save failed (${reason}):`, error.message);
+    }
+}
+
 function scheduleAutoSave() {
+    hasUnsavedChanges = true;
     if (saveTimeout) {
         clearTimeout(saveTimeout);
     }
 
     saveTimeout = setTimeout(() => {
-        gameState.version = GAME_STATE_VERSION;
-        fs.writeFile(SAVE_FILE_PATH, JSON.stringify(gameState, null, 2), 'utf8', (error) => {
-            if (error) {
-                console.error('Auto-save failed:', error.message);
-            }
-        });
+        persistGameState('debounced');
     }, SAVE_DEBOUNCE_MS);
+}
+
+function startPeriodicAutoSave() {
+    if (periodicSaveTimer) {
+        clearInterval(periodicSaveTimer);
+    }
+
+    periodicSaveTimer = setInterval(() => {
+        persistGameState('periodic');
+    }, PERIODIC_SAVE_MS);
 }
 
 function migrateGameState(loadedState) {
@@ -452,37 +558,70 @@ function migrateGameState(loadedState) {
 }
 
 function loadGameStateFromDisk() {
-    if (!fs.existsSync(SAVE_FILE_PATH)) {
-        console.log('No existing save file found; starting with fresh game state.');
-        return;
-    }
+    ensureSaveDirectories();
 
-    try {
-        const fileContent = fs.readFileSync(SAVE_FILE_PATH, 'utf8');
+    const parseSaveFile = (filePath) => {
+        const fileContent = fs.readFileSync(filePath, 'utf8');
         const loadedState = JSON.parse(fileContent);
-        
         if (loadedState && typeof loadedState === 'object' && loadedState.players) {
-            // Migrate old save format to new format
             const migratedState = migrateGameState(loadedState);
             if (migratedState) {
                 gameState = migratedState;
                 const oldVer = loadedState.version || 1;
-                console.log(`Loaded saved game state from disk (version ${oldVer} -> ${GAME_STATE_VERSION}).`);
+                console.log(`Loaded game state (${oldVer} -> ${GAME_STATE_VERSION}) from ${filePath}`);
+                return true;
+            }
+        }
+        return false;
+    };
+
+    if (fs.existsSync(SAVE_FILE_PATH)) {
+        try {
+            if (parseSaveFile(SAVE_FILE_PATH)) {
+                return;
+            }
+        } catch (error) {
+            console.error('Primary save load failed, trying backup:', error.message);
+        }
+    }
+
+    try {
+        const backupFiles = fs.readdirSync(BACKUP_DIR)
+            .filter(name => name.endsWith('.json'))
+            .map(name => ({
+                name,
+                fullPath: path.join(BACKUP_DIR, name),
+                mtime: fs.statSync(path.join(BACKUP_DIR, name)).mtimeMs
+            }))
+            .sort((a, b) => b.mtime - a.mtime);
+
+        for (const backup of backupFiles) {
+            try {
+                if (parseSaveFile(backup.fullPath)) {
+                    persistGameState('restore-from-backup', true);
+                    return;
+                }
+            } catch {
+                continue;
             }
         }
     } catch (error) {
-        console.error('Failed to load saved game state:', error.message);
+        console.error('Backup restore scan failed:', error.message);
     }
+
+    console.log('No valid save found; starting with fresh game state.');
 }
 
 function flushSaveOnExit() {
-    try {
-        gameState.version = GAME_STATE_VERSION;
-        fs.writeFileSync(SAVE_FILE_PATH, JSON.stringify(gameState, null, 2), 'utf8');
-        console.log('Game state saved on server shutdown.');
-    } catch (error) {
-        console.error('Final save failed:', error.message);
+    if (saveTimeout) {
+        clearTimeout(saveTimeout);
+        saveTimeout = null;
     }
+    if (periodicSaveTimer) {
+        clearInterval(periodicSaveTimer);
+        periodicSaveTimer = null;
+    }
+    persistGameState('shutdown', true);
 }
 
 function clamp(value, min, max) {
@@ -616,18 +755,6 @@ function applyEncounterOutcome(player) {
         extra: extra || null
     };
 }
-
-loadGameStateFromDisk();
-
-process.on('SIGINT', () => {
-    flushSaveOnExit();
-    process.exit(0);
-});
-
-process.on('SIGTERM', () => {
-    flushSaveOnExit();
-    process.exit(0);
-});
 
 // --- GM ENDPOINTS ---
 
@@ -1779,6 +1906,7 @@ app.post('/api/reset', (req, res) => {
 
 // --- SERVER START ---
 loadGameStateFromDisk();
+startPeriodicAutoSave();
 
 app.listen(PORT, () => {
     const hostname = os.hostname();

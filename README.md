@@ -57,6 +57,8 @@ You'll see output like:
    - **Environment**: `Node`
    - **Build Command**: `npm install`
    - **Start Command**: `npm start`
+   - **Persistent Disk**: mount at `/var/data`
+   - **Environment Variable**: `DATA_VOLUME_PATH=/var/data`
 4. Deploy, then open:
    - `https://<your-service>.onrender.com/gm-dashboard.html`
    - `https://<your-service>.onrender.com/player.html?player=logan`
@@ -65,6 +67,14 @@ You'll see output like:
 Notes:
 - The app now uses Render's `PORT` automatically.
 - API calls use the same domain as the page, so no manual URL changes are needed.
+- Save persistence depends on a writable volume path (recommended: Render disk mount `/var/data`).
+
+Local env example:
+```bash
+DATA_VOLUME_PATH=./data
+PERIODIC_SAVE_MS=60000
+SAVE_BACKUP_LIMIT=20
+```
 
 ---
 

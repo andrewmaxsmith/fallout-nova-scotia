@@ -37,6 +37,10 @@
             background-color: var(--pip-green);
             color: var(--pip-dark);
         }
+        .pip-btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
         .crt-scanline {
             background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
             background-size: 100% 2px, 3px 100%;
@@ -141,7 +145,7 @@
                 <!-- Stat allocators will be injected here -->
             </div>
 
-            <button id="confirm-stats-btn" onclick="confirmStats()" class="pip-btn w-full py-3 text-lg font-bold" disabled>
+            <button id="confirm-stats-btn" onclick="confirmStats(this)" class="pip-btn w-full py-3 text-lg font-bold" disabled>
                 CONFIRM STATS
             </button>
             <p class="text-[10px] text-center opacity-70 mt-2">You must spend all points</p>
@@ -259,7 +263,7 @@
         <div class="pip-border p-4 bg-black/50 space-y-4">
             <div class="pip-border p-3 border-dashed border-yellow-500 bg-yellow-950/10">
                 <h3 class="text-xs font-bold text-yellow-500 mb-3">GENERATE RANDOM TASK</h3>
-                <button onclick="requestRandomQuest()" class="pip-btn w-full py-3 text-sm font-bold">GENERATE TASK</button>
+                <button onclick="requestRandomQuest(this)" class="pip-btn w-full py-3 text-sm font-bold">GENERATE TASK</button>
             </div>
 
             <div id="daily-quest-display" class="hidden">
@@ -270,7 +274,7 @@
                         <p class="text-[10px] text-yellow-500">REWARD:</p>
                         <p id="daily-quest-reward" class="text-lg font-bold text-yellow-500">5 TABS</p>
                     </div>
-                    <button onclick="completeRandomQuest()" class="pip-btn w-full py-2 text-sm">COMPLETE TASK</button>
+                    <button onclick="completeRandomQuest(this)" class="pip-btn w-full py-2 text-sm">COMPLETE TASK</button>
                 </div>
             </div>
 
@@ -417,7 +421,7 @@
                         </select>
                         <input type="number" id="request-amount" placeholder="Amount" min="1" class="w-full p-1 mt-1 bg-black border border-pip-green text-pip-green text-[10px]">
                     </div>
-                    <button onclick="sendTradeOffer()" class="pip-btn w-full py-2 text-[10px]">SEND TRADE OFFER</button>
+                    <button onclick="sendTradeOffer(this)" class="pip-btn w-full py-2 text-[10px]">SEND TRADE OFFER</button>
                 </div>
             </div>
 
@@ -479,6 +483,53 @@
             await loadData();
             checkCharacterCreation();
             startPolling();
+        }
+
+        function setButtonBusy(button, busy, busyText = 'WORKING...') {
+            if (!button) return;
+            if (busy) {
+                if (!button.dataset.originalText) {
+                    button.dataset.originalText = button.textContent;
+                }
+                button.disabled = true;
+                button.textContent = busyText;
+            } else {
+                button.disabled = false;
+                if (button.dataset.originalText) {
+                    button.textContent = button.dataset.originalText;
+                    delete button.dataset.originalText;
+                }
+            }
+        }
+
+        async function apiRequest(path, { method = 'GET', body, button = null, busyText = 'WORKING...', showError = true } = {}) {
+            const controller = new AbortController();
+            const timeoutId = window.setTimeout(() => controller.abort(), 12000);
+            setButtonBusy(button, true, busyText);
+
+            try {
+                const options = { method, headers: {}, signal: controller.signal };
+                if (body !== undefined) {
+                    options.headers['Content-Type'] = 'application/json';
+                    options.body = JSON.stringify(body);
+                }
+
+                const response = await fetch(`${API_URL}${path}`, options);
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(data.error || data.message || `Request failed (${response.status})`);
+                }
+
+                return data;
+            } catch (e) {
+                if (showError) {
+                    notify(`ERROR: ${e.name === 'AbortError' ? 'Request timed out' : e.message}`);
+                }
+                throw e;
+            } finally {
+                window.clearTimeout(timeoutId);
+                setButtonBusy(button, false);
+            }
         }
 
         function checkCharacterCreation() {
@@ -547,55 +598,46 @@
             }
         }
 
-        async function confirmStats() {
+        async function confirmStats(button) {
             if (pointsRemaining > 0) {
                 return;
             }
             
             try {
-                // Update the entire stats object
-                const response = await fetch(`${API_URL}/api/player/${playerName}/stats`, {
+                await apiRequest(`/api/player/${playerName}/stats`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ stats: tempStats })
+                    body: { stats: tempStats },
+                    button,
+                    busyText: 'SAVING...'
                 });
-                
-                if (response.ok) {
-                    // Reload data and hide overlay
-                    await loadData();
-                    document.getElementById('char-creation-overlay').classList.add('hidden');
-                    notify('CHARACTER CREATED!');
-                } else {
-                    notify('ERROR: Could not save stats');
-                }
+
+                await loadData();
+                document.getElementById('char-creation-overlay').classList.add('hidden');
+                notify('CHARACTER CREATED!');
             } catch (e) {
                 console.error('Error saving stats:', e);
-                notify('ERROR: Could not save stats');
             }
         }
 
         async function loadData() {
             try {
-                const playerResponse = await fetch(`${API_URL}/api/player/${playerName}`);
-                playerData = await playerResponse.json();
+                const [player, quests, radio, perks, recipes, quartersShop, quarters] = await Promise.all([
+                    apiRequest(`/api/player/${playerName}`, { showError: false }),
+                    apiRequest('/api/quests', { showError: false }),
+                    apiRequest('/api/radio', { showError: false }),
+                    apiRequest('/api/perks', { showError: false }),
+                    apiRequest('/api/recipes', { showError: false }),
+                    apiRequest('/api/quarters-shop', { showError: false }),
+                    apiRequest(`/api/player/${playerName}/quarters`, { showError: false })
+                ]);
 
-                const questsResponse = await fetch(`${API_URL}/api/quests`);
-                allQuests = await questsResponse.json();
-
-                const radioResponse = await fetch(`${API_URL}/api/radio`);
-                allRadio = await radioResponse.json();
-
-                const perksResponse = await fetch(`${API_URL}/api/perks`);
-                allPerks = await perksResponse.json();
-
-                const recipesResponse = await fetch(`${API_URL}/api/recipes`);
-                allRecipes = await recipesResponse.json();
-
-                const quartersShopResponse = await fetch(`${API_URL}/api/quarters-shop`);
-                allQuartersUpgrades = await quartersShopResponse.json();
-
-                const playerQuartersResponse = await fetch(`${API_URL}/api/player/${playerName}/quarters`);
-                playerQuarters = await playerQuartersResponse.json();
+                playerData = player || {};
+                allQuests = quests || [];
+                allRadio = radio || [];
+                allPerks = perks || [];
+                allRecipes = recipes || [];
+                allQuartersUpgrades = quartersShop || [];
+                playerQuarters = quarters || [];
 
                 updateUI();
                 document.getElementById('sync-status').textContent = '✓ SYNCED';
@@ -723,7 +765,7 @@
             if (playerData.activeRadioData) {
                 const safeText = playerData.activeRadioData.text.replace(/\n/g, '<br>');
                 const resolveButton = playerData.activeRadioData.requiresResolve
-                    ? '<button onclick="resolveEncounter()" class="pip-btn w-full py-2 text-[10px] mt-3">RESOLVE</button>'
+                    ? '<button onclick="resolveEncounter(this)" class="pip-btn w-full py-2 text-[10px] mt-3">RESOLVE</button>'
                     : '';
                 broadcast.innerHTML = `
                     <div class="radio-alert">
@@ -750,22 +792,17 @@
             }
         }
 
-        async function resolveEncounter() {
+        async function resolveEncounter(button) {
             try {
-                const response = await fetch(`${API_URL}/api/player/${playerName}/encounter/resolve`, {
+                await apiRequest(`/api/player/${playerName}/encounter/resolve`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
+                    button,
+                    busyText: 'RESOLVING...'
                 });
-                if (response.ok) {
-                    await loadData();
-                    notify('ENCOUNTER RESOLVED');
-                } else {
-                    const result = await response.json();
-                    notify(`ERROR: ${result.error}`);
-                }
+                await loadData();
+                notify('ENCOUNTER RESOLVED');
             } catch (e) {
                 console.error('Error resolving encounter:', e);
-                notify('ERROR: Could not resolve encounter');
             }
         }
 
@@ -797,7 +834,7 @@
                     });
                     
                     const craftBtn = canCraft 
-                        ? `<button onclick="craft('${recipe.id}')" class="pip-btn text-[9px] w-full mt-2">CRAFT</button>`
+                        ? `<button onclick="craft('${recipe.id}', this)" class="pip-btn text-[9px] w-full mt-2">CRAFT</button>`
                         : `<button disabled class="pip-btn text-[9px] w-full mt-2 opacity-40 cursor-not-allowed">CRAFT</button>`;
                     
                     div.innerHTML = `
@@ -811,21 +848,17 @@
             }
         }
 
-        async function craft(recipeId) {
+        async function craft(recipeId, button) {
             try {
-                const response = await fetch(`${API_URL}/api/player/${playerName}/craft/${recipeId}`, {
-                    method: 'POST'
+                const result = await apiRequest(`/api/player/${playerName}/craft/${recipeId}`, {
+                    method: 'POST',
+                    button,
+                    busyText: 'CRAFTING...'
                 });
-                const result = await response.json();
-                if (response.ok) {
-                    notify(`SUCCESS: ${result.message}`);
-                    await loadData();
-                } else {
-                    notify(`ERROR: ${result.error}`);
-                }
+                notify(`SUCCESS: ${result.message}`);
+                await loadData();
             } catch (e) {
                 console.error('Craft error:', e);
-                notify('CRAFT FAILED');
             }
         }
 
@@ -842,10 +875,12 @@
 
         let currentRandomQuest = null;
 
-        async function requestRandomQuest() {
+        async function requestRandomQuest(button) {
             try {
-                const response = await fetch(`${API_URL}/api/random-quest`);
-                currentRandomQuest = await response.json();
+                currentRandomQuest = await apiRequest('/api/random-quest', {
+                    button,
+                    busyText: 'ROLLING...'
+                });
                 
                 // Display the quest
                 document.getElementById('daily-quest-title').textContent = currentRandomQuest.title;
@@ -860,24 +895,19 @@
             }
         }
 
-        async function completeRandomQuest() {
+        async function completeRandomQuest(button) {
             if (!currentRandomQuest) {
                 notify('No active task.');
                 return;
             }
 
             try {
-                const response = await fetch(`${API_URL}/api/player/${playerName}/complete-random-quest`, {
+                await apiRequest(`/api/player/${playerName}/complete-random-quest`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ questId: currentRandomQuest.id })
+                    body: { questId: currentRandomQuest.id },
+                    button,
+                    busyText: 'COMPLETING...'
                 });
-
-                const result = await response.json();
-                if (!response.ok) {
-                    notify(`ERROR: ${result.error}`);
-                    return;
-                }
                 
                 // Add to session completed quests
                 if (!playerData.dailyCompleted) {
@@ -971,7 +1001,7 @@
                         choice.innerHTML = `
                             <h4 class="font-bold text-yellow-500">${perk.name}</h4>
                             <p class="text-[10px] opacity-80 mb-2">${perk.desc}</p>
-                            <button onclick="selectPerk('${perk.id}')" class="pip-btn text-[8px] w-full">CHOOSE PERK</button>
+                            <button onclick="selectPerk('${perk.id}', this)" class="pip-btn text-[8px] w-full">CHOOSE PERK</button>
                         `;
                         perkChoiceList.appendChild(choice);
                     });
@@ -986,74 +1016,17 @@
             }
         }
 
-        function updateQuarters() {
-            const installedList = document.getElementById('quarters-installed');
-            const availableList = document.getElementById('quarters-available');
-            
-            installedList.innerHTML = '';
-            availableList.innerHTML = '';
-
-            // Show installed upgrades
-            if (playerData.purchasedUpgrades && playerData.purchasedUpgrades.length > 0) {
-                const installed = playerData.purchasedUpgrades
-                    .map(upgradeId => allQuartersUpgrades.find(u => u.id === upgradeId))
-                    .filter(u => u);
-                
-                installed.forEach(upgrade => {
-                    const div = document.createElement('div');
-                    div.className = 'border-2 border-green-500 bg-green-950/20 p-2';
-                    div.innerHTML = `
-                        <h4 class="font-bold text-green-400">${upgrade.name}</h4>
-                        <p class="text-[10px] opacity-80">${upgrade.effect}</p>
-                    `;
-                    installedList.appendChild(div);
-                });
-            } else {
-                installedList.innerHTML = '<p class="text-[10px] opacity-70">No upgrades installed yet.</p>';
-            }
-
-            // Show available upgrades for purchase
-            if (allQuartersUpgrades && allQuartersUpgrades.length > 0) {
-                const available = allQuartersUpgrades.filter(u => !playerData.purchasedUpgrades || !playerData.purchasedUpgrades.includes(u.id));
-                
-                if (available.length > 0) {
-                    const randomUpgrades = getStableRandomChoices(available, cachedUpgradeChoiceIds, 3);
-                    cachedUpgradeChoiceIds = randomUpgrades.map(u => u.id);
-
-                    randomUpgrades.forEach(upgrade => {
-                        const canAfford = playerData.tabs >= upgrade.cost;
-                        const div = document.createElement('div');
-                        div.className = canAfford ? 'border border-yellow-500/50 p-2 cursor-pointer hover:border-yellow-500 transition' : 'border border-red-500/30 p-2 opacity-60';
-                        div.innerHTML = `
-                            <h4 class="font-bold text-yellow-500">${upgrade.name}</h4>
-                            <p class="text-[10px] opacity-80 mb-1">${upgrade.desc}</p>
-                            <p class="text-[9px] text-yellow-600 mb-2">COST: ${upgrade.cost} TABS</p>
-                            <button onclick="purchaseQuartersUpgrade('${upgrade.id}')" class="pip-btn text-[8px] w-full ${!canAfford ? 'opacity-50 cursor-not-allowed' : ''}" ${!canAfford ? 'disabled' : ''}>BUY UPGRADE</button>
-                        `;
-                        availableList.appendChild(div);
-                    });
-                } else {
-                    availableList.innerHTML = '<p class="text-[10px] opacity-70">All available upgrades are installed!</p>';
-                }
-            }
-        }
-
-        async function selectPerk(perkId) {
+        async function selectPerk(perkId, button) {
             try {
-                const response = await fetch(`${API_URL}/api/player/${playerName}/perk/${perkId}`, {
+                await apiRequest(`/api/player/${playerName}/perk/${perkId}`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
+                    button,
+                    busyText: 'SELECTING...'
                 });
-                if (response.ok) {
-                    await loadData();
-                    notify('Perk selected!');
-                } else {
-                    const result = await response.json();
-                    notify(result.error || 'Could not select perk');
-                }
+                await loadData();
+                notify('Perk selected!');
             } catch (e) {
                 console.error('Error selecting perk:', e);
-                notify('ERROR: Could not select perk');
             }
         }
 
@@ -1093,7 +1066,7 @@
                                 <p class="opacity-70 text-[9px]">${upgrade.desc}</p>
                                 <p class="text-[9px] text-yellow-500 font-bold mt-1">COST: ${upgrade.cost} TABS</p>
                             </div>
-                            <button onclick="purchaseUpgrade('${upgrade.id}')" class="pip-btn text-[8px] p-1 ${canAfford ? '' : 'opacity-50 cursor-not-allowed'}" ${!canAfford ? 'disabled' : ''}>BUY</button>
+                            <button onclick="purchaseUpgrade('${upgrade.id}', this)" class="pip-btn text-[8px] p-1 ${canAfford ? '' : 'opacity-50 cursor-not-allowed'}" ${!canAfford ? 'disabled' : ''}>BUY</button>
                         </div>
                     `;
                     availableDiv.appendChild(upgradeEl);
@@ -1103,48 +1076,36 @@
             }
         }
 
-        async function purchaseUpgrade(upgradeId) {
+        async function purchaseUpgrade(upgradeId, button) {
             try {
-                const response = await fetch(`${API_URL}/api/player/${playerName}/quarters/${upgradeId}`, {
+                const result = await apiRequest(`/api/player/${playerName}/quarters/${upgradeId}`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
+                    button,
+                    busyText: 'BUYING...'
                 });
-                const result = await response.json();
-                
-                if (response.ok) {
-                    await loadData();
-                    notify(`Purchased: ${result.upgrade.name}!`);
-                } else {
-                    notify(`ERROR: ${result.error}`);
-                }
+                await loadData();
+                notify(`Purchased: ${result.upgrade.name}!`);
             } catch (e) {
                 console.error('Error purchasing upgrade:', e);
-                notify('ERROR: Could not purchase upgrade');
             }
         }
 
-        async function purchaseQuartersUpgrade(upgradeId) {
+        async function purchaseQuartersUpgrade(upgradeId, button) {
             try {
-                const response = await fetch(`${API_URL}/api/player/${playerName}/quarters/${upgradeId}`, {
+                const result = await apiRequest(`/api/player/${playerName}/quarters/${upgradeId}`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
+                    button,
+                    busyText: 'BUYING...'
                 });
-                if (response.ok) {
-                    const result = await response.json();
-                    await loadData();
-                    notify(`Installed: ${result.upgrade.name}`);
-                } else {
-                    const result = await response.json();
-                    notify(`ERROR: ${result.error}`);
-                }
+                await loadData();
+                notify(`Installed: ${result.upgrade.name}`);
             } catch (e) {
                 console.error('Error purchasing upgrade:', e);
-                notify('ERROR: Could not purchase upgrade');
             }
         }
 
         // TRADING FUNCTIONS
-        async function sendTradeOffer() {
+        async function sendTradeOffer(button) {
             const offerType = document.getElementById('offer-type').value;
             const offerAmount = parseInt(document.getElementById('offer-amount').value);
             const requestType = document.getElementById('request-type').value;
@@ -1160,83 +1121,66 @@
             const requestingScrap = { [requestType]: requestAmount };
 
             try {
-                const response = await fetch(`${API_URL}/api/player/${playerName}/trade/offer`, {
+                await apiRequest(`/api/player/${playerName}/trade/offer`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
+                    body: {
                         toPlayer: otherPlayer,
                         offeringScrap: offeringScrap,
                         requestingScrap: requestingScrap
-                    })
+                    },
+                    button,
+                    busyText: 'SENDING...'
                 });
 
-                if (response.ok) {
-                    const result = await response.json();
-                    notify('Trade offer sent!');
-                    document.getElementById('offer-type').value = '';
-                    document.getElementById('offer-amount').value = '';
-                    document.getElementById('request-type').value = '';
-                    document.getElementById('request-amount').value = '';
-                    await loadData();
-                    updateTrades();
-                } else {
-                    const result = await response.json();
-                    notify(`ERROR: ${result.error}`);
-                }
+                notify('Trade offer sent!');
+                document.getElementById('offer-type').value = '';
+                document.getElementById('offer-amount').value = '';
+                document.getElementById('request-type').value = '';
+                document.getElementById('request-amount').value = '';
+                await loadData();
+                updateTrades();
             } catch (e) {
                 console.error('Error sending trade offer:', e);
-                notify('ERROR: Could not send trade offer');
             }
         }
 
-        async function acceptTrade(tradeId) {
+        async function acceptTrade(tradeId, button) {
             try {
-                const response = await fetch(`${API_URL}/api/trade/${tradeId}/accept`, {
+                await apiRequest(`/api/trade/${tradeId}/accept`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ player: playerName })
+                    body: { player: playerName },
+                    button,
+                    busyText: 'ACCEPTING...'
                 });
 
-                if (response.ok) {
-                    notify('Trade accepted!');
-                    await loadData();
-                    updateTrades();
-                } else {
-                    const result = await response.json();
-                    notify(`ERROR: ${result.error}`);
-                }
+                notify('Trade accepted!');
+                await loadData();
+                updateTrades();
             } catch (e) {
                 console.error('Error accepting trade:', e);
-                notify('ERROR: Could not accept trade');
             }
         }
 
-        async function rejectTrade(tradeId) {
+        async function rejectTrade(tradeId, button) {
             try {
-                const response = await fetch(`${API_URL}/api/trade/${tradeId}/reject`, {
+                await apiRequest(`/api/trade/${tradeId}/reject`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ player: playerName })
+                    body: { player: playerName },
+                    button,
+                    busyText: 'REJECTING...'
                 });
 
-                if (response.ok) {
-                    notify('Trade rejected');
-                    await loadData();
-                    updateTrades();
-                } else {
-                    const result = await response.json();
-                    notify(`ERROR: ${result.error}`);
-                }
+                notify('Trade rejected');
+                await loadData();
+                updateTrades();
             } catch (e) {
                 console.error('Error rejecting trade:', e);
-                notify('ERROR: Could not reject trade');
             }
         }
 
         async function fetchTrades() {
             try {
-                const response = await fetch(`${API_URL}/api/player/${playerName}/trades`);
-                return await response.json();
+                return await apiRequest(`/api/player/${playerName}/trades`, { showError: false });
             } catch (e) {
                 console.error('Error fetching trades:', e);
                 return [];
@@ -1291,8 +1235,8 @@
                 if (trade.status === 'pending' && isReceiving) {
                     html += `
                         <div class="flex gap-1">
-                            <button onclick="acceptTrade('${trade.id}')" class="pip-btn text-[8px] px-2 flex-1 bg-green-900 hover:bg-green-700">ACCEPT</button>
-                            <button onclick="rejectTrade('${trade.id}')" class="pip-btn text-[8px] px-2 flex-1 bg-red-900 hover:bg-red-700">REJECT</button>
+                            <button onclick="acceptTrade('${trade.id}', this)" class="pip-btn text-[8px] px-2 flex-1 bg-green-900 hover:bg-green-700">ACCEPT</button>
+                            <button onclick="rejectTrade('${trade.id}', this)" class="pip-btn text-[8px] px-2 flex-1 bg-red-900 hover:bg-red-700">REJECT</button>
                         </div>
                     `;
                 }
