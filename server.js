@@ -5,6 +5,8 @@ const os = require('os');
 const fs = require('fs');
 const QRCode = require('qrcode');
 const { validateNumber, validateNumericRecord } = require('./validators');
+const registerGmRoutes = require('./routes/gm');
+const registerPlayerRoutes = require('./routes/player');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -139,35 +141,6 @@ async function getStorageStatus() {
         };
     }
 }
-
-app.get('/api/storage/status', async (req, res) => {
-    const status = await getStorageStatus();
-    const statusCode = status.ok ? 200 : 503;
-    res.status(statusCode).json(status);
-});
-
-app.post('/api/storage/test-save', async (req, res) => {
-    try {
-        const savedAtBefore = lastSavedAt;
-        await persistGameState('manual-test', true);
-        const status = await getStorageStatus();
-
-        res.json({
-            ok: true,
-            message: 'Test save completed',
-            savedAtBefore,
-            savedAtAfter: lastSavedAt,
-            status
-        });
-    } catch (error) {
-        const status = await getStorageStatus();
-        res.status(500).json({
-            ok: false,
-            error: error.message,
-            status
-        });
-    }
-});
 
 // Game state with version tracking for migration
 const BASE_GAME_STATE = {
@@ -970,6 +943,19 @@ function applyEncounterOutcome(player) {
     };
 }
 
+registerGmRoutes(app, {
+    getStorageStatus,
+    persistGameState,
+    getLastSavedAt: () => lastSavedAt
+});
+
+registerPlayerRoutes(app, {
+    getGameState: () => gameState,
+    ensurePlayerProgressFields,
+    getXpRequiredForLevel,
+    scheduleAutoSave
+});
+
 // --- GM ENDPOINTS ---
 
 // GET game state for GM dashboard
@@ -1233,108 +1219,6 @@ app.post('/api/player/:player/complete-quest', (req, res) => {
 });
 
 // --- PLAYER ENDPOINTS ---
-
-// GET player data
-app.get('/api/player/:player', (req, res) => {
-    const { player } = req.params;
-    if (gameState.players[player]) {
-        ensurePlayerProgressFields(gameState.players[player]);
-        res.json(gameState.players[player]);
-    } else {
-        res.status(404).json({ error: 'Player not found' });
-    }
-});
-
-// GET all quests
-app.get('/api/quests', (req, res) => {
-    res.json(gameState.quests);
-});
-
-// GET random household quest
-app.get('/api/random-quest', (req, res) => {
-    if (gameState.randomQuests && gameState.randomQuests.length > 0) {
-        const randomQuest = gameState.randomQuests[Math.floor(Math.random() * gameState.randomQuests.length)];
-        res.json(randomQuest);
-    } else {
-        res.status(404).json({ error: 'No random quests available' });
-    }
-});
-
-// Complete random household task for player
-app.post('/api/player/:player/complete-random-quest', (req, res) => {
-    const { player } = req.params;
-    const { questId } = req.body;
-    const playerData = gameState.players[player];
-
-    if (!playerData) {
-        return res.status(404).json({ error: 'Player not found' });
-    }
-
-    const quest = gameState.randomQuests.find(q => q.id === questId);
-    if (!quest) {
-        return res.status(404).json({ error: 'Random task not found' });
-    }
-
-    ensurePlayerProgressFields(playerData);
-
-    const tabsReward = quest.reward || 0;
-    const xpReward = quest.xp || 0;
-    playerData.tabs += tabsReward;
-    playerData.xp += xpReward;
-
-    let levelsGained = 0;
-    let xpNeeded = getXpRequiredForLevel(playerData.level);
-    while (playerData.xp >= xpNeeded) {
-        playerData.xp -= xpNeeded;
-        playerData.level += 1;
-        levelsGained += 1;
-        xpNeeded = getXpRequiredForLevel(playerData.level);
-    }
-
-    playerData.pendingPerks = (playerData.pendingPerks || 0) + levelsGained;
-    playerData.xpToNext = getXpRequiredForLevel(playerData.level);
-
-    scheduleAutoSave();
-
-    res.json({
-        success: true,
-        message: `${player} completed ${quest.title}`,
-        reward: {
-            tabs: tabsReward,
-            xp: xpReward,
-            levelsGained
-        }
-    });
-});
-
-// GET all radio signals
-app.get('/api/radio', (req, res) => {
-    const allSignals = [...(gameState.radioSignals || []), ...(gameState.broadcastSignals || [])];
-    res.json(allSignals);
-});
-
-// GET all perks
-app.get('/api/perks', (req, res) => {
-    res.json(gameState.perks);
-});
-
-// GET all recipes
-app.get('/api/recipes', (req, res) => {
-    res.json(gameState.recipes);
-});
-
-// GET player perks
-app.get('/api/player/:player/perks', (req, res) => {
-    const { player } = req.params;
-    if (gameState.players[player]) {
-        const playerPerks = gameState.players[player].unlockedPerks.map(perkId => 
-            gameState.perks.find(p => p.id === perkId)
-        ).filter(p => p);
-        res.json(playerPerks);
-    } else {
-        res.status(404).json({ error: 'Player not found' });
-    }
-});
 
 // Add perk to player
 app.post('/api/player/:player/perk/:perkId', (req, res) => {
