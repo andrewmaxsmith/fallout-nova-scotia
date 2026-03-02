@@ -101,7 +101,22 @@ values ('primary', '{"version":2,"players":{}}'::jsonb)
 on conflict (id) do nothing;
 ```
 
+You can also copy/paste directly from [supabase/setup.sql](supabase/setup.sql).
+
 The server will upsert this `primary` row automatically after the first in-game change.
+
+### Storage verification (recommended)
+
+After deploy, open:
+
+- `https://<your-service>.onrender.com/healthz`
+- `https://<your-service>.onrender.com/api/storage/status`
+
+Expected when configured correctly:
+
+- `storageMode: "supabase"`
+- `providerHealthy: true`
+- `providerMessage: "Supabase reachable"`
 
 ---
 

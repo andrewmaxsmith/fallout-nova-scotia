@@ -80,6 +80,71 @@ app.get('/healthz', (req, res) => {
     });
 });
 
+async function getStorageStatus() {
+    const baseStatus = {
+        storageMode: SUPABASE_ENABLED ? 'supabase' : 'filesystem',
+        supabaseEnabled: SUPABASE_ENABLED,
+        supabaseUrlConfigured: Boolean(SUPABASE_URL),
+        supabaseKeyConfigured: Boolean(SUPABASE_SERVICE_ROLE_KEY),
+        supabaseTable: SUPABASE_TABLE,
+        saveFile: SAVE_FILE_PATH,
+        lastSavedAt,
+        hasUnsavedChanges
+    };
+
+    if (!SUPABASE_ENABLED) {
+        return {
+            ok: true,
+            ...baseStatus,
+            providerHealthy: true,
+            providerMessage: 'Filesystem fallback active'
+        };
+    }
+
+    try {
+        const endpoint = `${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}?select=id&limit=1`;
+        const response = await fetch(endpoint, {
+            method: 'GET',
+            headers: {
+                apikey: SUPABASE_SERVICE_ROLE_KEY,
+                Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`
+            }
+        });
+
+        if (!response.ok) {
+            const body = await response.text();
+            return {
+                ok: false,
+                ...baseStatus,
+                providerHealthy: false,
+                providerMessage: `Supabase check failed (${response.status})`,
+                providerError: body
+            };
+        }
+
+        return {
+            ok: true,
+            ...baseStatus,
+            providerHealthy: true,
+            providerMessage: 'Supabase reachable'
+        };
+    } catch (error) {
+        return {
+            ok: false,
+            ...baseStatus,
+            providerHealthy: false,
+            providerMessage: 'Supabase unreachable',
+            providerError: error.message
+        };
+    }
+}
+
+app.get('/api/storage/status', async (req, res) => {
+    const status = await getStorageStatus();
+    const statusCode = status.ok ? 200 : 503;
+    res.status(statusCode).json(status);
+});
+
 // Game state with version tracking for migration
 let gameState = {
     version: GAME_STATE_VERSION,

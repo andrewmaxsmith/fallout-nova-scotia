@@ -147,10 +147,12 @@
         <section class="pip-border p-4 bg-black/50 mb-6">
             <h2 class="text-xl font-bold mb-3">SAVE BACKUP</h2>
             <p class="text-[10px] opacity-70 mb-3">EXPORT A JSON BACKUP OR IMPORT A PREVIOUS SAVE FILE.</p>
+            <div id="storage-status" class="border border-pip-green/40 bg-black/60 p-2 text-[10px] mb-3 opacity-80">STORAGE STATUS: CHECKING...</div>
             <input id="save-import-file" type="file" accept="application/json,.json" class="hidden" onchange="importSaveFromFile(this)">
-            <div class="grid grid-cols-2 gap-2">
+            <div class="grid grid-cols-3 gap-2">
                 <button onclick="exportSaveBackup(this)" class="pip-btn">EXPORT SAVE JSON</button>
                 <button id="import-save-btn" onclick="openImportSaveFilePicker()" class="pip-btn">IMPORT SAVE JSON</button>
+                <button onclick="refreshStorageStatus(this)" class="pip-btn">REFRESH STATUS</button>
             </div>
         </section>
 
@@ -484,6 +486,7 @@
 
         async function init() {
             setJoinLinks();
+            await loadStorageStatus();
             await loadGameState();
             renderQuests();
             renderActiveQuests();
@@ -517,6 +520,45 @@
                 }
             } catch (e) {
                 console.error('Failed to load game state:', e);
+            }
+        }
+
+        function setStorageStatusUi(status, isError = false) {
+            const statusEl = document.getElementById('storage-status');
+            if (!statusEl) return;
+
+            if (!status) {
+                statusEl.className = 'border border-red-500/60 bg-black/60 p-2 text-[10px] mb-3 text-red-300';
+                statusEl.textContent = 'STORAGE STATUS: UNAVAILABLE';
+                return;
+            }
+
+            const mode = String(status.storageMode || 'unknown').toUpperCase();
+            const healthy = Boolean(status.providerHealthy);
+            const message = status.providerMessage || 'Unknown status';
+            statusEl.className = healthy && !isError
+                ? 'border border-green-500/60 bg-black/60 p-2 text-[10px] mb-3 text-green-300'
+                : 'border border-red-500/60 bg-black/60 p-2 text-[10px] mb-3 text-red-300';
+            statusEl.textContent = `STORAGE STATUS: ${mode} • ${message}`;
+        }
+
+        async function loadStorageStatus() {
+            try {
+                const status = await apiRequest('/api/storage/status', { showError: false });
+                setStorageStatusUi(status, false);
+            } catch (e) {
+                console.error('Failed to load storage status:', e);
+                setStorageStatusUi(null, true);
+            }
+        }
+
+        async function refreshStorageStatus(button) {
+            setButtonBusy(button, true, 'CHECKING...');
+            try {
+                await loadStorageStatus();
+                showNotice('Storage status refreshed', 'info', 1400);
+            } finally {
+                setButtonBusy(button, false);
             }
         }
 
