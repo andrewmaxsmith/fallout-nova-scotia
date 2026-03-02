@@ -307,6 +307,9 @@
                 </select>
                 <div id="educational-quest-preview" class="text-[10px] opacity-80 mb-2">No quest selected.</div>
                 <button onclick="completeEducationalQuest(this)" id="educational-quest-complete-btn" class="pip-btn w-full py-2 text-[10px]" disabled>SUBMIT ANSWER</button>
+                <div id="educational-completed-list" class="mt-3 text-[10px] border border-green-500/40 bg-green-950/10 p-2">
+                    <p class="opacity-70">No completed educational missions in this tab yet.</p>
+                </div>
             </div>
 
             <div>
@@ -1167,6 +1170,11 @@
             return (allEducationalQuests || []).filter((quest) => quest.category === activeEducationalCategory);
         }
 
+        function getCompletedEducationalForCategory() {
+            const completed = Array.isArray(playerData.educationalCompleted) ? playerData.educationalCompleted : [];
+            return completed.filter((entry) => entry?.category === activeEducationalCategory);
+        }
+
         function setEducationalCategory(categoryId) {
             activeEducationalCategory = categoryId;
             renderEducationalCategoryTabs();
@@ -1184,7 +1192,8 @@
                 return;
             }
 
-            hint.textContent = `ACTIVE TAB: ${getEducationalCategoryLabel(activeEducationalCategory)}`;
+            const completedCount = getCompletedEducationalForCategory().length;
+            hint.textContent = `ACTIVE TAB: ${getEducationalCategoryLabel(activeEducationalCategory)} | DONE: ${completedCount}`;
 
             educationalCategories.forEach((category) => {
                 const button = document.createElement('button');
@@ -1217,6 +1226,29 @@
             }
 
             previewEducationalQuest();
+            updateEducationalCompletedList();
+        }
+
+        function updateEducationalCompletedList() {
+            const container = document.getElementById('educational-completed-list');
+            if (!container) return;
+
+            const completed = getCompletedEducationalForCategory();
+            if (!completed.length) {
+                container.innerHTML = '<p class="opacity-70">No completed educational missions in this tab yet.</p>';
+                return;
+            }
+
+            const sorted = [...completed].sort((a, b) => {
+                const aTime = Date.parse(a.completedAt || 0);
+                const bTime = Date.parse(b.completedAt || 0);
+                return bTime - aTime;
+            });
+
+            container.innerHTML = `
+                <p class="font-bold text-green-300 mb-1">DONE (ONE-TIME): ${sorted.length}</p>
+                ${sorted.slice(0, 8).map((entry) => `<p class="text-[9px]">• ${entry.title} ${entry.correct ? '(CORRECT)' : '(WRONG)'}</p>`).join('')}
+            `;
         }
 
         function previewEducationalQuest() {
