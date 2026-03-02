@@ -168,7 +168,8 @@ const BASE_GAME_STATE = {
             pendingPerks: 0,
             craftedGear: [],
             purchasedUpgrades: [],
-            activeEffects: []
+            activeEffects: [],
+            educationalCompleted: []
         },
         rylyn: {
             name: 'Rylyn',
@@ -191,7 +192,8 @@ const BASE_GAME_STATE = {
             pendingPerks: 0,
             craftedGear: [],
             purchasedUpgrades: [],
-            activeEffects: []
+            activeEffects: [],
+            educationalCompleted: []
         }
     },
     perks: [
@@ -308,6 +310,14 @@ const BASE_GAME_STATE = {
         { id: 'rq20', title: "CHORE: Toy Sort", desc: "Sort toys into 3 groups and put each group away in the correct place.", reward: 7, xp: 1 },
         { id: 'rq21', title: "CHORE: Bedside Reset", desc: "Clear your bedside area and place books and water neatly.", reward: 5, xp: 1 },
         { id: 'rq22', title: "LEARNING: Math Sprint", desc: "Solve 10 math questions at your level and check answers with an adult.", reward: 8, xp: 1 }
+    ],
+    educationalQuests: [
+        { id: 'eq1', title: 'READING CHECKPOINT', desc: 'Read for 8 minutes and tell two things you learned.', rewardTabs: 4, rewardXp: 1 },
+        { id: 'eq2', title: 'MATH BURST', desc: 'Solve 6 math questions at your level and check answers with an adult.', rewardTabs: 3, rewardXp: 1 },
+        { id: 'eq3', title: 'SPELLING SCOUT', desc: 'Practice 5 spelling words and use each in a sentence.', rewardTabs: 4, rewardXp: 1 },
+        { id: 'eq4', title: 'SCIENCE SPOTTER', desc: 'Observe one science thing (weather, plant, animal) and share two facts.', rewardTabs: 5, rewardXp: 1 },
+        { id: 'eq5', title: 'WRITING SIGNAL', desc: 'Write 3 complete sentences about your day with capitals and periods.', rewardTabs: 4, rewardXp: 1 },
+        { id: 'eq6', title: 'MAP READER', desc: 'Find a place on a map and explain where it is using left/right/up/down.', rewardTabs: 3, rewardXp: 1 }
     ],
     radioSignals: [
         { id: 'r1', title: "ENTERING DEBERT", text: "You're treadin' on ancient ground now, scavengers. Debert awaits." },
@@ -998,6 +1008,7 @@ function migrateGameState(loadedState) {
     mergedState.statusEffects = mergeCatalogById(mergedState.statusEffects, BASE_GAME_STATE.statusEffects);
     mergedState.quests = mergeCatalogById(mergedState.quests, BASE_GAME_STATE.quests);
     mergedState.randomQuests = mergeCatalogById(mergedState.randomQuests, BASE_GAME_STATE.randomQuests);
+    mergedState.educationalQuests = mergeCatalogById(mergedState.educationalQuests, BASE_GAME_STATE.educationalQuests);
     mergedState.radioSignals = mergeCatalogById(mergedState.radioSignals, BASE_GAME_STATE.radioSignals);
     mergedState.broadcastSignals = mergeCatalogById(mergedState.broadcastSignals, BASE_GAME_STATE.broadcastSignals);
     mergedState.randomEncounters = mergeCatalogById(mergedState.randomEncounters, BASE_GAME_STATE.randomEncounters);

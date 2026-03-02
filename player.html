@@ -297,6 +297,16 @@
                 </div>
             </div>
 
+            <div class="pip-border p-3 border-dashed border-blue-500 bg-blue-950/10">
+                <h3 class="text-xs font-bold text-blue-400 mb-2">EDUCATIONAL QUESTS</h3>
+                <p class="text-[10px] opacity-80 mb-2">Pick a learning quest, finish it, and earn small XP/Tabs rewards.</p>
+                <select id="educational-quest-select" class="w-full p-2 bg-black border border-pip-green text-pip-green text-[10px] mb-2" onchange="previewEducationalQuest()">
+                    <option value="">Select educational quest...</option>
+                </select>
+                <div id="educational-quest-preview" class="text-[10px] opacity-80 mb-2">No quest selected.</div>
+                <button onclick="completeEducationalQuest(this)" id="educational-quest-complete-btn" class="pip-btn w-full py-2 text-[10px]" disabled>COMPLETE EDUCATIONAL QUEST</button>
+            </div>
+
             <div>
                 <h2 class="text-xl border-b border-pip-green mb-4">ACTIVE CONTRACTS</h2>
                 <div id="quests-list" class="space-y-2">
@@ -480,6 +490,7 @@
         let allPerks = [];
         let allRecipes = [];
         let allQuartersUpgrades = [];
+        let allEducationalQuests = [];
         let playerQuarters = [];
         let fullGameState = {};
         let activeTeamObjective = null;
@@ -656,7 +667,7 @@
 
         async function loadData() {
             try {
-                const [player, quests, radio, perks, recipes, quartersShop, quarters, state, achievementData] = await Promise.all([
+                const [player, quests, radio, perks, recipes, quartersShop, quarters, state, achievementData, educationalQuests] = await Promise.all([
                     apiRequest(`/api/player/${playerName}`, { showError: false }),
                     apiRequest('/api/quests', { showError: false }),
                     apiRequest('/api/radio', { showError: false }),
@@ -665,7 +676,8 @@
                     apiRequest('/api/quarters-shop', { showError: false }),
                     apiRequest(`/api/player/${playerName}/quarters`, { showError: false }),
                     apiRequest('/api/game-state', { showError: false }),
-                    apiRequest(`/api/player/${playerName}/achievements`, { showError: false })
+                    apiRequest(`/api/player/${playerName}/achievements`, { showError: false }),
+                    apiRequest('/api/educational-quests', { showError: false })
                 ]);
 
                 playerData = player || {};
@@ -674,6 +686,7 @@
                 allPerks = perks || [];
                 allRecipes = recipes || [];
                 allQuartersUpgrades = quartersShop || [];
+                allEducationalQuests = educationalQuests || [];
                 playerQuarters = quarters || [];
                 fullGameState = state || {};
                 activeTeamObjective = fullGameState.activeTeamObjective || null;
@@ -745,6 +758,7 @@
             }
             // Update quests
             updateQuests();
+            updateEducationalQuestOptions();
             updateTeamObjective();
 
             // Update scrap
@@ -1126,6 +1140,79 @@
                     `;
                     list.appendChild(div);
                 });
+            } else {
+                list.innerHTML = '<p class="opacity-70">No tasks completed yet.</p>';
+            }
+        }
+
+        function updateEducationalQuestOptions() {
+            const select = document.getElementById('educational-quest-select');
+            if (!select) return;
+
+            const previous = select.value;
+            select.innerHTML = '<option value="">Select educational quest...</option>';
+
+            (allEducationalQuests || []).forEach((quest) => {
+                const option = document.createElement('option');
+                option.value = quest.id;
+                option.textContent = `${quest.title} (+${quest.rewardTabs || 0} Tabs, +${quest.rewardXp || 0} XP)`;
+                select.appendChild(option);
+            });
+
+            if (previous && (allEducationalQuests || []).some(q => q.id === previous)) {
+                select.value = previous;
+            }
+
+            previewEducationalQuest();
+        }
+
+        function previewEducationalQuest() {
+            const select = document.getElementById('educational-quest-select');
+            const preview = document.getElementById('educational-quest-preview');
+            const button = document.getElementById('educational-quest-complete-btn');
+            if (!select || !preview || !button) return;
+
+            const selected = (allEducationalQuests || []).find(q => q.id === select.value);
+            if (!selected) {
+                preview.textContent = 'No quest selected.';
+                button.disabled = true;
+                return;
+            }
+
+            preview.innerHTML = `
+                <p class="font-bold text-blue-300 mb-1">${selected.title}</p>
+                <p class="opacity-80 mb-1">${selected.desc}</p>
+                <p class="text-yellow-500">REWARD: +${selected.rewardTabs || 0} TABS, +${selected.rewardXp || 0} XP</p>
+            `;
+            button.disabled = false;
+        }
+
+        async function completeEducationalQuest(button) {
+            const select = document.getElementById('educational-quest-select');
+            const questId = select?.value;
+            if (!questId) {
+                notify('SELECT AN EDUCATIONAL QUEST FIRST');
+                return;
+            }
+
+            const quest = (allEducationalQuests || []).find(q => q.id === questId);
+            if (!quest) {
+                notify('EDUCATIONAL QUEST NOT FOUND');
+                return;
+            }
+
+            try {
+                const result = await apiRequest(`/api/player/${playerName}/complete-educational-quest`, {
+                    method: 'POST',
+                    body: { questId },
+                    button,
+                    busyText: 'COMPLETING...'
+                });
+
+                notify(`EDU QUEST COMPLETE! +${result.reward?.tabs || 0} TABS, +${result.reward?.xp || 0} XP`);
+                await loadData();
+            } catch (e) {
+                console.error('Error completing educational quest:', e);
             }
         }
 
