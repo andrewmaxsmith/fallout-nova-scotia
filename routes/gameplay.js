@@ -17,8 +17,14 @@ function registerGameplayRoutes(app, deps) {
 
     app.get('/api/game-state', (req, res) => {
         const gameState = getGameState();
-        Object.values(gameState.players).forEach(ensurePlayerProgressFields);
-        res.json(gameState);
+        const migratedState = migrateGameState(gameState);
+        if (migratedState && migratedState !== gameState) {
+            setGameState(migratedState);
+        }
+
+        const currentState = getGameState();
+        Object.values(currentState.players).forEach(ensurePlayerProgressFields);
+        res.json(currentState);
     });
 
     app.get('/api/save/export', (req, res) => {

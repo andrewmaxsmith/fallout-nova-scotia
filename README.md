@@ -19,6 +19,27 @@ npm install
 node server.js
 ```
 
+### Windows + Google Drive reliability note
+
+If this project is stored under a cloud-synced folder (for example `G:\My Drive\fallout`), `node_modules` may become corrupted (empty package files) and `npm start` can fail.
+
+Use this safer startup command from the project folder:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start-local.ps1
+```
+
+What it does:
+- Syncs project files to `C:\fallout-local`
+- Installs dependencies there
+- Starts the server from the local non-synced folder
+
+Optional (faster startup if dependencies are already installed):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start-local.ps1 -SkipInstall
+```
+
 You'll see output like:
 ```
 ╔════════════════════════════════════════════════════════════╗

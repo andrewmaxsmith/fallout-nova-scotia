@@ -536,6 +536,25 @@ function createInitialGameState() {
     return JSON.parse(JSON.stringify(BASE_GAME_STATE));
 }
 
+function mergeMissingDefaults(target, defaults) {
+    if (Array.isArray(defaults)) {
+        return Array.isArray(target) ? target : JSON.parse(JSON.stringify(defaults));
+    }
+
+    if (defaults && typeof defaults === 'object') {
+        const source = (target && typeof target === 'object' && !Array.isArray(target)) ? target : {};
+        const merged = { ...source };
+
+        Object.entries(defaults).forEach(([key, defaultValue]) => {
+            merged[key] = mergeMissingDefaults(source[key], defaultValue);
+        });
+
+        return merged;
+    }
+
+    return target === undefined ? defaults : target;
+}
+
 let gameState = createInitialGameState();
 
 function ensureSaveDirectories() {
@@ -688,23 +707,19 @@ function startPeriodicAutoSave() {
 
 function migrateGameState(loadedState) {
     if (!loadedState) return null;
-    
-    const savedVersion = loadedState.version || 1;
-    
-    // Version 1 to 2: Add any new fields that didn't exist before
-    if (savedVersion < 2) {
-        // Ensure all players have required fields
-        if (loadedState.players) {
-            Object.entries(loadedState.players).forEach(([playerName, playerData]) => {
-                ensurePlayerProgressFields(playerData);
-            });
-        }
+
+    const mergedState = mergeMissingDefaults(loadedState, BASE_GAME_STATE);
+
+    if (mergedState.players) {
+        Object.values(mergedState.players).forEach((playerData) => {
+            ensurePlayerProgressFields(playerData);
+        });
     }
-    
+
     // Always update version to current
-    loadedState.version = GAME_STATE_VERSION;
-    
-    return loadedState;
+    mergedState.version = GAME_STATE_VERSION;
+
+    return mergedState;
 }
 
 function loadGameStateFromDisk() {
