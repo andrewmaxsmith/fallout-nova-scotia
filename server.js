@@ -275,7 +275,15 @@ const BASE_GAME_STATE = {
         { id: 'q14', title: "Three-Crows Signal Boost", desc: "Two-player mission: one player holds a balance pose for 30 seconds while the other reads a short message clearly.", category: 'side', rewardTabs: 20, rewardScrap: { hubCircuitry: 1 }, xp: 1 },
         { id: 'q15', title: "The Junk-Jet Prototype", desc: "Collect 5 safe recycle items (paper/plastic/cardboard). Tell what each could become in a new invention.", category: 'side', rewardTabs: 60, rewardScrap: { propaneTank: 1, maritimeMetal: 1 }, xp: 2 },
         { id: 'q16', title: "Five Islands Provincial Park (The Great Drain)", desc: "Do an outdoor obstacle mission with an adult: hop, walk, and climb safely for 10 minutes without quitting.", category: 'main', rewardTabs: 55, rewardScrap: { maritimeMetal: 2, cleanWater: 1 }, xp: 2 },
-        { id: 'q17', title: "Shubenacadie Wildlife Park (The Beast Pens)", desc: "Spot and name 3 animals (outside, in books, or in a video). Share one fact about each animal.", category: 'main', rewardTabs: 50, rewardScrap: { radMeat: 1, spices: 1 }, xp: 2 }
+        { id: 'q17', title: "Shubenacadie Wildlife Park (The Beast Pens)", desc: "Spot and name 3 animals (outside, in books, or in a video). Share one fact about each animal.", category: 'main', rewardTabs: 50, rewardScrap: { radMeat: 1, spices: 1 }, xp: 2 },
+        { id: 'h4', title: "VAULT: Supply Check", desc: "Check your school bag: put in homework folder, water bottle, and one reading book. Show it is ready.", category: 'vault', rewardTabs: 12, rewardScrap: { hubCircuitry: 1 }, xp: 1 },
+        { id: 'h5', title: "VAULT: Snack Station", desc: "Help prepare a healthy snack plate with an adult and clean the prep area after.", category: 'vault', rewardTabs: 12, rewardScrap: { spices: 1 }, xp: 1 },
+        { id: 'q18', title: "Harbor Signal Sweep", desc: "Do a 12-minute tidy patrol: clear one room section and sort items into keep, trash, and donate piles.", category: 'main', rewardTabs: 60, rewardScrap: { maritimeMetal: 1, plaidScraps: 1 }, xp: 2 },
+        { id: 'q19', title: "Maple Grid Calibration", desc: "Practice learning skills: read for 10 minutes, then tell 3 key facts from what you read.", category: 'main', rewardTabs: 55, rewardScrap: { hubCircuitry: 1, cleanWater: 1 }, xp: 2 },
+        { id: 'q20', title: "Lighthouse Relay Run", desc: "Run a relay with an adult: 3 rounds of carry-and-return with safe objects between two spots.", category: 'side', rewardTabs: 35, rewardScrap: { syntheticSap: 1, maritimeMetal: 1 }, xp: 1 },
+        { id: 'q21', title: "Moon-Mist Mixer", desc: "Create a simple recipe with help (like fruit and yogurt), then clean up dishes and table.", category: 'side', rewardTabs: 40, rewardScrap: { spices: 1, cleanWater: 1 }, xp: 1 },
+        { id: 'q22', title: "Radar Blanket Fort", desc: "Build a small fort with 2 rules: safe walkway and tidy cleanup in under 5 minutes after play.", category: 'side', rewardTabs: 45, rewardScrap: { plaidScraps: 2 }, xp: 2 },
+        { id: 'q23', title: "Fogline Fitness Drill", desc: "Complete 3 movement sets: 10 jumps, 10 squats, and 20-second balance hold (repeat 2 times).", category: 'main', rewardTabs: 65, rewardScrap: { propaneTank: 1, syntheticSap: 1 }, xp: 2 }
     ],
     randomQuests: [
         { id: 'rq1', title: "HOUSE: Tidy the Living Room", desc: "Put away 10 items from the floor, then fluff pillows and fold one blanket.", reward: 5, xp: 1 },
@@ -290,7 +298,16 @@ const BASE_GAME_STATE = {
         { id: 'rq10', title: "SPORT: Play Catch", desc: "Complete 20 catches with a partner (or wall tosses) without giving up.", reward: 5, xp: 1 },
         { id: 'rq11', title: "CHORE: Fold Laundry", desc: "Fold 8 clothing items and place them in the correct room.", reward: 5, xp: 1 },
         { id: 'rq12', title: "CHORE: Take Out Trash", desc: "Collect one full bin, tie bag safely, and replace it with a new bag.", reward: 5, xp: 1 },
-        { id: 'rq13', title: "CHORE: Organize Closet", desc: "Sort one shelf or drawer: keep, put away, and remove 5 out-of-place items.", reward: 8, xp: 1 }
+        { id: 'rq13', title: "CHORE: Organize Closet", desc: "Sort one shelf or drawer: keep, put away, and remove 5 out-of-place items.", reward: 8, xp: 1 },
+        { id: 'rq14', title: "HOUSE: Entryway Reset", desc: "Line up shoes, hang coats, and clear backpacks from the floor.", reward: 6, xp: 1 },
+        { id: 'rq15', title: "HOUSE: Table Wipe-Down", desc: "Wipe the table and 4 chairs with help, then push chairs in neatly.", reward: 6, xp: 1 },
+        { id: 'rq16', title: "CRAFT: Story Comic", desc: "Draw a 3-panel comic about your wasteland hero and read it out loud.", reward: 9, xp: 1 },
+        { id: 'rq17', title: "CRAFT: Build-and-Explain", desc: "Build something from blocks and explain what each part does.", reward: 9, xp: 1 },
+        { id: 'rq18', title: "SPORT: Mini Obstacle Course", desc: "Complete a safe obstacle course with 5 checkpoints.", reward: 9, xp: 1 },
+        { id: 'rq19', title: "SPORT: Stretch Session", desc: "Do 5 stretches and hold each for 15 seconds.", reward: 6, xp: 1 },
+        { id: 'rq20', title: "CHORE: Toy Sort", desc: "Sort toys into 3 groups and put each group away in the correct place.", reward: 7, xp: 1 },
+        { id: 'rq21', title: "CHORE: Bedside Reset", desc: "Clear your bedside area and place books and water neatly.", reward: 5, xp: 1 },
+        { id: 'rq22', title: "LEARNING: Math Sprint", desc: "Solve 10 math questions at your level and check answers with an adult.", reward: 8, xp: 1 }
     ],
     radioSignals: [
         { id: 'r1', title: "ENTERING DEBERT", text: "You're treadin' on ancient ground now, scavengers. Debert awaits." },
@@ -302,7 +319,11 @@ const BASE_GAME_STATE = {
         { id: 'r7', title: "SIGNAL BOOST REQUEST", text: "Three-Crows Radio fading... signal weakening. We need a Signal Flare at the Highest Peak. Someone hold the light!" },
         { id: 'r8', title: "JUNK-JET BROADCAST", text: "Prototype testing in progress. Scrap collectors needed. Bring us 5 pieces from different Biomes for analysis." },
         { id: 'r9', title: "GREAT DRAIN LOCATION", text: "Coordinates locked: Five Islands Provincial Park. Beware the Red Mud. The Tidal Rush is unpredictable. Proceed with caution." },
-        { id: 'r10', title: "BEAST PENS SIGHTING", text: "Movement detected at Shubenacadie Wildlife Park. Rad-Moose and Yao Guai variants confirmed. Scout teams deploy. Biological data required." }
+        { id: 'r10', title: "BEAST PENS SIGHTING", text: "Movement detected at Shubenacadie Wildlife Park. Rad-Moose and Yao Guai variants confirmed. Scout teams deploy. Biological data required." },
+        { id: 'r11', title: "LIGHTHOUSE FLASH", text: "Lighthouse relay flickering! Perform a movement drill and report stability." },
+        { id: 'r12', title: "HARBOR CACHE", text: "Scattered supplies detected in Sector Harbor. Recover and sort the cache." },
+        { id: 'r13', title: "CLASSROOM UPLINK", text: "Knowledge uplink open. Read intel and report three facts for mission bonus." },
+        { id: 'r14', title: "FORTIFY ORDER", text: "Blanket-fort protocol active. Build, secure, and clean in one clean operation." }
     ],
     broadcastSignals: [
         { id: 'b1', title: "THREE-CROWS RADIO: MUSIC HOUR", text: "[STATIC] Now playing: The Atomic Dream by The Pip-Boys..." },
@@ -321,7 +342,12 @@ const BASE_GAME_STATE = {
         { id: 'b14', title: "PROPAGANDA FROM THE VALLEY", text: "Why settle for the salty ruins of Halifax when you can have the mutated orchards of the Annapolis Valley? Our apples are the size of basketballs and only 20% lethal! Join the Apple-Core today!" },
         { id: 'b15', title: "THE GHOST OF THE BLUENOSE", text: "Can you hear the creaking? She's sailing on the fog again... if you see a schooner made of scrap metal and glowing sails near Lunenburg, do not wave. She doesn't want passengers. She wants your Hub Circuitry." },
         { id: 'b16', title: "THE DOUBLE-DOUBLE LOOP", text: "[A distorted, slow-motion voice over heavy static] Large... double... double... large... double... double... screaming... I SAID LARGE DOUBLE DOUBLE." },
-        { id: 'b17', title: "THE OAK ISLAND PING", text: "Entry 4,002. We've dug another ten feet. We found a coconut fiber mat and a single pre-war bottle cap. Could this be the treasure? Or just another trap? Heavy sound of water rushing into a tunnel... Not again!" }
+        { id: 'b17', title: "THE OAK ISLAND PING", text: "Entry 4,002. We've dug another ten feet. We found a coconut fiber mat and a single pre-war bottle cap. Could this be the treasure? Or just another trap? Heavy sound of water rushing into a tunnel... Not again!" },
+        { id: 'b18', title: "SCHOOLBELL STATIC", text: "[CHIME + STATIC] Morning checklist protocol: bags packed, books loaded, mission ready." },
+        { id: 'b19', title: "HARBOR WEATHER BURST", text: "Fog lifting for 20 minutes. Ideal window for quick outdoor scouting." },
+        { id: 'b20', title: "THE COOKIE TIN CODE", text: "[BEEP] One tidy room. Two clean hands. Three cheers for the crew." },
+        { id: 'b21', title: "MARKET OPEN SIGNAL", text: "Masstown market open for 10 minutes. Best rewards for teamwork missions." },
+        { id: 'b22', title: "BEDTIME COUNTDOWN", text: "Command reminder: complete final cleanup cycle before lights-out." }
     ],
     questRadioMap: {
         q12: 'r5',
@@ -329,7 +355,13 @@ const BASE_GAME_STATE = {
         q14: 'r7',
         q15: 'r8',
         q16: 'r9',
-        q17: 'r10'
+        q17: 'r10',
+        q18: 'r12',
+        q19: 'r13',
+        q20: 'r11',
+        q21: 'r12',
+        q22: 'r14',
+        q23: 'r11'
     },
     questChains: [
         {
@@ -351,6 +383,16 @@ const BASE_GAME_STATE = {
                 tabs: 15,
                 xp: 1,
                 item: 'Park Warden Field Kit'
+            }
+        },
+        {
+            id: 'chain_harborline',
+            name: 'HARBORLINE RECOVERY',
+            questIds: ['q18', 'q20', 'q22'],
+            finalReward: {
+                tabs: 25,
+                xp: 2,
+                item: 'Harborline Relay Badge'
             }
         }
     ],
@@ -389,6 +431,18 @@ const BASE_GAME_STATE = {
             name: 'ALLY RESCUE',
             text: 'A rescued ally shares supplies. All players gain +1 random scrap.',
             effect: { randomScrap: 1 }
+        },
+        {
+            id: 'ev_training_boost',
+            name: 'TRAINING BOOST',
+            text: 'Training bonus online. All players gain +1 XP from their next mission.',
+            effect: { tabs: 5 }
+        },
+        {
+            id: 'ev_supply_drop',
+            name: 'SUPPLY DROP',
+            text: 'A supply pod lands nearby. All players gain +2 random scrap.',
+            effect: { randomScrap: 2 }
         }
     ],
     achievements: [
@@ -409,6 +463,12 @@ const BASE_GAME_STATE = {
             name: 'CHAPPY MASTER',
             desc: 'Reach 8 in any C.H.A.P.P.Y. stat.',
             reward: { tabs: 5, xp: 1 }
+        },
+        {
+            id: 'ach_team_player',
+            name: 'TEAM PLAYER',
+            desc: 'Contribute to 3 shared team objectives.',
+            reward: { tabs: 8, xp: 2 }
         }
     ],
     classPassives: {
@@ -451,6 +511,18 @@ const BASE_GAME_STATE = {
             name: 'FOG SURVEY',
             desc: 'Each player explores a different room/area, finds 3 things, and reports findings to the GM.',
             reward: { tabs: 8, xp: 1 }
+        },
+        {
+            id: 'team_home_base_reset',
+            name: 'HOME BASE RESET',
+            desc: 'One player tidies play zone while the other organizes supplies. Switch and verify both tasks complete.',
+            reward: { tabs: 9, xp: 1 }
+        },
+        {
+            id: 'team_story_transmission',
+            name: 'STORY TRANSMISSION',
+            desc: 'Both players create and share one short mission story with a clear beginning, middle, and end.',
+            reward: { tabs: 10, xp: 1 }
         }
     ],
     activeTeamObjective: null,
@@ -524,6 +596,31 @@ const BASE_GAME_STATE = {
             id: 'e9',
             title: 'KITCHEN PARTY NOISE',
             text: 'SOUND: You hear the faint sound of a kitchen party in the distance. Following the noise might lead to a safe settlement.'
+        },
+        {
+            id: 'e10',
+            title: 'LOST SUPPLY CRATE',
+            text: 'ALERT: A crate tipped over in the hallway. Recover and sort the supplies before they are lost.'
+        },
+        {
+            id: 'e11',
+            title: 'STATIC MATH BURST',
+            text: 'TRANSMISSION: Solve a quick 5-question math check to decode the next waypoint.'
+        },
+        {
+            id: 'e12',
+            title: 'BLANKET FORT BREACH',
+            text: 'WARNING: Fort wall unstable. Reinforce with teamwork and safe setup.'
+        },
+        {
+            id: 'e13',
+            title: 'FRIENDLY TRADER KID',
+            text: 'A young trader offers tips: clean fast, share supplies, and everyone profits.'
+        },
+        {
+            id: 'e14',
+            title: 'SUNSET RECALL',
+            text: 'COMMAND: Final mission of the day. Complete one fast cleanup before debrief.'
         }
     ],
     tradeOffers: [
@@ -593,6 +690,27 @@ const BASE_GAME_STATE = {
             desc: 'A Valley propaganda sash that boosts confidence. +1 Charm and +1 Politeness when crafted (one-time).',
             ingredients: [{ type: 'plaidScraps', amount: 2 }, { type: 'spices', amount: 1 }],
             output: { item: 'Apple-Core Sash', qty: 1 }
+        },
+        {
+            id: 'r10',
+            name: 'SCOUT NOTEBOOK',
+            desc: 'A field notebook for mission reports. Gain +1 Perception when crafted (one-time).',
+            ingredients: [{ type: 'plaidScraps', amount: 1 }, { type: 'cleanWater', amount: 1 }],
+            output: { item: 'Scout Notebook', qty: 1 }
+        },
+        {
+            id: 'r11',
+            name: 'SIGNAL FLAG KIT',
+            desc: 'A bright signal kit for team communication. Grants +1 Politeness when crafted (one-time).',
+            ingredients: [{ type: 'plaidScraps', amount: 1 }, { type: 'syntheticSap', amount: 1 }],
+            output: { item: 'Signal Flag Kit', qty: 1 }
+        },
+        {
+            id: 'r12',
+            name: 'TRAIL MIX PACK',
+            desc: 'Quick snack ration. Restores 2 HP and grants +2 Tabs.',
+            ingredients: [{ type: 'spices', amount: 1 }, { type: 'radMeat', amount: 1 }],
+            output: { item: 'Trail Mix Pack', qty: 1 }
         }
     ],
     quarterUpgrades: [
@@ -702,6 +820,23 @@ function mergeMissingDefaults(target, defaults) {
     }
 
     return target === undefined ? defaults : target;
+}
+
+function mergeCatalogById(existingList, defaultList) {
+    const safeExisting = Array.isArray(existingList) ? existingList : [];
+    const safeDefaults = Array.isArray(defaultList) ? defaultList : [];
+
+    const existingIds = new Set(
+        safeExisting
+            .map(item => item && typeof item === 'object' ? item.id : null)
+            .filter(Boolean)
+    );
+
+    const additions = safeDefaults
+        .filter(item => item && typeof item === 'object' && item.id && !existingIds.has(item.id))
+        .map(item => JSON.parse(JSON.stringify(item)));
+
+    return [...safeExisting, ...additions];
 }
 
 let gameState = createInitialGameState();
@@ -858,6 +993,20 @@ function migrateGameState(loadedState) {
     if (!loadedState) return null;
 
     const mergedState = mergeMissingDefaults(loadedState, BASE_GAME_STATE);
+
+    mergedState.perks = mergeCatalogById(mergedState.perks, BASE_GAME_STATE.perks);
+    mergedState.statusEffects = mergeCatalogById(mergedState.statusEffects, BASE_GAME_STATE.statusEffects);
+    mergedState.quests = mergeCatalogById(mergedState.quests, BASE_GAME_STATE.quests);
+    mergedState.randomQuests = mergeCatalogById(mergedState.randomQuests, BASE_GAME_STATE.randomQuests);
+    mergedState.radioSignals = mergeCatalogById(mergedState.radioSignals, BASE_GAME_STATE.radioSignals);
+    mergedState.broadcastSignals = mergeCatalogById(mergedState.broadcastSignals, BASE_GAME_STATE.broadcastSignals);
+    mergedState.randomEncounters = mergeCatalogById(mergedState.randomEncounters, BASE_GAME_STATE.randomEncounters);
+    mergedState.recipes = mergeCatalogById(mergedState.recipes, BASE_GAME_STATE.recipes);
+    mergedState.quarterUpgrades = mergeCatalogById(mergedState.quarterUpgrades, BASE_GAME_STATE.quarterUpgrades);
+    mergedState.eventCards = mergeCatalogById(mergedState.eventCards, BASE_GAME_STATE.eventCards);
+    mergedState.achievements = mergeCatalogById(mergedState.achievements, BASE_GAME_STATE.achievements);
+    mergedState.teamObjectives = mergeCatalogById(mergedState.teamObjectives, BASE_GAME_STATE.teamObjectives);
+    mergedState.questChains = mergeCatalogById(mergedState.questChains, BASE_GAME_STATE.questChains);
 
     if (mergedState.players) {
         Object.values(mergedState.players).forEach((playerData) => {

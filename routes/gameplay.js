@@ -41,6 +41,7 @@ function registerGameplayRoutes(app, deps) {
             if (!entry.chainProgress || typeof entry.chainProgress !== 'object') entry.chainProgress = {};
             if (!entry.passiveKey) entry.passiveKey = null;
             if (typeof entry.teamContribution !== 'boolean') entry.teamContribution = false;
+            if (!Number.isFinite(entry.teamObjectiveContributions)) entry.teamObjectiveContributions = 0;
         });
     }
 
@@ -139,6 +140,11 @@ function registerGameplayRoutes(app, deps) {
         const maxStat = Math.max(...Object.values(playerData.stats || {}).map(v => Number(v || 0)), 0);
         if (maxStat >= 8) {
             const added = grantAchievement(gameState, player, 'ach_chappy_master');
+            if (added) unlocked.push(added);
+        }
+
+        if ((gameState.playerProgress?.[player]?.teamObjectiveContributions || 0) >= 3) {
+            const added = grantAchievement(gameState, player, 'ach_team_player');
             if (added) unlocked.push(added);
         }
 
@@ -810,7 +816,9 @@ function registerGameplayRoutes(app, deps) {
             r2: { stats: { hardiness: 1 }, maxHp: 2, hp: 2, text: 'Hardiness +1 and Max HP +2 (Trapper\'s Plate equipped).' },
             r7: { stats: { agility: 1, hardiness: 1 }, text: 'Agility +1 and Hardiness +1 (Peggy\'s Cove Cleats equipped).' },
             r8: { stats: { perception: 1 }, text: 'Perception +1 (Basin Fog Lens equipped).' },
-            r9: { stats: { charm: 1, politeness: 1 }, text: 'Charm +1 and Politeness +1 (Apple-Core Sash equipped).' }
+            r9: { stats: { charm: 1, politeness: 1 }, text: 'Charm +1 and Politeness +1 (Apple-Core Sash equipped).' },
+            r10: { stats: { perception: 1 }, text: 'Perception +1 (Scout Notebook equipped).' },
+            r11: { stats: { politeness: 1 }, text: 'Politeness +1 (Signal Flag Kit equipped).' }
         };
 
         if (oneTimeGearEffects[recipe.id] && playerData.craftedGear.includes(recipe.id)) {
@@ -918,6 +926,17 @@ function registerGameplayRoutes(app, deps) {
                 success: true,
                 message: `Crafted RAD-AWAY! Removed ${reduced} RADS.`,
                 effect: { radsRemoved: reduced, rads: playerData.rads }
+            });
+        }
+
+        if (recipe.id === 'r12') {
+            const beforeHp = playerData.hp || 0;
+            playerData.hp = clamp(beforeHp + 2, 0, playerData.maxHp || 10);
+            playerData.tabs = (playerData.tabs || 0) + 2;
+            return finalizeCraft({
+                success: true,
+                message: 'Crafted Trail Mix Pack! Restored 2 HP and gained +2 Tabs.',
+                effect: { hp: playerData.hp, tabs: playerData.tabs }
             });
         }
 
@@ -1222,8 +1241,12 @@ function registerGameplayRoutes(app, deps) {
             return res.status(400).json({ error: 'No active team objective' });
         }
 
+        const wasAlreadyContributor = Boolean(objective.contributors[player]);
         objective.contributors[player] = true;
         gameState.playerProgress[player].teamContribution = true;
+        if (!wasAlreadyContributor) {
+            gameState.playerProgress[player].teamObjectiveContributions += 1;
+        }
 
         const everyoneContributed = Object.keys(gameState.players || {}).every(p => Boolean(objective.contributors[p]));
         let completion = null;
@@ -1243,8 +1266,17 @@ function registerGameplayRoutes(app, deps) {
             gameState.activeTeamObjective = null;
         }
 
+        const unlockedAchievements = evaluateAchievements(gameState, player);
+
         scheduleAutoSave();
-        res.json({ success: true, contributed: true, everyoneContributed, completion, activeTeamObjective: gameState.activeTeamObjective });
+        res.json({
+            success: true,
+            contributed: true,
+            everyoneContributed,
+            completion,
+            achievementsUnlocked: unlockedAchievements.map(a => ({ id: a.id, name: a.name })),
+            activeTeamObjective: gameState.activeTeamObjective
+        });
     });
 
     app.get('/api/event-cards', (req, res) => {
