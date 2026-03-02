@@ -304,7 +304,7 @@
                     <option value="">Select educational quest...</option>
                 </select>
                 <div id="educational-quest-preview" class="text-[10px] opacity-80 mb-2">No quest selected.</div>
-                <button onclick="completeEducationalQuest(this)" id="educational-quest-complete-btn" class="pip-btn w-full py-2 text-[10px]" disabled>COMPLETE EDUCATIONAL QUEST</button>
+                <button onclick="completeEducationalQuest(this)" id="educational-quest-complete-btn" class="pip-btn w-full py-2 text-[10px]" disabled>SUBMIT ANSWER</button>
             </div>
 
             <div>
@@ -1179,12 +1179,33 @@
                 return;
             }
 
+            const options = Array.isArray(selected.options) ? selected.options : [];
+            const optionsHtml = options.length > 0
+                ? options.map((option, index) => `
+                    <label class="flex items-start gap-2 mb-1 cursor-pointer">
+                        <input type="radio" name="educational-answer" value="${index}" onchange="setEducationalAnswerSelection()" class="mt-0.5">
+                        <span>${option}</span>
+                    </label>
+                `).join('')
+                : '<p class="opacity-70">No answer options available.</p>';
+
             preview.innerHTML = `
                 <p class="font-bold text-blue-300 mb-1">${selected.title}</p>
                 <p class="opacity-80 mb-1">${selected.desc}</p>
+                <p class="text-cyan-300 mb-2">QUESTION: ${selected.question || 'No question provided.'}</p>
+                <div class="mb-2">${optionsHtml}</div>
                 <p class="text-yellow-500">REWARD: +${selected.rewardTabs || 0} TABS, +${selected.rewardXp || 0} XP</p>
+                <p class="text-orange-300">WRONG ANSWER: small HP or RAD penalty</p>
             `;
-            button.disabled = false;
+            button.disabled = true;
+        }
+
+        function setEducationalAnswerSelection() {
+            const button = document.getElementById('educational-quest-complete-btn');
+            const chosen = document.querySelector('input[name="educational-answer"]:checked');
+            if (button) {
+                button.disabled = !chosen;
+            }
         }
 
         async function completeEducationalQuest(button) {
@@ -1201,15 +1222,31 @@
                 return;
             }
 
+            const selectedAnswer = document.querySelector('input[name="educational-answer"]:checked');
+            if (!selectedAnswer) {
+                notify('SELECT AN ANSWER FIRST');
+                return;
+            }
+
+            const answerIndex = Number(selectedAnswer.value);
+            if (!Number.isInteger(answerIndex)) {
+                notify('INVALID ANSWER SELECTION');
+                return;
+            }
+
             try {
                 const result = await apiRequest(`/api/player/${playerName}/complete-educational-quest`, {
                     method: 'POST',
-                    body: { questId },
+                    body: { questId, answerIndex },
                     button,
                     busyText: 'COMPLETING...'
                 });
 
-                notify(`EDU QUEST COMPLETE! +${result.reward?.tabs || 0} TABS, +${result.reward?.xp || 0} XP`);
+                if (result.correct) {
+                    notify(`CORRECT! +${result.reward?.tabs || 0} TABS, +${result.reward?.xp || 0} XP`);
+                } else {
+                    notify(`WRONG ANSWER: -${result.penalty?.hp || 0} HP, +${result.penalty?.rads || 0} RAD`);
+                }
                 await loadData();
             } catch (e) {
                 console.error('Error completing educational quest:', e);

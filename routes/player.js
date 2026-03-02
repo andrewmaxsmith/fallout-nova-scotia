@@ -34,7 +34,16 @@ function registerPlayerRoutes(app, deps) {
 
     app.get('/api/educational-quests', (req, res) => {
         const gameState = getGameState();
-        res.json(gameState.educationalQuests || []);
+        const safeQuests = (gameState.educationalQuests || []).map((quest) => ({
+            id: quest.id,
+            title: quest.title,
+            desc: quest.desc,
+            question: quest.question,
+            options: Array.isArray(quest.options) ? quest.options : [],
+            rewardTabs: Number(quest.rewardTabs || 0),
+            rewardXp: Number(quest.rewardXp || 0)
+        }));
+        res.json(safeQuests);
     });
 
     app.post('/api/player/:player/complete-random-quest', (req, res) => {
@@ -86,7 +95,7 @@ function registerPlayerRoutes(app, deps) {
 
     app.post('/api/player/:player/complete-educational-quest', (req, res) => {
         const { player } = req.params;
-        const { questId } = req.body;
+        const { questId, answerIndex } = req.body;
         const gameState = getGameState();
         const playerData = gameState.players[player];
 
@@ -100,10 +109,20 @@ function registerPlayerRoutes(app, deps) {
             return res.status(404).json({ error: 'Educational quest not found' });
         }
 
+        if (!Number.isInteger(answerIndex)) {
+            return res.status(400).json({ error: 'answerIndex must be an integer.' });
+        }
+
+        const optionCount = Array.isArray(quest.options) ? quest.options.length : 0;
+        if (optionCount <= 0 || answerIndex < 0 || answerIndex >= optionCount) {
+            return res.status(400).json({ error: 'Invalid answerIndex for this educational quest.' });
+        }
+
         ensurePlayerProgressFields(playerData);
 
-        const tabsReward = Number(quest.rewardTabs || 0);
-        const xpReward = Number(quest.rewardXp || 0);
+        const isCorrect = Number(quest.correctOptionIndex) === answerIndex;
+        const tabsReward = isCorrect ? Number(quest.rewardTabs || 0) : 0;
+        const xpReward = isCorrect ? Number(quest.rewardXp || 0) : 0;
         playerData.tabs = (playerData.tabs || 0) + tabsReward;
         playerData.xp = (playerData.xp || 0) + xpReward;
 
@@ -119,14 +138,31 @@ function registerPlayerRoutes(app, deps) {
         playerData.pendingPerks = (playerData.pendingPerks || 0) + levelsGained;
         playerData.xpToNext = getXpRequiredForLevel(playerData.level);
 
+        let hpPenalty = 0;
+        let radsPenalty = 0;
+        if (!isCorrect) {
+            hpPenalty = Number(quest.wrongPenalty?.hp || 0);
+            radsPenalty = Number(quest.wrongPenalty?.rads || 0);
+            if (hpPenalty > 0) {
+                playerData.hp = Math.max(0, (playerData.hp || 0) - hpPenalty);
+            }
+            if (radsPenalty > 0) {
+                playerData.rads = Math.min(10, (playerData.rads || 0) + radsPenalty);
+            }
+        }
+
         if (!Array.isArray(playerData.educationalCompleted)) {
             playerData.educationalCompleted = [];
         }
         playerData.educationalCompleted.push({
             questId: quest.id,
             title: quest.title,
+            correct: isCorrect,
+            answerIndex,
             tabs: tabsReward,
             xp: xpReward,
+            hpPenalty,
+            radsPenalty,
             completedAt: new Date().toISOString()
         });
 
@@ -134,7 +170,7 @@ function registerPlayerRoutes(app, deps) {
             playerData.dailyCompleted = [];
         }
         playerData.dailyCompleted.push({
-            title: `[EDU] ${quest.title}`,
+            title: `[EDU] ${quest.title} ${isCorrect ? '(CORRECT)' : '(WRONG)'}`,
             reward: tabsReward,
             xp: xpReward,
             time: new Date().toLocaleTimeString()
@@ -144,11 +180,18 @@ function registerPlayerRoutes(app, deps) {
 
         res.json({
             success: true,
-            message: `${player} completed ${quest.title}`,
+            message: isCorrect
+                ? `${player} answered ${quest.title} correctly`
+                : `${player} answered ${quest.title} incorrectly`,
+            correct: isCorrect,
             reward: {
                 tabs: tabsReward,
                 xp: xpReward,
                 levelsGained
+            },
+            penalty: {
+                hp: hpPenalty,
+                rads: radsPenalty
             }
         });
     });

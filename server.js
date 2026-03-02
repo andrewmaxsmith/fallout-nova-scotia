@@ -14,7 +14,7 @@ const PORT = process.env.PORT || 5000;
 const SAVE_DEBOUNCE_MS = 500;
 const PERIODIC_SAVE_MS = Number(process.env.PERIODIC_SAVE_MS || 60000);
 const SAVE_BACKUP_LIMIT = Number(process.env.SAVE_BACKUP_LIMIT || 20);
-const GAME_STATE_VERSION = 3; // Increment when schema changes
+const GAME_STATE_VERSION = 4; // Increment when schema changes
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const SUPABASE_TABLE = process.env.SUPABASE_TABLE || 'game_state';
@@ -312,12 +312,72 @@ const BASE_GAME_STATE = {
         { id: 'rq22', title: "LEARNING: Math Sprint", desc: "Solve 10 math questions at your level and check answers with an adult.", reward: 8, xp: 1 }
     ],
     educationalQuests: [
-        { id: 'eq1', title: 'READING CHECKPOINT', desc: 'Read for 8 minutes and tell two things you learned.', rewardTabs: 4, rewardXp: 1 },
-        { id: 'eq2', title: 'MATH BURST', desc: 'Solve 6 math questions at your level and check answers with an adult.', rewardTabs: 3, rewardXp: 1 },
-        { id: 'eq3', title: 'SPELLING SCOUT', desc: 'Practice 5 spelling words and use each in a sentence.', rewardTabs: 4, rewardXp: 1 },
-        { id: 'eq4', title: 'SCIENCE SPOTTER', desc: 'Observe one science thing (weather, plant, animal) and share two facts.', rewardTabs: 5, rewardXp: 1 },
-        { id: 'eq5', title: 'WRITING SIGNAL', desc: 'Write 3 complete sentences about your day with capitals and periods.', rewardTabs: 4, rewardXp: 1 },
-        { id: 'eq6', title: 'MAP READER', desc: 'Find a place on a map and explain where it is using left/right/up/down.', rewardTabs: 3, rewardXp: 1 }
+        {
+            id: 'eq1',
+            title: 'READING CHECKPOINT',
+            desc: 'Read the sentence and answer the question.',
+            question: 'Which word is a color? "The blue boat is fast."',
+            options: ['boat', 'blue', 'fast'],
+            correctOptionIndex: 1,
+            rewardTabs: 4,
+            rewardXp: 1,
+            wrongPenalty: { hp: 1 }
+        },
+        {
+            id: 'eq2',
+            title: 'MATH BURST',
+            desc: 'Solve the math question.',
+            question: 'What is 4 + 3?',
+            options: ['6', '7', '8'],
+            correctOptionIndex: 1,
+            rewardTabs: 3,
+            rewardXp: 1,
+            wrongPenalty: { rads: 1 }
+        },
+        {
+            id: 'eq3',
+            title: 'SPELLING SCOUT',
+            desc: 'Pick the correctly spelled word.',
+            question: 'Which spelling is correct?',
+            options: ['frend', 'friend', 'freind'],
+            correctOptionIndex: 1,
+            rewardTabs: 4,
+            rewardXp: 1,
+            wrongPenalty: { hp: 1 }
+        },
+        {
+            id: 'eq4',
+            title: 'SCIENCE SPOTTER',
+            desc: 'Answer a simple science question.',
+            question: 'What do plants need to grow best?',
+            options: ['Sunlight and water', 'Only candy', 'Only TV'],
+            correctOptionIndex: 0,
+            rewardTabs: 5,
+            rewardXp: 1,
+            wrongPenalty: { rads: 1 }
+        },
+        {
+            id: 'eq5',
+            title: 'WRITING SIGNAL',
+            desc: 'Find the sentence with correct punctuation.',
+            question: 'Which sentence ends correctly?',
+            options: ['I like dogs', 'I like dogs.', 'I like dogs..'],
+            correctOptionIndex: 1,
+            rewardTabs: 4,
+            rewardXp: 1,
+            wrongPenalty: { hp: 1 }
+        },
+        {
+            id: 'eq6',
+            title: 'MAP READER',
+            desc: 'Answer a simple direction question.',
+            question: 'If north is up, what direction is right?',
+            options: ['West', 'East', 'South'],
+            correctOptionIndex: 1,
+            rewardTabs: 3,
+            rewardXp: 1,
+            wrongPenalty: { rads: 1 }
+        }
     ],
     radioSignals: [
         { id: 'r1', title: "ENTERING DEBERT", text: "You're treadin' on ancient ground now, scavengers. Debert awaits." },
@@ -1009,6 +1069,11 @@ function migrateGameState(loadedState) {
     mergedState.quests = mergeCatalogById(mergedState.quests, BASE_GAME_STATE.quests);
     mergedState.randomQuests = mergeCatalogById(mergedState.randomQuests, BASE_GAME_STATE.randomQuests);
     mergedState.educationalQuests = mergeCatalogById(mergedState.educationalQuests, BASE_GAME_STATE.educationalQuests);
+    const educationalDefaultsById = new Map((BASE_GAME_STATE.educationalQuests || []).map((quest) => [quest.id, quest]));
+    mergedState.educationalQuests = (mergedState.educationalQuests || []).map((quest) => {
+        const defaults = educationalDefaultsById.get(quest?.id);
+        return defaults ? mergeMissingDefaults(quest, defaults) : quest;
+    });
     mergedState.radioSignals = mergeCatalogById(mergedState.radioSignals, BASE_GAME_STATE.radioSignals);
     mergedState.broadcastSignals = mergeCatalogById(mergedState.broadcastSignals, BASE_GAME_STATE.broadcastSignals);
     mergedState.randomEncounters = mergeCatalogById(mergedState.randomEncounters, BASE_GAME_STATE.randomEncounters);
