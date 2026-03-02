@@ -14,7 +14,7 @@ const PORT = process.env.PORT || 5000;
 const SAVE_DEBOUNCE_MS = 500;
 const PERIODIC_SAVE_MS = Number(process.env.PERIODIC_SAVE_MS || 60000);
 const SAVE_BACKUP_LIMIT = Number(process.env.SAVE_BACKUP_LIMIT || 20);
-const GAME_STATE_VERSION = 5; // Increment when schema changes
+const GAME_STATE_VERSION = 6; // Increment when schema changes
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const SUPABASE_TABLE = process.env.SUPABASE_TABLE || 'game_state';
@@ -1022,6 +1022,9 @@ function migrateGameState(loadedState) {
     if (mergedState.players) {
         Object.values(mergedState.players).forEach((playerData) => {
             ensurePlayerProgressFields(playerData);
+            if ((loadedState.version || 1) < 6) {
+                playerData.educationalBoard = null;
+            }
         });
     }
 

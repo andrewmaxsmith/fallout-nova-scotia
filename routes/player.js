@@ -1,172 +1,12 @@
-const EDUCATIONAL_QUESTS_PER_CATEGORY = 3;
-const EDUCATIONAL_BOARD_TTL_MS = 30 * 60 * 1000;
+const EDUCATIONAL_QUESTS_PER_CATEGORY = 8;
 
 const EDUCATIONAL_CATEGORY_DEFINITIONS = {
-    reading: {
-        label: 'READING',
-        rewardTabs: 1,
-        rewardXp: 0,
-        wrongPenalty: { hp: 1 },
-        templates: [
-            () => {
-                const prompts = [
-                    { sentence: 'The red kite flew over the hill.', answer: 'red', distractors: ['kite', 'hill'] },
-                    { sentence: 'A tiny frog hid near the pond.', answer: 'frog', distractors: ['tiny', 'pond'] },
-                    { sentence: 'The bright moon lit the path.', answer: 'moon', distractors: ['bright', 'path'] }
-                ];
-                const pick = prompts[Math.floor(Math.random() * prompts.length)];
-                return {
-                    question: `Which word names an object in this sentence: "${pick.sentence}"?`,
-                    options: [pick.answer, ...pick.distractors],
-                    correctOptionIndex: 0
-                };
-            },
-            () => {
-                const pairs = [
-                    { sentence: 'The puppy can bark.', answer: 'bark' },
-                    { sentence: 'Birds can glide.', answer: 'glide' },
-                    { sentence: 'Kids can jump.', answer: 'jump' }
-                ];
-                const pick = pairs[Math.floor(Math.random() * pairs.length)];
-                return {
-                    question: `What is the action word in: "${pick.sentence}"?`,
-                    options: [pick.answer, 'the', 'can'],
-                    correctOptionIndex: 0
-                };
-            }
-        ]
-    },
-    math: {
-        label: 'MATH',
-        rewardTabs: 1,
-        rewardXp: 1,
-        wrongPenalty: { rads: 1 },
-        templates: [
-            () => {
-                const a = Math.floor(Math.random() * 6) + 2;
-                const b = Math.floor(Math.random() * 6) + 2;
-                const answer = a + b;
-                return {
-                    question: `What is ${a} + ${b}?`,
-                    options: [answer, answer - 1, answer + 2].map(String),
-                    correctOptionIndex: 0
-                };
-            },
-            () => {
-                const a = Math.floor(Math.random() * 8) + 6;
-                const b = Math.floor(Math.random() * 5) + 1;
-                const answer = a - b;
-                return {
-                    question: `What is ${a} - ${b}?`,
-                    options: [answer, answer + 1, Math.max(0, answer - 2)].map(String),
-                    correctOptionIndex: 0
-                };
-            }
-        ]
-    },
-    spelling: {
-        label: 'SPELLING',
-        rewardTabs: 1,
-        rewardXp: 0,
-        wrongPenalty: { hp: 1 },
-        templates: [
-            () => {
-                const items = [
-                    { correct: 'friend', wrong: ['frend', 'freind'] },
-                    { correct: 'school', wrong: ['scool', 'scholl'] },
-                    { correct: 'because', wrong: ['becuz', 'becase'] }
-                ];
-                const pick = items[Math.floor(Math.random() * items.length)];
-                return {
-                    question: 'Which spelling is correct?',
-                    options: [pick.correct, ...pick.wrong],
-                    correctOptionIndex: 0
-                };
-            },
-            () => {
-                const items = [
-                    { correct: 'planet', wrong: ['planit', 'plannet'] },
-                    { correct: 'window', wrong: ['windoe', 'windo'] },
-                    { correct: 'pencil', wrong: ['pensil', 'pencel'] }
-                ];
-                const pick = items[Math.floor(Math.random() * items.length)];
-                return {
-                    question: 'Pick the correctly spelled word.',
-                    options: [pick.correct, ...pick.wrong],
-                    correctOptionIndex: 0
-                };
-            }
-        ]
-    },
-    science: {
-        label: 'SCIENCE',
-        rewardTabs: 2,
-        rewardXp: 1,
-        wrongPenalty: { rads: 1 },
-        templates: [
-            () => ({
-                question: 'What do plants need most to grow?',
-                options: ['Sunlight and water', 'Only candy', 'Only darkness'],
-                correctOptionIndex: 0
-            }),
-            () => ({
-                question: 'Which state of matter takes the shape of its container?',
-                options: ['Liquid', 'Rock', 'Metal spoon'],
-                correctOptionIndex: 0
-            }),
-            () => ({
-                question: 'What force pulls objects down toward Earth?',
-                options: ['Gravity', 'Music', 'Magnet paint'],
-                correctOptionIndex: 0
-            })
-        ]
-    },
-    writing: {
-        label: 'WRITING',
-        rewardTabs: 1,
-        rewardXp: 0,
-        wrongPenalty: { hp: 1 },
-        templates: [
-            () => ({
-                question: 'Which sentence has correct ending punctuation?',
-                options: ['I like dogs.', 'I like dogs', 'I like dogs..'],
-                correctOptionIndex: 0
-            }),
-            () => ({
-                question: 'Which sentence starts with a capital letter?',
-                options: ['My cat runs fast.', 'my cat runs fast.', 'my Cat runs fast.'],
-                correctOptionIndex: 0
-            }),
-            () => ({
-                question: 'Choose the best complete sentence.',
-                options: ['The sun is bright today.', 'sun bright today', 'The sun bright'],
-                correctOptionIndex: 0
-            })
-        ]
-    },
-    mapReading: {
-        label: 'MAP READING',
-        rewardTabs: 1,
-        rewardXp: 1,
-        wrongPenalty: { rads: 1 },
-        templates: [
-            () => ({
-                question: 'If north is up, what direction is to the right?',
-                options: ['East', 'West', 'South'],
-                correctOptionIndex: 0
-            }),
-            () => ({
-                question: 'If you move down on a map, which direction are you moving?',
-                options: ['South', 'North', 'East'],
-                correctOptionIndex: 0
-            }),
-            () => ({
-                question: 'On a simple map, a compass rose helps you find what?',
-                options: ['Directions', 'Snacks', 'Weather only'],
-                correctOptionIndex: 0
-            })
-        ]
-    }
+    reading: { label: 'READING', rewardTabs: 1, rewardXp: 0, wrongPenalty: { hp: 1 } },
+    math: { label: 'MATH', rewardTabs: 1, rewardXp: 1, wrongPenalty: { rads: 1 } },
+    spelling: { label: 'SPELLING', rewardTabs: 1, rewardXp: 0, wrongPenalty: { hp: 1 } },
+    science: { label: 'SCIENCE', rewardTabs: 2, rewardXp: 1, wrongPenalty: { rads: 1 } },
+    writing: { label: 'WRITING', rewardTabs: 1, rewardXp: 0, wrongPenalty: { hp: 1 } },
+    mapReading: { label: 'MAP READING', rewardTabs: 1, rewardXp: 1, wrongPenalty: { rads: 1 } }
 };
 
 const EDUCATIONAL_CATEGORY_ORDER = ['reading', 'math', 'spelling', 'science', 'writing', 'mapReading'];
@@ -180,83 +20,173 @@ function shuffleArray(items) {
     return next;
 }
 
-function createGeneratedEducationalQuest(categoryKey) {
-    const categoryDef = EDUCATIONAL_CATEGORY_DEFINITIONS[categoryKey];
+function createQuestEntry(category, idSuffix, payload) {
+    const categoryDef = EDUCATIONAL_CATEGORY_DEFINITIONS[category];
     if (!categoryDef) {
         return null;
     }
 
-    const templates = Array.isArray(categoryDef.templates) ? categoryDef.templates : [];
-    if (templates.length === 0) {
-        return null;
-    }
-
-    const template = templates[Math.floor(Math.random() * templates.length)];
-    const generated = template();
-    if (!generated || !Array.isArray(generated.options)) {
-        return null;
-    }
-
-    const correctIndex = Number(generated.correctOptionIndex);
-    if (!Number.isInteger(correctIndex) || correctIndex < 0 || correctIndex >= generated.options.length) {
-        return null;
-    }
-
-    const pairedOptions = generated.options.map((text, index) => ({ text: String(text), isCorrect: index === correctIndex }));
+    const pairedOptions = (payload.options || []).map((text, index) => ({
+        text: String(text),
+        isCorrect: index === payload.correctOptionIndex
+    }));
     const shuffled = shuffleArray(pairedOptions);
-    const shuffledCorrectIndex = shuffled.findIndex(option => option.isCorrect);
-    const difficultyBoost = Math.random() < 0.25 ? 1 : 0;
+    const correctOptionIndex = shuffled.findIndex(option => option.isCorrect);
 
     return {
-        id: `edu-${categoryKey}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        category: categoryKey,
+        id: `edu-${category}-${idSuffix}`,
+        category,
         categoryLabel: categoryDef.label,
-        title: `${categoryDef.label} DRILL`,
-        question: generated.question,
+        title: payload.title || `${categoryDef.label} MISSION`,
+        question: payload.question,
         options: shuffled.map(option => option.text),
-        correctOptionIndex: shuffledCorrectIndex,
-        rewardTabs: Number(categoryDef.rewardTabs || 0) + difficultyBoost,
-        rewardXp: Number(categoryDef.rewardXp || 0),
+        correctOptionIndex,
+        rewardTabs: Number(payload.rewardTabs ?? categoryDef.rewardTabs),
+        rewardXp: Number(payload.rewardXp ?? categoryDef.rewardXp),
         wrongPenalty: {
-            hp: Number(categoryDef.wrongPenalty?.hp || 0),
-            rads: Number(categoryDef.wrongPenalty?.rads || 0)
+            hp: Number(payload.wrongPenalty?.hp ?? categoryDef.wrongPenalty?.hp ?? 0),
+            rads: Number(payload.wrongPenalty?.rads ?? categoryDef.wrongPenalty?.rads ?? 0)
         }
     };
 }
 
-function refillEducationalCategory(board, categoryKey) {
+function buildEducationalQuestLibrary() {
+    const raw = {
+        reading: [
+            { question: 'Which sentence tells you where something is?', options: ['The cat is under the table.', 'Blue is a color.', 'Jump high now.'], correctOptionIndex: 0 },
+            { question: 'Pick the main noun: "The small robot rolled home."', options: ['robot', 'small', 'rolled'], correctOptionIndex: 0 },
+            { question: 'Which word is an action in "Birds fly over water"?', options: ['fly', 'birds', 'water'], correctOptionIndex: 0 },
+            { question: 'Which sentence is a question?', options: ['Where is my book?', 'My book is blue.', 'Close the door.'], correctOptionIndex: 0 },
+            { question: 'Choose the best title for a story about planting seeds.', options: ['Growing a Garden', 'Fast Cars', 'Snowy Mountains'], correctOptionIndex: 0 },
+            { question: 'In "Mia packed lunch before school", what happened first?', options: ['Mia packed lunch.', 'School ended.', 'They watched a movie.'], correctOptionIndex: 0 },
+            { question: 'Which word means almost the same as "happy"?', options: ['glad', 'cold', 'empty'], correctOptionIndex: 0 },
+            { question: 'Which sentence uses a describing word?', options: ['The bright lamp glowed.', 'Lamp glowed.', 'Glow lamp.'], correctOptionIndex: 0 },
+            { question: 'Pick the sentence with correct word order.', options: ['We walked to the park.', 'Walked park to we.', 'Park we to walked.'], correctOptionIndex: 0 },
+            { question: 'Which sentence gives a command?', options: ['Please wash your hands.', 'Hands are useful.', 'I like soap.'], correctOptionIndex: 0 },
+            { question: 'What is the setting in "At noon, we ate by the river"?', options: ['by the river', 'we ate', 'at noon only'], correctOptionIndex: 0 },
+            { question: 'Choose the best summary: "Sam found a lost dog and returned it."', options: ['Sam helped return a lost dog.', 'Sam baked cookies.', 'Sam lost his shoes.'], correctOptionIndex: 0 }
+        ],
+        math: [
+            { question: 'What is 7 + 5?', options: ['12', '11', '13'], correctOptionIndex: 0 },
+            { question: 'What is 14 - 6?', options: ['8', '9', '7'], correctOptionIndex: 0 },
+            { question: 'What is 3 × 4?', options: ['12', '10', '14'], correctOptionIndex: 0 },
+            { question: 'What is 20 ÷ 5?', options: ['4', '5', '3'], correctOptionIndex: 0 },
+            { question: 'What number comes next: 2, 4, 6, 8, ...?', options: ['10', '9', '11'], correctOptionIndex: 0 },
+            { question: 'Which is greater?', options: ['19', '17', '16'], correctOptionIndex: 0 },
+            { question: 'What is half of 18?', options: ['9', '8', '7'], correctOptionIndex: 0 },
+            { question: 'A box has 6 apples and you add 3. Total?', options: ['9', '8', '10'], correctOptionIndex: 0 },
+            { question: 'What is 9 + 9?', options: ['18', '17', '19'], correctOptionIndex: 0 },
+            { question: 'What is 15 - 9?', options: ['6', '5', '7'], correctOptionIndex: 0 },
+            { question: 'How many sides does a triangle have?', options: ['3', '4', '5'], correctOptionIndex: 0 },
+            { question: 'What is 5 × 5?', options: ['25', '20', '30'], correctOptionIndex: 0 }
+        ],
+        spelling: [
+            { question: 'Pick the correctly spelled word.', options: ['friend', 'freind', 'frend'], correctOptionIndex: 0 },
+            { question: 'Pick the correctly spelled word.', options: ['school', 'scool', 'schol'], correctOptionIndex: 0 },
+            { question: 'Pick the correctly spelled word.', options: ['because', 'becase', 'becuz'], correctOptionIndex: 0 },
+            { question: 'Pick the correctly spelled word.', options: ['window', 'windoe', 'windo'], correctOptionIndex: 0 },
+            { question: 'Pick the correctly spelled word.', options: ['pencil', 'pensil', 'pencel'], correctOptionIndex: 0 },
+            { question: 'Pick the correctly spelled word.', options: ['planet', 'plannet', 'planit'], correctOptionIndex: 0 },
+            { question: 'Pick the correctly spelled word.', options: ['animal', 'animel', 'anamal'], correctOptionIndex: 0 },
+            { question: 'Pick the correctly spelled word.', options: ['kitchen', 'kithcen', 'kitcen'], correctOptionIndex: 0 },
+            { question: 'Pick the correctly spelled word.', options: ['bridge', 'brige', 'bridg'], correctOptionIndex: 0 },
+            { question: 'Pick the correctly spelled word.', options: ['library', 'libary', 'librery'], correctOptionIndex: 0 },
+            { question: 'Pick the correctly spelled word.', options: ['purple', 'purpel', 'purpl'], correctOptionIndex: 0 },
+            { question: 'Pick the correctly spelled word.', options: ['morning', 'mornning', 'mornig'], correctOptionIndex: 0 }
+        ],
+        science: [
+            { question: 'What do plants need to make food?', options: ['Sunlight', 'Only candy', 'Only noise'], correctOptionIndex: 0 },
+            { question: 'Water can be ice, liquid, or what?', options: ['Gas', 'Metal', 'Wood'], correctOptionIndex: 0 },
+            { question: 'Which sense uses your ears?', options: ['Hearing', 'Smelling', 'Seeing'], correctOptionIndex: 0 },
+            { question: 'Which planet do we live on?', options: ['Earth', 'Mars', 'Jupiter'], correctOptionIndex: 0 },
+            { question: 'What force keeps us on the ground?', options: ['Gravity', 'Wind', 'Sound'], correctOptionIndex: 0 },
+            { question: 'Which part of a plant holds it in the soil?', options: ['Roots', 'Leaves', 'Flowers'], correctOptionIndex: 0 },
+            { question: 'Day and night are caused by Earth doing what?', options: ['Spinning', 'Stopping', 'Melting'], correctOptionIndex: 0 },
+            { question: 'Which is a mammal?', options: ['Whale', 'Shark', 'Trout'], correctOptionIndex: 0 },
+            { question: 'Which material is magnetic?', options: ['Iron', 'Plastic', 'Paper'], correctOptionIndex: 0 },
+            { question: 'What do bees help plants do?', options: ['Pollinate', 'Freeze', 'Shrink'], correctOptionIndex: 0 },
+            { question: 'Which layer protects us from too much sun?', options: ['Ozone layer', 'Cloud only', 'Ocean floor'], correctOptionIndex: 0 },
+            { question: 'What gas do humans need to breathe?', options: ['Oxygen', 'Helium', 'Nitrogen only'], correctOptionIndex: 0 }
+        ],
+        writing: [
+            { question: 'Which sentence has correct punctuation?', options: ['I like pizza.', 'I like pizza', 'I like pizza..'], correctOptionIndex: 0 },
+            { question: 'Which sentence starts with a capital letter?', options: ['My dog is friendly.', 'my dog is friendly.', 'my Dog is friendly.'], correctOptionIndex: 0 },
+            { question: 'Choose the complete sentence.', options: ['The sun is warm today.', 'sun warm', 'The warm'], correctOptionIndex: 0 },
+            { question: 'Which word should be capitalized?', options: ['Monday', 'apple', 'street'], correctOptionIndex: 0 },
+            { question: 'Pick the best ending mark for a question.', options: ['?', '.', ','], correctOptionIndex: 0 },
+            { question: 'Which sentence uses a comma correctly?', options: ['After lunch, we played outside.', 'After lunch we, played outside.', 'After, lunch we played outside.'], correctOptionIndex: 0 },
+            { question: 'Which is the best topic sentence?', options: ['My favorite season is summer because I can swim.', 'Summer.', 'I swim.'], correctOptionIndex: 0 },
+            { question: 'Which is a proper noun?', options: ['Halifax', 'city', 'harbor'], correctOptionIndex: 0 },
+            { question: 'Which sentence is written clearly?', options: ['We cleaned the room and put books on the shelf.', 'We cleaned room books shelf.', 'Cleaned and the room on shelf books.'], correctOptionIndex: 0 },
+            { question: 'Choose the best closing sentence.', options: ['That is why teamwork makes chores easier.', 'Teamwork.', 'Easier chores because.'], correctOptionIndex: 0 },
+            { question: 'Which sentence uses "their" correctly?', options: ['Their boots are by the door.', 'There boots are by the door.', 'They\'re boots are by the door.'], correctOptionIndex: 0 },
+            { question: 'Which sentence has the best verb?', options: ['The rocket launched quickly.', 'The rocket thing quickly.', 'The rocket quickly.'], correctOptionIndex: 0 }
+        ],
+        mapReading: [
+            { question: 'If north is up, what direction is right?', options: ['East', 'West', 'South'], correctOptionIndex: 0 },
+            { question: 'If you move down on a map, which direction do you go?', options: ['South', 'North', 'East'], correctOptionIndex: 0 },
+            { question: 'If west is left, what is opposite west?', options: ['East', 'North', 'South'], correctOptionIndex: 0 },
+            { question: 'A map key tells you what?', options: ['What symbols mean', 'How old a map is', 'Who drew it'], correctOptionIndex: 0 },
+            { question: 'Which direction is between north and east?', options: ['Northeast', 'Southwest', 'Northwest'], correctOptionIndex: 0 },
+            { question: 'If a school icon is above the park icon, the school is...', options: ['North of the park', 'South of the park', 'West of the park'], correctOptionIndex: 0 },
+            { question: 'A compass rose is used to show...', options: ['Directions', 'Temperatures', 'Population'], correctOptionIndex: 0 },
+            { question: 'If you move from west to east, you move...', options: ['Right', 'Left', 'Down'], correctOptionIndex: 0 },
+            { question: 'Which direction is opposite south?', options: ['North', 'East', 'West'], correctOptionIndex: 0 },
+            { question: 'If the library is left of the store, the library is...', options: ['West of the store', 'East of the store', 'North of the store'], correctOptionIndex: 0 },
+            { question: 'On most maps, up means...', options: ['North', 'South', 'East'], correctOptionIndex: 0 },
+            { question: 'Which path is shortest on a grid map?', options: ['The one with fewer squares', 'The one with more turns', 'The one with bigger icons'], correctOptionIndex: 0 }
+        ]
+    };
+
+    const entries = [];
+    Object.entries(raw).forEach(([category, questions]) => {
+        questions.forEach((question, index) => {
+            const idSuffix = String(index + 1).padStart(3, '0');
+            const quest = createQuestEntry(category, idSuffix, {
+                title: `${EDUCATIONAL_CATEGORY_DEFINITIONS[category].label} MISSION ${index + 1}`,
+                ...question
+            });
+            if (quest) {
+                entries.push(quest);
+            }
+        });
+    });
+    return entries;
+}
+
+const EDUCATIONAL_QUEST_LIBRARY = buildEducationalQuestLibrary();
+
+function refillEducationalCategory(board, categoryKey, completedQuestIds) {
     if (!board || !Array.isArray(board.quests)) {
         return;
     }
 
-    const forCategory = board.quests.filter(quest => quest.category === categoryKey);
-    let attempts = 0;
+    const completedIds = completedQuestIds instanceof Set ? completedQuestIds : new Set();
+    const existingCategory = board.quests.filter(quest => quest.category === categoryKey);
+    const existingIds = new Set(board.quests.map((quest) => quest.id));
 
-    while (forCategory.length < EDUCATIONAL_QUESTS_PER_CATEGORY && attempts < 20) {
-        const generated = createGeneratedEducationalQuest(categoryKey);
-        attempts += 1;
-        if (!generated) {
-            continue;
-        }
+    const candidates = EDUCATIONAL_QUEST_LIBRARY.filter((quest) => (
+        quest.category === categoryKey
+        && !completedIds.has(quest.id)
+        && !existingIds.has(quest.id)
+    ));
 
-        const duplicateQuestion = forCategory.some(existing => existing.question === generated.question);
-        if (duplicateQuestion) {
-            continue;
-        }
-
-        board.quests.push(generated);
-        forCategory.push(generated);
+    const shuffledCandidates = shuffleArray(candidates);
+    while (existingCategory.length < EDUCATIONAL_QUESTS_PER_CATEGORY && shuffledCandidates.length > 0) {
+        const nextQuest = shuffledCandidates.shift();
+        board.quests.push(nextQuest);
+        existingCategory.push(nextQuest);
     }
 }
 
-function createEducationalBoard() {
+function createEducationalBoard(completedQuestIds) {
     const board = {
         generatedAt: new Date().toISOString(),
         quests: []
     };
 
     EDUCATIONAL_CATEGORY_ORDER.forEach((categoryKey) => {
-        refillEducationalCategory(board, categoryKey);
+        refillEducationalCategory(board, categoryKey, completedQuestIds);
     });
 
     return board;
@@ -270,20 +200,23 @@ function getSafeEducationalCategories() {
 }
 
 function ensureEducationalBoard(playerData, { force = false } = {}) {
-    const board = playerData?.educationalBoard;
-    const generatedAtMs = board?.generatedAt ? Date.parse(board.generatedAt) : NaN;
-    const boardIsExpired = Number.isFinite(generatedAtMs)
-        ? (Date.now() - generatedAtMs) > EDUCATIONAL_BOARD_TTL_MS
-        : true;
+    const completedQuestIds = new Set(
+        (playerData?.educationalCompleted || [])
+            .map((entry) => entry?.questId)
+            .filter(Boolean)
+    );
 
-    if (force || !board || !Array.isArray(board.quests) || boardIsExpired) {
-        playerData.educationalBoard = createEducationalBoard();
+    const board = playerData?.educationalBoard;
+    if (force || !board || !Array.isArray(board.quests)) {
+        playerData.educationalBoard = createEducationalBoard(completedQuestIds);
         return playerData.educationalBoard;
     }
 
+    board.quests = board.quests.filter((quest) => !completedQuestIds.has(quest.id));
     EDUCATIONAL_CATEGORY_ORDER.forEach((categoryKey) => {
-        refillEducationalCategory(board, categoryKey);
+        refillEducationalCategory(board, categoryKey, completedQuestIds);
     });
+    board.generatedAt = board.generatedAt || new Date().toISOString();
 
     return board;
 }
@@ -407,6 +340,12 @@ function registerPlayerRoutes(app, deps) {
             return res.status(404).json({ error: 'Player not found' });
         }
 
+        const alreadyCompleted = Array.isArray(playerData.educationalCompleted)
+            && playerData.educationalCompleted.some((entry) => entry?.questId === questId);
+        if (alreadyCompleted) {
+            return res.status(409).json({ error: 'Educational quest already completed and cannot be repeated.' });
+        }
+
         const board = ensureEducationalBoard(playerData);
         const educationalQuests = Array.isArray(board.quests) ? board.quests : [];
         const questIndex = educationalQuests.findIndex(q => q.id === questId);
@@ -484,7 +423,8 @@ function registerPlayerRoutes(app, deps) {
         });
 
         educationalQuests.splice(questIndex, 1);
-        refillEducationalCategory(board, quest.category);
+        const completedQuestIds = new Set((playerData.educationalCompleted || []).map((entry) => entry?.questId).filter(Boolean));
+        refillEducationalCategory(board, quest.category, completedQuestIds);
         board.generatedAt = new Date().toISOString();
 
         scheduleAutoSave();
