@@ -16,6 +16,7 @@ function registerGameplayRoutes(app, deps) {
     } = deps;
 
     const CHAPPY_STATS = ['charm', 'hardiness', 'agility', 'perception', 'politeness', 'yarns'];
+    const FACTION_OPTIONS = ['Plaid Paladins', 'Tidesmen', 'Glo-Riders'];
 
     function ensureMetaState(gameState) {
         if (!gameState.sessionMetrics) {
@@ -382,6 +383,28 @@ function registerGameplayRoutes(app, deps) {
         } else {
             res.status(404).json({ error: 'Player not found' });
         }
+    });
+
+    app.post('/api/player/:player/faction', (req, res) => {
+        const { player } = req.params;
+        const { faction } = req.body || {};
+        const gameState = getGameState();
+        const playerData = gameState.players[player];
+
+        if (!playerData) {
+            return res.status(404).json({ error: 'Player not found' });
+        }
+
+        if (typeof faction !== 'string' || !FACTION_OPTIONS.includes(faction)) {
+            return res.status(400).json({
+                error: 'Invalid faction selection.',
+                options: FACTION_OPTIONS
+            });
+        }
+
+        playerData.faction = faction;
+        scheduleAutoSave();
+        return res.json({ success: true, faction, options: FACTION_OPTIONS });
     });
 
     app.post('/api/player/:player/quest', (req, res) => {

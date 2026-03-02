@@ -131,6 +131,22 @@
         .perk-overlay.hidden {
             display: none;
         }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.92);
+            z-index: 220;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .modal-overlay.hidden {
+            display: none;
+        }
     </style>
 </head>
 <body class="p-4 max-w-lg mx-auto pb-24">
@@ -168,6 +184,24 @@
             <div id="perk-choice-list" class="space-y-2">
                 <!-- Perk choices injected here -->
             </div>
+        </div>
+    </div>
+
+    <!-- FIRST FACTION SELECTION OVERLAY -->
+    <div id="faction-overlay" class="modal-overlay hidden">
+        <div class="pip-border p-6 bg-black max-w-md w-full">
+            <h1 class="text-2xl font-bold text-yellow-500 mb-2 text-center">FACTION SELECTION</h1>
+            <p class="text-xs opacity-80 text-center mb-5">YOU REACHED LEVEL 3. CHOOSE YOUR FIRST FACTION.</p>
+            <div id="faction-overlay-options" class="space-y-2"></div>
+        </div>
+    </div>
+
+    <!-- RADIO MESSAGE POPUP -->
+    <div id="radio-popup-overlay" class="modal-overlay hidden">
+        <div class="pip-border p-6 bg-black max-w-md w-full">
+            <h1 id="radio-popup-title" class="text-xl font-bold text-yellow-500 mb-3 text-center">RADIO SIGNAL</h1>
+            <div id="radio-popup-message" class="text-[10px] leading-relaxed opacity-90 mb-4 whitespace-pre-line"></div>
+            <button onclick="closeRadioPopup()" class="pip-btn w-full py-2 text-sm font-bold">ACKNOWLEDGE</button>
         </div>
     </div>
 
@@ -237,6 +271,10 @@
                 <div class="pip-border p-3 bg-black/50">
                     <p class="text-xs mb-1">FACTION</p>
                     <p id="display-faction" class="text-sm">NONE</p>
+                    <div id="faction-controls" class="mt-2 hidden space-y-2">
+                        <select id="faction-select" class="w-full p-2 bg-black border border-pip-green text-pip-green text-[10px]"></select>
+                        <button onclick="changeFaction(this)" class="pip-btn w-full py-2 text-[10px]">SET FACTION</button>
+                    </div>
                 </div>
             </div>
 
@@ -526,6 +564,7 @@
         let cachedUpgradeChoiceIds = [];
         let hasInitializedRadioSignal = false;
         let lastSeenRadioSignalKey = null;
+        const FACTION_OPTIONS = ['Plaid Paladins', 'Tidesmen', 'Glo-Riders'];
 
         function getStableRandomChoices(sourceItems, cachedIds, maxChoices) {
             const targetCount = Math.min(maxChoices, sourceItems.length);
@@ -758,6 +797,8 @@
             document.getElementById('display-passive').textContent = `PASSIVE: ${passiveLabel} — ${passiveDesc}`;
             document.getElementById('display-tabs').textContent = playerData.tabs || 0;
             document.getElementById('display-faction').textContent = playerData.faction || 'NONE';
+            updateFactionControls();
+            updateFactionOverlay();
 
             const currentLevel = Math.max(1, playerData.level || 1);
             const xpToNext = Math.max(1, playerData.xpToNext || (5 + ((currentLevel - 1) * 3)));
@@ -823,6 +864,75 @@
 
             // Update trades
             updateTrades();
+        }
+
+        function updateFactionControls() {
+            const controls = document.getElementById('faction-controls');
+            const select = document.getElementById('faction-select');
+            if (!controls || !select) return;
+
+            const currentLevel = playerData.level || 1;
+            if (currentLevel < 3) {
+                controls.classList.add('hidden');
+                return;
+            }
+
+            controls.classList.remove('hidden');
+            select.innerHTML = FACTION_OPTIONS
+                .map((faction) => `<option value="${faction}">${faction.toUpperCase()}</option>`)
+                .join('');
+
+            if (FACTION_OPTIONS.includes(playerData.faction)) {
+                select.value = playerData.faction;
+            }
+        }
+
+        function updateFactionOverlay() {
+            const overlay = document.getElementById('faction-overlay');
+            const options = document.getElementById('faction-overlay-options');
+            if (!overlay || !options) return;
+
+            const needsFirstFaction = (playerData.level || 1) >= 3 && !playerData.faction;
+            if (!needsFirstFaction) {
+                overlay.classList.add('hidden');
+                return;
+            }
+
+            options.innerHTML = FACTION_OPTIONS
+                .map((faction) => `<button onclick="chooseFactionFromOverlay('${faction}', this)" class="pip-btn w-full py-2 text-sm">${faction.toUpperCase()}</button>`)
+                .join('');
+            overlay.classList.remove('hidden');
+        }
+
+        async function setFaction(faction, button = null) {
+            try {
+                await apiRequest(`/api/player/${playerName}/faction`, {
+                    method: 'POST',
+                    body: { faction },
+                    button,
+                    busyText: 'SETTING...'
+                });
+
+                notify(`FACTION SET: ${faction.toUpperCase()}`);
+                await loadData();
+            } catch (e) {
+                console.error('Error setting faction:', e);
+            }
+        }
+
+        async function chooseFactionFromOverlay(faction, button) {
+            await setFaction(faction, button);
+        }
+
+        async function changeFaction(button) {
+            const select = document.getElementById('faction-select');
+            const faction = select?.value;
+            if (!faction) {
+                notify('SELECT A FACTION');
+                return;
+            }
+
+            await setFaction(faction, button);
         }
 
         function updateQuests() {
@@ -915,9 +1025,11 @@
             const broadcast = document.getElementById('radio-broadcast');
             let activeSignalKey = null;
             let activeSignalTitle = null;
+            let activeSignalText = '';
 
             if (playerData.activeRadioData) {
-                const safeText = playerData.activeRadioData.text.replace(/\n/g, '<br>');
+                const signalText = playerData.activeRadioData.text || '';
+                const safeText = signalText.replace(/\n/g, '<br>');
                 const resolveButton = playerData.activeRadioData.requiresResolve
                     ? '<button onclick="resolveEncounter(this)" class="pip-btn w-full py-2 text-[10px] mt-3">RESOLVE</button>'
                     : '';
@@ -934,17 +1046,19 @@
                 `;
                 activeSignalKey = `data:${playerData.activeRadioData.id || ''}:${playerData.activeRadioData.text || ''}`;
                 activeSignalTitle = playerData.activeRadioData.title || 'TRANSMISSION';
+                activeSignalText = signalText;
             } else if (playerData.activeRadio) {
                 const signal = allRadio.find(r => r.id === playerData.activeRadio);
                 if (signal) {
                     broadcast.innerHTML = `
                         <div class="radio-alert">
                             <h3 class="font-bold text-sm mb-2">${signal.title}</h3>
-                            <p class="text-[10px] italic leading-relaxed">${signal.text}</p>
+                            <p class="text-[10px] italic leading-relaxed">${signal.text || ''}</p>
                         </div>
                     `;
                     activeSignalKey = `signal:${signal.id}`;
                     activeSignalTitle = signal.title || 'TRANSMISSION';
+                    activeSignalText = signal.text || '';
                 }
             } else {
                 broadcast.innerHTML = '<p class="text-[10px] italic opacity-70">WAITING FOR BROADCAST...</p>';
@@ -958,9 +1072,27 @@
 
             if (activeSignalKey && activeSignalKey !== lastSeenRadioSignalKey) {
                 notify(`RADIO SIGNAL: ${activeSignalTitle}`);
+                openRadioPopup(activeSignalTitle, activeSignalText);
             }
 
             lastSeenRadioSignalKey = activeSignalKey;
+        }
+
+        function openRadioPopup(title, message) {
+            const overlay = document.getElementById('radio-popup-overlay');
+            const titleEl = document.getElementById('radio-popup-title');
+            const messageEl = document.getElementById('radio-popup-message');
+            if (!overlay || !titleEl || !messageEl) return;
+
+            titleEl.textContent = title || 'RADIO SIGNAL';
+            messageEl.textContent = message || 'Incoming transmission received.';
+            overlay.classList.remove('hidden');
+        }
+
+        function closeRadioPopup() {
+            const overlay = document.getElementById('radio-popup-overlay');
+            if (!overlay) return;
+            overlay.classList.add('hidden');
         }
 
         async function verifyRadioSignal(button) {
