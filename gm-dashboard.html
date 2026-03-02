@@ -144,6 +144,16 @@
             <button onclick="showTab('radio')" class="pip-btn">RADIO</button>
         </nav>
 
+        <section class="pip-border p-4 bg-black/50 mb-6">
+            <h2 class="text-xl font-bold mb-3">SAVE BACKUP</h2>
+            <p class="text-[10px] opacity-70 mb-3">EXPORT A JSON BACKUP OR IMPORT A PREVIOUS SAVE FILE.</p>
+            <input id="save-import-file" type="file" accept="application/json,.json" class="hidden" onchange="importSaveFromFile(this)">
+            <div class="grid grid-cols-2 gap-2">
+                <button onclick="exportSaveBackup(this)" class="pip-btn">EXPORT SAVE JSON</button>
+                <button id="import-save-btn" onclick="openImportSaveFilePicker()" class="pip-btn">IMPORT SAVE JSON</button>
+            </div>
+        </section>
+
         <!-- TAB: PLAYERS -->
         <section id="players" class="tab-content active">
             <div class="pip-border p-4 bg-black/50 mb-4">
@@ -1104,6 +1114,80 @@
                 renderEffects();
             } catch (e) {
                 console.error('Error resetting data:', e);
+            }
+        }
+
+        async function exportSaveBackup(button) {
+            try {
+                const payload = await apiRequest('/api/save/export', {
+                    method: 'GET',
+                    button,
+                    busyText: 'EXPORTING...'
+                });
+
+                const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+                const downloadUrl = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                const dateStamp = new Date().toISOString().replace(/[:.]/g, '-');
+                link.href = downloadUrl;
+                link.download = `fallout-save-${dateStamp}.json`;
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                URL.revokeObjectURL(downloadUrl);
+
+                showNotice('Save backup exported', 'success');
+            } catch (e) {
+                console.error('Error exporting save:', e);
+            }
+        }
+
+        function openImportSaveFilePicker() {
+            const input = document.getElementById('save-import-file');
+            if (!input) return;
+            input.value = '';
+            input.click();
+        }
+
+        async function importSaveFromFile(inputEl) {
+            const importButton = document.getElementById('import-save-btn');
+            const file = inputEl?.files?.[0];
+            if (!file) return;
+
+            if (!confirm('Importing a save will overwrite current game progress. Continue?')) {
+                inputEl.value = '';
+                return;
+            }
+
+            setButtonBusy(importButton, true, 'IMPORTING...');
+
+            try {
+                const text = await file.text();
+                const parsed = JSON.parse(text);
+                const statePayload = parsed && parsed.state ? parsed.state : parsed;
+
+                await apiRequest('/api/save/import', {
+                    method: 'POST',
+                    body: { state: statePayload },
+                    showError: true
+                });
+
+                await loadGameState();
+                renderActiveQuests();
+                renderPerks();
+                renderQuests();
+                renderRadio();
+                renderQuarters();
+                renderEffects();
+                showNotice('Save imported successfully', 'success', 3200);
+            } catch (e) {
+                console.error('Error importing save:', e);
+                if (e instanceof SyntaxError) {
+                    showNotice('Invalid JSON file format', 'error', 3200);
+                }
+            } finally {
+                setButtonBusy(importButton, false);
+                inputEl.value = '';
             }
         }
 
