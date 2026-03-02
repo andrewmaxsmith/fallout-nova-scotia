@@ -555,6 +555,7 @@
         let educationalCategories = [];
         let activeEducationalCategory = 'reading';
         let currentEducationalQuest = null;
+        let currentEducationalAnswerIndex = null;
         let playerQuarters = [];
         let fullGameState = {};
         let activeTeamObjective = null;
@@ -1332,6 +1333,7 @@
         function setEducationalCategory(categoryId) {
             activeEducationalCategory = categoryId;
             currentEducationalQuest = null;
+            currentEducationalAnswerIndex = null;
             renderEducationalCategoryTabs();
             renderEducationalQuizPanel();
             updateEducationalCompletedList();
@@ -1411,7 +1413,7 @@
             const optionsHtml = options.length > 0
                 ? options.map((option, index) => `
                     <label class="flex items-start gap-2 mb-1 cursor-pointer">
-                        <input type="radio" name="educational-answer" value="${index}" onchange="setEducationalAnswerSelection()" class="mt-0.5">
+                        <input type="radio" name="educational-answer" value="${index}" ${currentEducationalAnswerIndex === index ? 'checked' : ''} onchange="setEducationalAnswerSelection()" class="mt-0.5">
                         <span>${option}</span>
                     </label>
                 `).join('')
@@ -1425,7 +1427,7 @@
                 <p class="text-yellow-500">REWARD: +${currentEducationalQuest.rewardTabs || 0} TABS, +${currentEducationalQuest.rewardXp || 0} XP</p>
                 <p class="text-orange-300">WRONG ANSWER: small HP or RAD penalty</p>
             `;
-            submitButton.disabled = true;
+            submitButton.disabled = !Number.isInteger(currentEducationalAnswerIndex);
         }
 
         async function generateEducationalQuiz(button) {
@@ -1441,6 +1443,7 @@
                     button,
                     busyText: 'GENERATING...'
                 });
+                currentEducationalAnswerIndex = null;
                 renderEducationalQuizPanel();
                 notify(`QUIZ GENERATED: ${currentEducationalQuest.title}`);
             } catch (e) {
@@ -1452,8 +1455,9 @@
         function setEducationalAnswerSelection() {
             const button = document.getElementById('educational-quest-complete-btn');
             const chosen = document.querySelector('input[name="educational-answer"]:checked');
+            currentEducationalAnswerIndex = chosen ? Number(chosen.value) : null;
             if (button) {
-                button.disabled = !chosen;
+                button.disabled = !Number.isInteger(currentEducationalAnswerIndex);
             }
         }
 
@@ -1490,6 +1494,7 @@
                     notify(`WRONG ANSWER: -${result.penalty?.hp || 0} HP, +${result.penalty?.rads || 0} RAD`);
                 }
                 currentEducationalQuest = null;
+                currentEducationalAnswerIndex = null;
                 await loadData();
             } catch (e) {
                 console.error('Error completing educational quest:', e);
