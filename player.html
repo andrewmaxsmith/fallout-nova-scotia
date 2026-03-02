@@ -379,6 +379,11 @@
             <div id="radio-broadcast" class="space-y-4">
                 <p class="text-[10px] italic opacity-70">WAITING FOR BROADCAST...</p>
             </div>
+            <div class="mt-4 border border-cyan-500/50 p-3 bg-cyan-950/10">
+                <p class="text-[10px] font-bold text-cyan-400 mb-2">TRANSMIT TO OVERSEER</p>
+                <textarea id="overseer-radio-text" class="w-full p-2 bg-black border border-pip-green text-pip-green text-[10px] font-mono mb-2" rows="3" maxlength="280" placeholder="Send a radio message to the Overseer (GM)..."></textarea>
+                <button onclick="sendRadioToOverseer(this)" class="pip-btn w-full py-2 text-[10px]">SEND TO OVERSEER</button>
+            </div>
         </div>
     </section>
 
@@ -803,6 +808,30 @@
                 notify('ENCOUNTER RESOLVED');
             } catch (e) {
                 console.error('Error resolving encounter:', e);
+            }
+        }
+
+        async function sendRadioToOverseer(button) {
+            const input = document.getElementById('overseer-radio-text');
+            const message = (input?.value || '').trim();
+
+            if (!message) {
+                notify('ENTER A MESSAGE FOR THE OVERSEER');
+                return;
+            }
+
+            try {
+                await apiRequest(`/api/player/${playerName}/radio-overseer`, {
+                    method: 'POST',
+                    body: { message },
+                    button,
+                    busyText: 'SENDING...'
+                });
+
+                input.value = '';
+                notify('TRANSMISSION SENT TO OVERSEER');
+            } catch (e) {
+                console.error('Error sending Overseer transmission:', e);
             }
         }
 

@@ -392,6 +392,12 @@
                         </div>
                     </div>
                 </div>
+                <div class="pip-border p-3 border-dashed border-green-500 bg-green-950/10">
+                    <h3 class="text-sm font-bold text-green-400 mb-2">INCOMING PLAYER TRANSMISSIONS</h3>
+                    <div id="overseer-inbox" class="space-y-2 text-[10px]">
+                        <p class="opacity-60">No transmissions yet.</p>
+                    </div>
+                </div>
             </div>
         </section>
 
@@ -495,6 +501,11 @@
             renderPerks();
             renderEffects();
             renderRadio();
+
+            window.setInterval(async () => {
+                await loadGameState();
+                renderRadio();
+            }, 3000);
         }
 
         function setJoinLinks() {
@@ -803,8 +814,10 @@
         function renderRadio() {
             const loganList = document.getElementById('logan-radio-list');
             const rylynList = document.getElementById('rylyn-radio-list');
+            const overseerInbox = document.getElementById('overseer-inbox');
             loganList.innerHTML = '';
             rylynList.innerHTML = '';
+            overseerInbox.innerHTML = '';
             
             const allSignals = [...(gameData.radioSignals || []), ...(gameData.broadcastSignals || [])];
             if (allSignals.length > 0) {
@@ -822,6 +835,39 @@
                     rylynList.appendChild(rylynBtn);
                 });
             }
+
+            const inbox = Array.isArray(gameData.overseerInbox) ? gameData.overseerInbox : [];
+            if (inbox.length === 0) {
+                overseerInbox.innerHTML = '<p class="opacity-60">No transmissions yet.</p>';
+                return;
+            }
+
+            inbox.slice(0, 20).forEach((entry) => {
+                const created = entry.createdAt ? new Date(entry.createdAt) : null;
+                const timeLabel = created && !Number.isNaN(created.getTime())
+                    ? created.toLocaleString()
+                    : 'Unknown time';
+
+                const card = document.createElement('div');
+                card.className = 'border border-green-500/40 p-2 bg-black/30';
+
+                const titleEl = document.createElement('p');
+                titleEl.className = 'text-green-300 font-bold';
+                titleEl.textContent = entry.title || 'PLAYER TRANSMISSION';
+
+                const textEl = document.createElement('p');
+                textEl.className = 'opacity-80 my-1';
+                textEl.textContent = entry.text || '';
+
+                const timeEl = document.createElement('p');
+                timeEl.className = 'text-[8px] opacity-60';
+                timeEl.textContent = timeLabel;
+
+                card.appendChild(titleEl);
+                card.appendChild(textEl);
+                card.appendChild(timeEl);
+                overseerInbox.appendChild(card);
+            });
         }
 
         function renderQuarters() {

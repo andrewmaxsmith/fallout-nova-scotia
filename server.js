@@ -529,7 +529,8 @@ const BASE_GAME_STATE = {
             effect: 'Once per session, call the other survivor for +1 to any C.H.A.P.P.Y. roll.'
         }
     ],
-    trades: []
+    trades: [],
+    overseerInbox: []
 };
 
 function createInitialGameState() {

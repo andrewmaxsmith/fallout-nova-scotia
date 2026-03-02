@@ -187,6 +187,44 @@ function registerGameplayRoutes(app, deps) {
         res.json({ success: true, message: 'Custom signal sent', signal: customSignal });
     });
 
+    app.post('/api/player/:player/radio-overseer', (req, res) => {
+        const { player } = req.params;
+        const { message } = req.body;
+        const gameState = getGameState();
+
+        if (!gameState.players[player]) {
+            return res.status(404).json({ error: 'Player not found' });
+        }
+        if (typeof message !== 'string') {
+            return res.status(400).json({ error: 'Message must be text' });
+        }
+
+        const cleanedMessage = message.trim();
+        if (cleanedMessage.length === 0 || cleanedMessage.length > 280) {
+            return res.status(400).json({ error: 'Message must be 1-280 characters' });
+        }
+
+        if (!Array.isArray(gameState.overseerInbox)) {
+            gameState.overseerInbox = [];
+        }
+
+        const transmission = {
+            id: `ovr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+            player,
+            title: `${player.toUpperCase()} TRANSMISSION`,
+            text: cleanedMessage,
+            createdAt: new Date().toISOString()
+        };
+
+        gameState.overseerInbox.unshift(transmission);
+        if (gameState.overseerInbox.length > 100) {
+            gameState.overseerInbox = gameState.overseerInbox.slice(0, 100);
+        }
+
+        scheduleAutoSave();
+        res.json({ success: true, message: 'Transmission sent to Overseer', transmission });
+    });
+
     app.post('/api/player/:player/scrap/:type', (req, res) => {
         const { player, type } = req.params;
         const { amount } = req.body;
