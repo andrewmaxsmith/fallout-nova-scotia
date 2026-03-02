@@ -288,6 +288,30 @@
 
                 <!-- PLAYER QUEST STATUS & ENCOUNTERS -->
                 <div class="pip-border p-4 bg-black/50 space-y-4">
+                    <div class="pip-border p-3 border-dashed border-cyan-500 bg-cyan-950/10">
+                        <h3 class="text-sm font-bold text-cyan-400 mb-2">GM EVENT CARDS</h3>
+                        <button onclick="drawEventCard(this)" class="pip-btn w-full py-2 text-sm font-bold mb-2">DRAW EVENT CARD</button>
+                        <div id="event-card-log" class="text-[10px] opacity-80">
+                            <p>NO EVENT DRAWN YET</p>
+                        </div>
+                    </div>
+
+                    <div class="pip-border p-3 border-dashed border-blue-500 bg-blue-950/10">
+                        <h3 class="text-sm font-bold text-blue-400 mb-2">SHARED TEAM OBJECTIVE</h3>
+                        <button onclick="startTeamObjective(this)" class="pip-btn w-full py-2 text-sm font-bold mb-2">START RANDOM OBJECTIVE</button>
+                        <div id="team-objective-status" class="text-[10px] opacity-80">
+                            <p>NO ACTIVE TEAM OBJECTIVE</p>
+                        </div>
+                    </div>
+
+                    <div class="pip-border p-3 border-dashed border-purple-500 bg-purple-950/10">
+                        <h3 class="text-sm font-bold text-purple-300 mb-2">END OF SESSION RECAP</h3>
+                        <button onclick="generateSessionRecap(this)" class="pip-btn w-full py-2 text-sm font-bold mb-2">GENERATE RECAP</button>
+                        <div id="session-recap" class="text-[10px] opacity-80">
+                            <p>NO RECAP GENERATED YET</p>
+                        </div>
+                    </div>
+
                     <!-- RANDOM ENCOUNTERS -->
                     <div class="pip-border p-3 border-dashed border-yellow-500 bg-yellow-950/10">
                         <h3 class="text-sm font-bold text-yellow-500 mb-2">BROADCAST ENCOUNTER</h3>
@@ -503,10 +527,12 @@
             renderPerks();
             renderEffects();
             renderRadio();
+            renderTeamObjectiveStatus();
 
             window.setInterval(async () => {
                 await loadGameState();
                 renderRadio();
+                renderTeamObjectiveStatus();
             }, 3000);
         }
 
@@ -717,7 +743,7 @@
                             div.innerHTML = `
                                 <p class="font-bold text-yellow-400 text-[10px]">${quest.title}</p>
                                 <p class="text-[9px] opacity-90 mb-1">${quest.desc}</p>
-                                <p class="text-[8px] opacity-70 mb-1">Reward: ${quest.reward} tabs, ${quest.xp} XP</p>
+                                <p class="text-[8px] opacity-70 mb-1">Reward: ${(quest.rewardTabs ?? quest.reward ?? 0)} tabs, ${quest.xp} XP</p>
                                 <button onclick="completeQuestForPlayer('logan', '${quest.id}', this)" class="pip-btn text-[8px] w-full mt-1 bg-green-900 hover:bg-green-700">✓ COMPLETE</button>
                             `;
                             loganQuestsDiv.appendChild(div);
@@ -739,7 +765,7 @@
                             div.innerHTML = `
                                 <p class="font-bold text-yellow-400 text-[10px]">${quest.title}</p>
                                 <p class="text-[9px] opacity-90 mb-1">${quest.desc}</p>
-                                <p class="text-[8px] opacity-70 mb-1">Reward: ${quest.reward} tabs, ${quest.xp} XP</p>
+                                <p class="text-[8px] opacity-70 mb-1">Reward: ${(quest.rewardTabs ?? quest.reward ?? 0)} tabs, ${quest.xp} XP</p>
                                 <button onclick="completeQuestForPlayer('rylyn', '${quest.id}', this)" class="pip-btn text-[8px] w-full mt-1 bg-green-900 hover:bg-green-700">✓ COMPLETE</button>
                             `;
                             rylynQuestsDiv.appendChild(div);
@@ -794,6 +820,7 @@
                         list.appendChild(categoryDiv);
 
                         categorized[cat].forEach(q => {
+                            const chain = (gameData.questChains || []).find(c => (c.questIds || []).includes(q.id));
                             const div = document.createElement('div');
                             div.className = 'border border-pip-green/30 p-2 text-[10px] mb-2';
                             const scrapRewards = q.rewardScrap ? Object.entries(q.rewardScrap).map(([type, amt]) => `${type} x${amt}`).join(', ') : 'None';
@@ -801,6 +828,7 @@
                                 <p class="font-bold text-yellow-400">${q.title}</p>
                                 <p class="text-[9px] opacity-90 mb-1">${q.desc}</p>
                                 <p class="text-[8px] opacity-70 mb-2">TABS: ${q.rewardTabs} | SCRAP: ${scrapRewards} | XP: ${q.xp}</p>
+                                ${chain ? `<p class="text-[8px] text-cyan-400 mb-1">CHAIN: ${chain.name}</p>` : ''}
                                 <div class="flex gap-1">
                                     <button onclick="sendQuestToPlayer('logan', '${q.id}', this)" class="pip-btn text-[8px] px-2 flex-1">→ LOGAN</button>
                                     <button onclick="sendQuestToPlayer('rylyn', '${q.id}', this)" class="pip-btn text-[8px] px-2 flex-1">→ RYLYN</button>
@@ -1175,6 +1203,87 @@
                 renderQuarters();
             } catch (e) {
                 console.error('Error granting upgrade:', e);
+            }
+        }
+
+        function renderTeamObjectiveStatus() {
+            const statusEl = document.getElementById('team-objective-status');
+            if (!statusEl) return;
+
+            const objective = gameData.activeTeamObjective;
+            if (!objective) {
+                statusEl.innerHTML = '<p>NO ACTIVE TEAM OBJECTIVE</p>';
+                return;
+            }
+
+            const contributors = objective.contributors || {};
+            const rows = Object.entries(contributors)
+                .map(([player, done]) => `<p>${player.toUpperCase()}: ${done ? '✓ CONTRIBUTED' : 'PENDING'}</p>`)
+                .join('');
+
+            statusEl.innerHTML = `
+                <p class="font-bold text-blue-300 mb-1">${objective.name}</p>
+                <p class="opacity-80 mb-1">${objective.desc}</p>
+                ${rows}
+            `;
+        }
+
+        async function startTeamObjective(button) {
+            try {
+                const result = await apiRequest('/api/team-objective/start-random', {
+                    method: 'POST',
+                    button,
+                    busyText: 'STARTING...'
+                });
+                showNotice(`Team objective started: ${result.objective.name}`, 'success');
+                await loadGameState();
+                renderTeamObjectiveStatus();
+            } catch (e) {
+                console.error('Error starting team objective:', e);
+            }
+        }
+
+        async function drawEventCard(button) {
+            try {
+                const result = await apiRequest('/api/event-cards/draw', {
+                    method: 'POST',
+                    button,
+                    busyText: 'DRAWING...'
+                });
+                const log = document.getElementById('event-card-log');
+                if (log) {
+                    log.innerHTML = `
+                        <p class="font-bold text-cyan-300 mb-1">${result.card.name}</p>
+                        <p>${result.card.text}</p>
+                    `;
+                }
+                showNotice(`Event card: ${result.card.name}`, 'success');
+                await loadGameState();
+                renderTeamObjectiveStatus();
+            } catch (e) {
+                console.error('Error drawing event card:', e);
+            }
+        }
+
+        async function generateSessionRecap(button) {
+            try {
+                const recap = await apiRequest('/api/session/recap', {
+                    method: 'GET',
+                    button,
+                    busyText: 'GENERATING...'
+                });
+                const recapEl = document.getElementById('session-recap');
+                if (recapEl) {
+                    recapEl.innerHTML = `
+                        <p>QUESTS: LOGAN ${recap.questsDone?.logan || 0}, RYLYN ${recap.questsDone?.rylyn || 0}</p>
+                        <p class="mt-1">FUNNIEST RADIO: ${(recap.funniestRadio?.text || '').slice(0, 120)}</p>
+                        <p class="mt-1">TOP SCAVENGER: ${(recap.topScavenger?.player || 'N/A').toUpperCase()} (+${recap.topScavenger?.scrapGained || 0} SCRAP)</p>
+                        <p class="mt-1 text-purple-300">NEXT EPISODE: ${recap.teaser}</p>
+                    `;
+                }
+                showNotice('Session recap generated', 'success');
+            } catch (e) {
+                console.error('Error generating recap:', e);
             }
         }
 

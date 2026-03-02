@@ -14,7 +14,7 @@ const PORT = process.env.PORT || 5000;
 const SAVE_DEBOUNCE_MS = 500;
 const PERIODIC_SAVE_MS = Number(process.env.PERIODIC_SAVE_MS || 60000);
 const SAVE_BACKUP_LIMIT = Number(process.env.SAVE_BACKUP_LIMIT || 20);
-const GAME_STATE_VERSION = 2; // Increment when schema changes
+const GAME_STATE_VERSION = 3; // Increment when schema changes
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const SUPABASE_TABLE = process.env.SUPABASE_TABLE || 'game_state';
@@ -330,6 +330,154 @@ const BASE_GAME_STATE = {
         q15: 'r8',
         q16: 'r9',
         q17: 'r10'
+    },
+    questChains: [
+        {
+            id: 'chain_tidewatch',
+            name: 'TIDEWATCH PROTOCOL',
+            questIds: ['q12', 'q13', 'q14'],
+            finalReward: {
+                tabs: 20,
+                xp: 2,
+                perkId: 'p17',
+                item: 'Tidewatch Signal Decoder'
+            }
+        },
+        {
+            id: 'chain_wildfrontier',
+            name: 'WILD FRONTIER SWEEP',
+            questIds: ['q16', 'q17'],
+            finalReward: {
+                tabs: 15,
+                xp: 1,
+                item: 'Park Warden Field Kit'
+            }
+        }
+    ],
+    radioConsequences: {
+        trapSignalIds: ['b4', 'b5', 'b8', 'b16'],
+        verifyDc: 10,
+        failure: {
+            hpLoss: 1,
+            radsGain: 1
+        },
+        success: {
+            tabsGain: 5
+        }
+    },
+    eventCards: [
+        {
+            id: 'ev_rad_storm',
+            name: 'RAD STORM',
+            text: 'A toxic rad storm rolls over the zone. All players take +1 RAD.',
+            effect: { rads: 1 }
+        },
+        {
+            id: 'ev_merchant_visit',
+            name: 'MERCHANT VISIT',
+            text: 'A roaming merchant appears. All players gain +10 Tabs.',
+            effect: { tabs: 10 }
+        },
+        {
+            id: 'ev_vault_breach',
+            name: 'VAULT BREACH',
+            text: 'A vault breach causes injuries. All players lose 1 HP.',
+            effect: { hp: -1 }
+        },
+        {
+            id: 'ev_ally_rescue',
+            name: 'ALLY RESCUE',
+            text: 'A rescued ally shares supplies. All players gain +1 random scrap.',
+            effect: { randomScrap: 1 }
+        }
+    ],
+    achievements: [
+        {
+            id: 'ach_first_craft',
+            name: 'FIRST CRAFT',
+            desc: 'Craft your first item.',
+            reward: { tabs: 3, xp: 1 }
+        },
+        {
+            id: 'ach_quest_runner',
+            name: 'QUEST RUNNER',
+            desc: 'Complete 10 quests.',
+            reward: { tabs: 10, xp: 2 }
+        },
+        {
+            id: 'ach_chappy_master',
+            name: 'CHAPPY MASTER',
+            desc: 'Reach 8 in any C.H.A.P.P.Y. stat.',
+            reward: { tabs: 5, xp: 1 }
+        }
+    ],
+    classPassives: {
+        scavenger: {
+            id: 'scavenger',
+            label: 'SCAVENGER',
+            desc: 'Gain +1 random scrap after encounters.'
+        },
+        vanguard: {
+            id: 'vanguard',
+            label: 'VANGUARD',
+            desc: 'Recover +1 HP after encounter resolve (up to max).' 
+        },
+        signaler: {
+            id: 'signaler',
+            label: 'SIGNALER',
+            desc: 'Get +2 tabs on successful radio verification.'
+        },
+        diplomat: {
+            id: 'diplomat',
+            label: 'DIPLOMAT',
+            desc: 'Gain +2 tabs when completing quests.'
+        }
+    },
+    teamObjectives: [
+        {
+            id: 'team_signal_tower',
+            name: 'SIGNAL TOWER STABILIZATION',
+            desc: 'Both players must contribute calibration work to stabilize the tower.',
+            reward: { tabs: 10, xp: 1 }
+        },
+        {
+            id: 'team_convoy_escort',
+            name: 'CONVOY ESCORT',
+            desc: 'Coordinate and escort the supply convoy through raider territory.',
+            reward: { tabs: 12, xp: 1 }
+        },
+        {
+            id: 'team_fog_survey',
+            name: 'FOG SURVEY',
+            desc: 'Both players gather readings from separate sectors and report in.',
+            reward: { tabs: 8, xp: 1 }
+        }
+    ],
+    activeTeamObjective: null,
+    sessionMetrics: {
+        startedAt: new Date().toISOString(),
+        questCompletions: {
+            logan: 0,
+            rylyn: 0
+        },
+        scrapGained: {
+            logan: 0,
+            rylyn: 0
+        },
+        funniestRadio: null,
+        lastRecap: null
+    },
+    playerProgress: {
+        logan: {
+            achievements: [],
+            chainProgress: {},
+            passiveKey: null
+        },
+        rylyn: {
+            achievements: [],
+            chainProgress: {},
+            passiveKey: null
+        }
     },
     randomEncounters: [
         {

@@ -197,6 +197,7 @@
                 <div class="flex justify-between items-start mb-4">
                     <div>
                         <h2 id="display-class" class="text-xl">CLASS</h2>
+                        <p id="display-passive" class="text-[9px] opacity-75 mt-1">PASSIVE: NONE</p>
                     </div>
                     <div class="text-right">
                         <p class="text-[10px]">LEVEL</p>
@@ -255,6 +256,13 @@
                     <p class="text-[10px] opacity-70">No perks unlocked yet.</p>
                 </div>
             </div>
+
+            <div>
+                <h3 class="text-xs font-bold text-cyan-400 mb-2">MILESTONES</h3>
+                <div id="achievements-list" class="space-y-2">
+                    <p class="text-[10px] opacity-70">No milestones unlocked yet.</p>
+                </div>
+            </div>
         </div>
     </section>
 
@@ -283,6 +291,12 @@
                 <div id="quests-list" class="space-y-2">
                     <!-- Active quests injected here -->
                 </div>
+            </div>
+
+            <div class="pip-border p-3 border-dashed border-cyan-500 bg-cyan-950/10">
+                <h3 class="text-xs font-bold text-cyan-400 mb-2">TEAM OBJECTIVE</h3>
+                <div id="team-objective-box" class="text-[10px] opacity-80 mb-2">NO ACTIVE TEAM OBJECTIVE</div>
+                <button onclick="contributeTeamObjective(this)" id="team-objective-btn" class="pip-btn w-full py-2 text-[10px]" disabled>CONTRIBUTE</button>
             </div>
 
             <div>
@@ -456,6 +470,9 @@
         let allRecipes = [];
         let allQuartersUpgrades = [];
         let playerQuarters = [];
+        let fullGameState = {};
+        let activeTeamObjective = null;
+        let playerAchievements = [];
         let cachedTierPerkChoiceIds = [];
         let cachedTierForPerkChoices = null;
         let cachedUpgradeChoiceIds = [];
@@ -628,14 +645,16 @@
 
         async function loadData() {
             try {
-                const [player, quests, radio, perks, recipes, quartersShop, quarters] = await Promise.all([
+                const [player, quests, radio, perks, recipes, quartersShop, quarters, state, achievementData] = await Promise.all([
                     apiRequest(`/api/player/${playerName}`, { showError: false }),
                     apiRequest('/api/quests', { showError: false }),
                     apiRequest('/api/radio', { showError: false }),
                     apiRequest('/api/perks', { showError: false }),
                     apiRequest('/api/recipes', { showError: false }),
                     apiRequest('/api/quarters-shop', { showError: false }),
-                    apiRequest(`/api/player/${playerName}/quarters`, { showError: false })
+                    apiRequest(`/api/player/${playerName}/quarters`, { showError: false }),
+                    apiRequest('/api/game-state', { showError: false }),
+                    apiRequest(`/api/player/${playerName}/achievements`, { showError: false })
                 ]);
 
                 playerData = player || {};
@@ -645,6 +664,9 @@
                 allRecipes = recipes || [];
                 allQuartersUpgrades = quartersShop || [];
                 playerQuarters = quarters || [];
+                fullGameState = state || {};
+                activeTeamObjective = fullGameState.activeTeamObjective || null;
+                playerAchievements = achievementData?.unlocked || [];
 
                 updateUI();
                 document.getElementById('sync-status').textContent = '✓ SYNCED';
@@ -668,6 +690,9 @@
             // Update header info
             document.getElementById('display-level').textContent = playerData.level || 1;
             document.getElementById('display-class').textContent = playerData.class || 'UNCLASSIFIED';
+            const passiveLabel = playerData.classPassive?.label || 'NONE';
+            const passiveDesc = playerData.classPassive?.desc || 'No passive active yet.';
+            document.getElementById('display-passive').textContent = `PASSIVE: ${passiveLabel} — ${passiveDesc}`;
             document.getElementById('display-tabs').textContent = playerData.tabs || 0;
             document.getElementById('display-faction').textContent = playerData.faction || 'NONE';
 
@@ -709,6 +734,7 @@
             }
             // Update quests
             updateQuests();
+            updateTeamObjective();
 
             // Update scrap
             updateScrap();
@@ -721,6 +747,7 @@
 
             // Update perks
             updatePerks();
+            updateAchievements();
 
             // Update recipes
             updateRecipes();
@@ -739,6 +766,7 @@
                 playerData.activeQuests.forEach(questId => {
                     const quest = allQuests.find(q => q.id === questId);
                     if (quest) {
+                        const chain = (fullGameState.questChains || []).find(c => (c.questIds || []).includes(quest.id));
                         const div = document.createElement('div');
                         div.className = 'quest-card';
                         const scrapRewards = quest.rewardScrap ? Object.entries(quest.rewardScrap).map(([type, amt]) => `${type} x${amt}`).join(', ') : 'None';
@@ -747,6 +775,7 @@
                             <p class="text-[10px] opacity-80 mb-2">${quest.desc}</p>
                             <p class="text-[10px] text-yellow-500">TABS: ${quest.rewardTabs} | SCRAP: ${scrapRewards}</p>
                             <p class="text-[10px] text-green-400">XP: ${quest.xp}</p>
+                            ${chain ? `<p class="text-[9px] text-cyan-400 mt-1">CHAIN: ${chain.name}</p>` : ''}
                         `;
                         list.appendChild(div);
                     }
@@ -767,6 +796,55 @@
             }
         }
 
+        function updateTeamObjective() {
+            const box = document.getElementById('team-objective-box');
+            const button = document.getElementById('team-objective-btn');
+            if (!box || !button) return;
+
+            if (!activeTeamObjective) {
+                box.textContent = 'NO ACTIVE TEAM OBJECTIVE';
+                button.disabled = true;
+                return;
+            }
+
+            const contributors = activeTeamObjective.contributors || {};
+            const meDone = Boolean(contributors[playerName]);
+            const othersDone = Object.entries(contributors)
+                .filter(([name]) => name !== playerName)
+                .every(([, done]) => Boolean(done));
+
+            box.innerHTML = `
+                <p class="font-bold text-cyan-300">${activeTeamObjective.name}</p>
+                <p class="opacity-80 mb-1">${activeTeamObjective.desc}</p>
+                <p class="text-[9px] text-yellow-500">YOUR CONTRIBUTION: ${meDone ? 'DONE' : 'PENDING'}</p>
+                <p class="text-[9px] text-yellow-500">TEAM STATUS: ${othersDone && meDone ? 'COMPLETE' : 'IN PROGRESS'}</p>
+            `;
+
+            button.disabled = meDone;
+            button.textContent = meDone ? 'CONTRIBUTION COMPLETE' : 'CONTRIBUTE';
+        }
+
+        function updateAchievements() {
+            const list = document.getElementById('achievements-list');
+            if (!list) return;
+
+            if (!Array.isArray(playerAchievements) || playerAchievements.length === 0) {
+                list.innerHTML = '<p class="text-[10px] opacity-70">No milestones unlocked yet.</p>';
+                return;
+            }
+
+            list.innerHTML = '';
+            playerAchievements.forEach((achievement) => {
+                const card = document.createElement('div');
+                card.className = 'border border-cyan-500/40 p-2 bg-cyan-950/20';
+                card.innerHTML = `
+                    <p class="font-bold text-cyan-300 text-[10px]">${achievement.name}</p>
+                    <p class="text-[9px] opacity-75">${achievement.desc}</p>
+                `;
+                list.appendChild(card);
+            });
+        }
+
         function updateRadio() {
             const broadcast = document.getElementById('radio-broadcast');
             let activeSignalKey = null;
@@ -777,11 +855,15 @@
                 const resolveButton = playerData.activeRadioData.requiresResolve
                     ? '<button onclick="resolveEncounter(this)" class="pip-btn w-full py-2 text-[10px] mt-3">RESOLVE</button>'
                     : '';
+                const verifyButton = (playerData.activeRadioData.isTrapCandidate && !playerData.activeRadioData.verified)
+                    ? '<button onclick="verifyRadioSignal(this)" class="pip-btn w-full py-2 text-[10px] mt-2">VERIFY SIGNAL</button>'
+                    : '';
                 broadcast.innerHTML = `
                     <div class="radio-alert">
                         <h3 class="font-bold text-sm mb-2">${playerData.activeRadioData.title}</h3>
                         <p class="text-[10px] italic leading-relaxed">${safeText}</p>
                         ${resolveButton}
+                        ${verifyButton}
                     </div>
                 `;
                 activeSignalKey = `data:${playerData.activeRadioData.id || ''}:${playerData.activeRadioData.text || ''}`;
@@ -813,6 +895,45 @@
             }
 
             lastSeenRadioSignalKey = activeSignalKey;
+        }
+
+        async function verifyRadioSignal(button) {
+            try {
+                const result = await apiRequest(`/api/player/${playerName}/radio/verify`, {
+                    method: 'POST',
+                    body: { stat: 'perception' },
+                    button,
+                    busyText: 'VERIFYING...'
+                });
+
+                if (result.outcome === 'success') {
+                    notify('SIGNAL VERIFIED. DECOY AVOIDED.');
+                } else {
+                    notify('TRAP TRIGGERED!');
+                }
+                await loadData();
+            } catch (e) {
+                console.error('Error verifying signal:', e);
+            }
+        }
+
+        async function contributeTeamObjective(button) {
+            try {
+                const result = await apiRequest(`/api/player/${playerName}/team-objective/contribute`, {
+                    method: 'POST',
+                    button,
+                    busyText: 'CONTRIBUTING...'
+                });
+
+                if (result.completion) {
+                    notify(`TEAM OBJECTIVE COMPLETE: ${result.completion.objectiveName}`);
+                } else {
+                    notify('CONTRIBUTION LOGGED');
+                }
+                await loadData();
+            } catch (e) {
+                console.error('Error contributing to objective:', e);
+            }
         }
 
         async function resolveEncounter(button) {

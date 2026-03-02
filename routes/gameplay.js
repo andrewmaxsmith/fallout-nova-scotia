@@ -15,6 +15,252 @@ function registerGameplayRoutes(app, deps) {
         getGameStateVersion
     } = deps;
 
+    const CHAPPY_STATS = ['charm', 'hardiness', 'agility', 'perception', 'politeness', 'yarns'];
+
+    function ensureMetaState(gameState) {
+        if (!gameState.sessionMetrics) {
+            gameState.sessionMetrics = {
+                startedAt: new Date().toISOString(),
+                questCompletions: { logan: 0, rylyn: 0 },
+                scrapGained: { logan: 0, rylyn: 0 },
+                funniestRadio: null,
+                lastRecap: null
+            };
+        }
+
+        if (!gameState.playerProgress) {
+            gameState.playerProgress = {};
+        }
+
+        Object.keys(gameState.players || {}).forEach((playerKey) => {
+            if (!gameState.playerProgress[playerKey]) {
+                gameState.playerProgress[playerKey] = {};
+            }
+            const entry = gameState.playerProgress[playerKey];
+            if (!Array.isArray(entry.achievements)) entry.achievements = [];
+            if (!entry.chainProgress || typeof entry.chainProgress !== 'object') entry.chainProgress = {};
+            if (!entry.passiveKey) entry.passiveKey = null;
+            if (typeof entry.teamContribution !== 'boolean') entry.teamContribution = false;
+        });
+    }
+
+    function getDominantStat(playerData) {
+        const stats = playerData?.stats || {};
+        let bestStat = 'charm';
+        let bestValue = -Infinity;
+        CHAPPY_STATS.forEach((stat) => {
+            const value = Number(stats[stat] || 0);
+            if (value > bestValue) {
+                bestValue = value;
+                bestStat = stat;
+            }
+        });
+        return bestStat;
+    }
+
+    function resolvePassiveKey(playerData) {
+        const className = String(playerData?.class || '').toLowerCase();
+        if (className.includes('scav')) return 'scavenger';
+        if (className.includes('vanguard') || className.includes('tank') || className.includes('bruiser')) return 'vanguard';
+        if (className.includes('signal') || className.includes('tech') || className.includes('radio')) return 'signaler';
+        if (className.includes('diplo') || className.includes('face')) return 'diplomat';
+
+        const dominant = getDominantStat(playerData);
+        if (dominant === 'hardiness') return 'vanguard';
+        if (dominant === 'perception' || dominant === 'yarns') return 'signaler';
+        if (dominant === 'charm' || dominant === 'politeness') return 'diplomat';
+        return 'scavenger';
+    }
+
+    function syncPlayerPassive(gameState, player) {
+        ensureMetaState(gameState);
+        const playerData = gameState.players[player];
+        if (!playerData) return null;
+
+        const passiveKey = resolvePassiveKey(playerData);
+        gameState.playerProgress[player].passiveKey = passiveKey;
+        playerData.classPassiveKey = passiveKey;
+        playerData.classPassive = gameState.classPassives?.[passiveKey] || null;
+        return passiveKey;
+    }
+
+    function addXpWithLeveling(playerData, xpAmount) {
+        let levelsGained = 0;
+        const safeXp = Number(xpAmount || 0);
+        if (safeXp <= 0) return levelsGained;
+
+        playerData.xp = (playerData.xp || 0) + safeXp;
+        let xpNeeded = getXpRequiredForLevel(playerData.level);
+        while (playerData.xp >= xpNeeded) {
+            playerData.xp -= xpNeeded;
+            playerData.level += 1;
+            levelsGained += 1;
+            xpNeeded = getXpRequiredForLevel(playerData.level);
+        }
+
+        playerData.pendingPerks = (playerData.pendingPerks || 0) + levelsGained;
+        playerData.xpToNext = getXpRequiredForLevel(playerData.level);
+        return levelsGained;
+    }
+
+    function grantAchievement(gameState, player, achievementId) {
+        ensureMetaState(gameState);
+        const playerData = gameState.players[player];
+        const progress = gameState.playerProgress[player];
+        const achievement = (gameState.achievements || []).find(a => a.id === achievementId);
+        if (!playerData || !progress || !achievement) return null;
+        if (progress.achievements.includes(achievementId)) return null;
+
+        progress.achievements.push(achievementId);
+        playerData.achievements = [...progress.achievements];
+
+        const reward = achievement.reward || {};
+        playerData.tabs = (playerData.tabs || 0) + Number(reward.tabs || 0);
+        addXpWithLeveling(playerData, Number(reward.xp || 0));
+
+        return achievement;
+    }
+
+    function evaluateAchievements(gameState, player, context = {}) {
+        const playerData = gameState.players[player];
+        if (!playerData) return [];
+
+        const unlocked = [];
+        if (context.craftedFirstItem && (playerData.craftedGear || []).length >= 1) {
+            const added = grantAchievement(gameState, player, 'ach_first_craft');
+            if (added) unlocked.push(added);
+        }
+
+        if ((playerData.completedQuests || []).length >= 10) {
+            const added = grantAchievement(gameState, player, 'ach_quest_runner');
+            if (added) unlocked.push(added);
+        }
+
+        const maxStat = Math.max(...Object.values(playerData.stats || {}).map(v => Number(v || 0)), 0);
+        if (maxStat >= 8) {
+            const added = grantAchievement(gameState, player, 'ach_chappy_master');
+            if (added) unlocked.push(added);
+        }
+
+        return unlocked;
+    }
+
+    function applyQuestChainProgress(gameState, player, questId) {
+        ensureMetaState(gameState);
+        const chains = Array.isArray(gameState.questChains) ? gameState.questChains : [];
+        const progress = gameState.playerProgress[player];
+        const playerData = gameState.players[player];
+        if (!progress || !playerData) return null;
+
+        for (const chain of chains) {
+            if (!Array.isArray(chain.questIds) || !chain.questIds.includes(questId)) {
+                continue;
+            }
+
+            const chainState = progress.chainProgress[chain.id] || {
+                completedQuestIds: [],
+                completed: false
+            };
+
+            if (!chainState.completedQuestIds.includes(questId)) {
+                chainState.completedQuestIds.push(questId);
+            }
+
+            const allComplete = chain.questIds.every(id => chainState.completedQuestIds.includes(id));
+            let finalRewardApplied = false;
+
+            if (allComplete && !chainState.completed) {
+                chainState.completed = true;
+                const reward = chain.finalReward || {};
+                playerData.tabs = (playerData.tabs || 0) + Number(reward.tabs || 0);
+                addXpWithLeveling(playerData, Number(reward.xp || 0));
+
+                if (reward.perkId && Array.isArray(playerData.unlockedPerks) && !playerData.unlockedPerks.includes(reward.perkId)) {
+                    playerData.unlockedPerks.push(reward.perkId);
+                }
+
+                if (reward.item) {
+                    if (!Array.isArray(playerData.inventory)) {
+                        playerData.inventory = [];
+                    }
+                    playerData.inventory.push({ id: `reward-${Date.now()}`, name: reward.item, qty: 1 });
+                }
+
+                finalRewardApplied = true;
+            }
+
+            progress.chainProgress[chain.id] = chainState;
+            return {
+                chainId: chain.id,
+                chainName: chain.name,
+                completedQuestIds: [...chainState.completedQuestIds],
+                complete: Boolean(chainState.completed),
+                finalRewardApplied
+            };
+        }
+
+        return null;
+    }
+
+    function applyClassPassive(gameState, player, trigger) {
+        const playerData = gameState.players[player];
+        if (!playerData) return null;
+        const passiveKey = syncPlayerPassive(gameState, player);
+
+        if (passiveKey === 'scavenger' && trigger === 'encounter') {
+            const scrapKeys = Object.keys(playerData.scrap || {});
+            if (scrapKeys.length > 0) {
+                const pick = scrapKeys[Math.floor(Math.random() * scrapKeys.length)];
+                playerData.scrap[pick] = (playerData.scrap[pick] || 0) + 1;
+                gameState.sessionMetrics.scrapGained[player] = (gameState.sessionMetrics.scrapGained[player] || 0) + 1;
+                return { passiveKey, text: `Scavenger proc: +1 ${pick}` };
+            }
+        }
+
+        if (passiveKey === 'vanguard' && trigger === 'encounter') {
+            const before = playerData.hp || 0;
+            playerData.hp = clamp(before + 1, 0, playerData.maxHp || 10);
+            const healed = playerData.hp - before;
+            if (healed > 0) {
+                return { passiveKey, text: `Vanguard proc: +${healed} HP` };
+            }
+        }
+
+        if (passiveKey === 'diplomat' && trigger === 'quest') {
+            playerData.tabs = (playerData.tabs || 0) + 2;
+            return { passiveKey, text: 'Diplomat proc: +2 Tabs' };
+        }
+
+        return null;
+    }
+
+    function buildSessionRecap(gameState) {
+        ensureMetaState(gameState);
+        const metrics = gameState.sessionMetrics;
+        const questStats = metrics.questCompletions || {};
+        const scrapStats = metrics.scrapGained || {};
+
+        const topScavenger = Object.entries(scrapStats).sort((a, b) => b[1] - a[1])[0] || ['logan', 0];
+        const funniestRadio = metrics.funniestRadio || { text: 'No player transmissions this session.' };
+
+        const teasers = [
+            'A distant beacon pings from beyond the fog line.',
+            'An unknown faction marks your vault on an old map.',
+            'A buried relay bunker powers on during the night.'
+        ];
+
+        const recap = {
+            generatedAt: new Date().toISOString(),
+            questsDone: questStats,
+            funniestRadio,
+            topScavenger: { player: topScavenger[0], scrapGained: topScavenger[1] || 0 },
+            teaser: teasers[Math.floor(Math.random() * teasers.length)]
+        };
+
+        metrics.lastRecap = recap;
+        return recap;
+    }
+
     app.get('/api/game-state', (req, res) => {
         const gameState = getGameState();
         const migratedState = migrateGameState(gameState);
@@ -23,7 +269,15 @@ function registerGameplayRoutes(app, deps) {
         }
 
         const currentState = getGameState();
+        ensureMetaState(currentState);
         Object.values(currentState.players).forEach(ensurePlayerProgressFields);
+        Object.keys(currentState.players || {}).forEach((playerKey) => {
+            syncPlayerPassive(currentState, playerKey);
+            const progress = currentState.playerProgress?.[playerKey];
+            if (progress) {
+                currentState.players[playerKey].achievements = [...(progress.achievements || [])];
+            }
+        });
         res.json(currentState);
     });
 
@@ -85,8 +339,10 @@ function registerGameplayRoutes(app, deps) {
 
         if (gameState.players[player] && gameState.players[player][stat] !== undefined) {
             gameState.players[player][stat] = validation.value;
+            syncPlayerPassive(gameState, player);
+            const unlocked = evaluateAchievements(gameState, player);
             scheduleAutoSave();
-            res.json({ success: true, message: `Updated ${player} ${stat}` });
+            res.json({ success: true, message: `Updated ${player} ${stat}`, achievementsUnlocked: unlocked.map(a => a.id) });
         } else {
             res.status(404).json({ error: 'Player or stat not found' });
         }
@@ -112,8 +368,10 @@ function registerGameplayRoutes(app, deps) {
 
         if (gameState.players[player]) {
             gameState.players[player].stats = stats;
+            syncPlayerPassive(gameState, player);
+            const unlocked = evaluateAchievements(gameState, player);
             scheduleAutoSave();
-            res.json({ success: true, message: `Updated ${player} stats`, stats: stats });
+            res.json({ success: true, message: `Updated ${player} stats`, stats: stats, achievementsUnlocked: unlocked.map(a => a.id) });
         } else {
             res.status(404).json({ error: 'Player not found' });
         }
@@ -128,6 +386,8 @@ function registerGameplayRoutes(app, deps) {
             const quest = gameState.quests.find(q => q.id === questId);
             if (quest && !gameState.players[player].activeQuests.includes(questId)) {
                 gameState.players[player].activeQuests.push(questId);
+                ensureMetaState(gameState);
+                syncPlayerPassive(gameState, player);
 
                 const radioId = gameState.questRadioMap[questId];
                 if (radioId) {
@@ -135,8 +395,14 @@ function registerGameplayRoutes(app, deps) {
                     gameState.players[player].activeRadioData = null;
                 }
 
+                const chainInfo = (gameState.questChains || []).find(chain => (chain.questIds || []).includes(questId)) || null;
+
                 scheduleAutoSave();
-                res.json({ success: true, message: `Quest sent to ${player}` });
+                res.json({
+                    success: true,
+                    message: `Quest sent to ${player}`,
+                    chain: chainInfo ? { id: chainInfo.id, name: chainInfo.name } : null
+                });
             } else {
                 res.status(400).json({ error: 'Quest already active or not found' });
             }
@@ -149,10 +415,23 @@ function registerGameplayRoutes(app, deps) {
         const gameState = getGameState();
 
         if (gameState.players[player]) {
+            ensureMetaState(gameState);
+            const trapSignalIds = gameState.radioConsequences?.trapSignalIds || [];
+            const isTrap = trapSignalIds.includes(radioId);
+
             gameState.players[player].activeRadio = radioId;
-            gameState.players[player].activeRadioData = null;
+            gameState.players[player].activeRadioData = isTrap
+                ? {
+                    id: `trap_${Date.now()}`,
+                    title: 'SUSPICIOUS TRANSMISSION',
+                    text: 'This broadcast may be a decoy. Verify signal integrity before acting.',
+                    isTrapCandidate: true,
+                    verifyDc: gameState.radioConsequences?.verifyDc || 10,
+                    verified: false
+                }
+                : null;
             scheduleAutoSave();
-            res.json({ success: true, message: `Radio signal sent to ${player}` });
+            res.json({ success: true, message: `Radio signal sent to ${player}`, isTrapCandidate: isTrap });
         }
     });
 
@@ -187,6 +466,68 @@ function registerGameplayRoutes(app, deps) {
         res.json({ success: true, message: 'Custom signal sent', signal: customSignal });
     });
 
+    app.post('/api/player/:player/radio/verify', (req, res) => {
+        const { player } = req.params;
+        const { stat = 'perception' } = req.body || {};
+        const gameState = getGameState();
+        const playerData = gameState.players[player];
+
+        if (!playerData) {
+            return res.status(404).json({ error: 'Player not found' });
+        }
+
+        const activeData = playerData.activeRadioData;
+        if (!activeData || !activeData.isTrapCandidate || activeData.verified) {
+            return res.status(400).json({ error: 'No unverified trap signal is active.' });
+        }
+
+        const statKey = CHAPPY_STATS.includes(String(stat)) ? stat : 'perception';
+        const statValue = Number(playerData.stats?.[statKey] || 0);
+        const roll = Math.floor(Math.random() * 20) + 1;
+        const total = roll + statValue;
+        const dc = Number(gameState.radioConsequences?.verifyDc || 10);
+
+        let outcome = 'success';
+        let notes = [];
+        if (total >= dc) {
+            const tabsGain = Number(gameState.radioConsequences?.success?.tabsGain || 0);
+            playerData.tabs = (playerData.tabs || 0) + tabsGain;
+            const passive = syncPlayerPassive(gameState, player);
+            if (passive === 'signaler') {
+                playerData.tabs += 2;
+                notes.push('Class passive: +2 Tabs');
+            }
+
+            activeData.verified = true;
+            activeData.text = `${activeData.text}\n\nVERIFIED: Signal authenticated. Decoy avoided.`;
+            if (tabsGain > 0) {
+                notes.push(`+${tabsGain} Tabs`);
+            }
+        } else {
+            outcome = 'failure';
+            const hpLoss = Number(gameState.radioConsequences?.failure?.hpLoss || 1);
+            const radsGain = Number(gameState.radioConsequences?.failure?.radsGain || 1);
+            playerData.hp = clamp((playerData.hp || 0) - hpLoss, 0, playerData.maxHp || 10);
+            playerData.rads = clamp((playerData.rads || 0) + radsGain, 0, 10);
+            activeData.verified = true;
+            activeData.text = `${activeData.text}\n\nFAILURE: It was a trap. You took damage and radiation.`;
+            notes.push(`HP -${hpLoss}`);
+            notes.push(`RADS +${radsGain}`);
+        }
+
+        scheduleAutoSave();
+        res.json({
+            success: true,
+            outcome,
+            check: { stat: statKey, roll, statValue, total, dc },
+            notes,
+            activeRadioData: activeData,
+            hp: playerData.hp,
+            rads: playerData.rads,
+            tabs: playerData.tabs
+        });
+    });
+
     app.post('/api/player/:player/radio-overseer', (req, res) => {
         const { player } = req.params;
         const { message } = req.body;
@@ -204,6 +545,8 @@ function registerGameplayRoutes(app, deps) {
             return res.status(400).json({ error: 'Message must be 1-280 characters' });
         }
 
+        ensureMetaState(gameState);
+
         if (!Array.isArray(gameState.overseerInbox)) {
             gameState.overseerInbox = [];
         }
@@ -219,6 +562,23 @@ function registerGameplayRoutes(app, deps) {
         gameState.overseerInbox.unshift(transmission);
         if (gameState.overseerInbox.length > 100) {
             gameState.overseerInbox = gameState.overseerInbox.slice(0, 100);
+        }
+
+        const currentFunniest = gameState.sessionMetrics.funniestRadio;
+        const funnyScore = (text) => {
+            const source = String(text || '').toLowerCase();
+            const markers = ['haha', 'lol', 'lmao', 'boom', 'donair', 'moose', 'fiddle'];
+            return markers.reduce((sum, marker) => sum + (source.includes(marker) ? 2 : 0), 0) + Math.min(5, Math.floor(source.length / 60));
+        };
+        const incomingScore = funnyScore(cleanedMessage);
+        const currentScore = currentFunniest ? funnyScore(currentFunniest.text) : -1;
+        if (!currentFunniest || incomingScore >= currentScore) {
+            gameState.sessionMetrics.funniestRadio = {
+                player,
+                text: cleanedMessage,
+                score: incomingScore,
+                at: transmission.createdAt
+            };
         }
 
         scheduleAutoSave();
@@ -285,24 +645,18 @@ function registerGameplayRoutes(app, deps) {
         const playerData = gameState.players[player];
 
         if (playerData) {
+            ensureMetaState(gameState);
             ensurePlayerProgressFields(playerData);
             const quest = gameState.quests.find(q => q.id === questId);
             if (quest) {
                 playerData.activeQuests = playerData.activeQuests.filter(q => q !== questId);
-                playerData.completedQuests.push(questId);
+                if (!playerData.completedQuests.includes(questId)) {
+                    playerData.completedQuests.push(questId);
+                }
                 const tabsReward = quest.rewardTabs || 0;
                 const xpReward = quest.xp || 0;
                 playerData.tabs += tabsReward;
-                playerData.xp += xpReward;
-
-                let levelsGained = 0;
-                let xpNeeded = getXpRequiredForLevel(playerData.level);
-                while (playerData.xp >= xpNeeded) {
-                    playerData.xp -= xpNeeded;
-                    playerData.level += 1;
-                    levelsGained += 1;
-                    xpNeeded = getXpRequiredForLevel(playerData.level);
-                }
+                addXpWithLeveling(playerData, xpReward);
 
                 if (quest.rewardScrap) {
                     Object.entries(quest.rewardScrap).forEach(([type, amount]) => {
@@ -310,12 +664,23 @@ function registerGameplayRoutes(app, deps) {
                             playerData.scrap[type] = 0;
                         }
                         playerData.scrap[type] += amount;
+                        gameState.sessionMetrics.scrapGained[player] = (gameState.sessionMetrics.scrapGained[player] || 0) + Number(amount || 0);
                     });
                 }
-                playerData.pendingPerks = (playerData.pendingPerks || 0) + levelsGained;
-                playerData.xpToNext = getXpRequiredForLevel(playerData.level);
+
+                const chainUpdate = applyQuestChainProgress(gameState, player, questId);
+                const passiveProc = applyClassPassive(gameState, player, 'quest');
+                const unlockedAchievements = evaluateAchievements(gameState, player);
+                gameState.sessionMetrics.questCompletions[player] = (gameState.sessionMetrics.questCompletions[player] || 0) + 1;
+
                 scheduleAutoSave();
-                res.json({ success: true, message: `${player} completed ${quest.title}` });
+                res.json({
+                    success: true,
+                    message: `${player} completed ${quest.title}`,
+                    chainUpdate,
+                    passiveProc,
+                    achievementsUnlocked: unlockedAchievements.map(a => ({ id: a.id, name: a.name }))
+                });
             }
         }
     });
@@ -423,6 +788,17 @@ function registerGameplayRoutes(app, deps) {
         if (!Array.isArray(playerData.craftedGear)) {
             playerData.craftedGear = [];
         }
+        ensureMetaState(gameState);
+        syncPlayerPassive(gameState, player);
+
+        const finalizeCraft = (payload) => {
+            const unlocked = evaluateAchievements(gameState, player, { craftedFirstItem: true });
+            scheduleAutoSave();
+            return res.json({
+                ...payload,
+                achievementsUnlocked: unlocked.map(a => ({ id: a.id, name: a.name }))
+            });
+        };
 
         const recipe = gameState.recipes.find(r => r.id === recipeId);
         if (!recipe) {
@@ -479,9 +855,7 @@ function registerGameplayRoutes(app, deps) {
             }
 
             playerData.craftedGear.push(recipe.id);
-            scheduleAutoSave();
-
-            return res.json({
+            return finalizeCraft({
                 success: true,
                 message: `Crafted ${recipe.name}! ${effect.text}`,
                 effect: effect
@@ -490,9 +864,7 @@ function registerGameplayRoutes(app, deps) {
 
         if (recipe.id === 'r3') {
             playerData.tabs = (playerData.tabs || 0) + 15;
-            scheduleAutoSave();
-
-            return res.json({
+            return finalizeCraft({
                 success: true,
                 message: 'Crafted Propane Popper! Salvage blast recovered +15 Tabs.',
                 effect: { tabsGained: 15, tabs: playerData.tabs }
@@ -510,9 +882,7 @@ function registerGameplayRoutes(app, deps) {
                 playerData.rads = clamp(beforeRads + 10, 0, 10);
             }
 
-            scheduleAutoSave();
-
-            return res.json({
+            return finalizeCraft({
                 success: true,
                 message: hasLeadBelly
                     ? 'Crafted Donair-Dab Kit! Restored HP with no RAD gain (Lead Belly).'
@@ -532,9 +902,7 @@ function registerGameplayRoutes(app, deps) {
             const maxHp = playerData.maxHp || 10;
             playerData.hp = clamp(beforeHp + healAmount, 0, maxHp);
             const healed = playerData.hp - beforeHp;
-            scheduleAutoSave();
-
-            return res.json({
+            return finalizeCraft({
                 success: true,
                 message: `Crafted STIMPAK! Restored ${healed} HP.`,
                 effect: { hpRestored: healed, hp: playerData.hp, maxHp: maxHp }
@@ -546,9 +914,7 @@ function registerGameplayRoutes(app, deps) {
             const beforeRads = playerData.rads || 0;
             playerData.rads = clamp(beforeRads - removeRads, 0, 10);
             const reduced = beforeRads - playerData.rads;
-            scheduleAutoSave();
-
-            return res.json({
+            return finalizeCraft({
                 success: true,
                 message: `Crafted RAD-AWAY! Removed ${reduced} RADS.`,
                 effect: { radsRemoved: reduced, rads: playerData.rads }
@@ -673,9 +1039,10 @@ function registerGameplayRoutes(app, deps) {
         const extraText = outcome.extra ? ` (${outcome.extra})` : '';
         playerData.activeRadioData.text = `${playerData.activeRadioData.text}\n\nRESOLVED: ${outcome.text}${extraText}`;
         playerData.activeRadioData.requiresResolve = false;
+        const passiveProc = applyClassPassive(gameState, player, 'encounter');
 
         scheduleAutoSave();
-        res.json({ success: true, outcome: outcome, radio: playerData.activeRadioData });
+        res.json({ success: true, outcome: outcome, passiveProc, radio: playerData.activeRadioData });
     });
 
     app.get('/api/trades/pending', (req, res) => {
@@ -795,6 +1162,145 @@ function registerGameplayRoutes(app, deps) {
         scheduleAutoSave();
 
         res.json({ success: true, message: 'Trade rejected', trade: trade });
+    });
+
+    app.get('/api/player/:player/achievements', (req, res) => {
+        const { player } = req.params;
+        const gameState = getGameState();
+        ensureMetaState(gameState);
+
+        if (!gameState.players[player]) {
+            return res.status(404).json({ error: 'Player not found' });
+        }
+
+        const unlockedIds = gameState.playerProgress[player].achievements || [];
+        const unlocked = (gameState.achievements || []).filter(a => unlockedIds.includes(a.id));
+        res.json({ unlocked, unlockedIds, all: gameState.achievements || [] });
+    });
+
+    app.get('/api/team-objective', (req, res) => {
+        const gameState = getGameState();
+        ensureMetaState(gameState);
+        res.json({ active: gameState.activeTeamObjective || null });
+    });
+
+    app.post('/api/team-objective/start-random', (req, res) => {
+        const gameState = getGameState();
+        ensureMetaState(gameState);
+        const pool = gameState.teamObjectives || [];
+        if (pool.length === 0) {
+            return res.status(400).json({ error: 'No team objectives configured' });
+        }
+
+        const objective = pool[Math.floor(Math.random() * pool.length)];
+        gameState.activeTeamObjective = {
+            ...objective,
+            startedAt: new Date().toISOString(),
+            contributors: {}
+        };
+
+        Object.keys(gameState.players || {}).forEach((playerKey) => {
+            gameState.activeTeamObjective.contributors[playerKey] = false;
+            gameState.playerProgress[playerKey].teamContribution = false;
+        });
+
+        scheduleAutoSave();
+        res.json({ success: true, objective: gameState.activeTeamObjective });
+    });
+
+    app.post('/api/player/:player/team-objective/contribute', (req, res) => {
+        const { player } = req.params;
+        const gameState = getGameState();
+        ensureMetaState(gameState);
+
+        if (!gameState.players[player]) {
+            return res.status(404).json({ error: 'Player not found' });
+        }
+
+        const objective = gameState.activeTeamObjective;
+        if (!objective) {
+            return res.status(400).json({ error: 'No active team objective' });
+        }
+
+        objective.contributors[player] = true;
+        gameState.playerProgress[player].teamContribution = true;
+
+        const everyoneContributed = Object.keys(gameState.players || {}).every(p => Boolean(objective.contributors[p]));
+        let completion = null;
+        if (everyoneContributed) {
+            const reward = objective.reward || {};
+            Object.keys(gameState.players || {}).forEach((playerKey) => {
+                const playerData = gameState.players[playerKey];
+                playerData.tabs = (playerData.tabs || 0) + Number(reward.tabs || 0);
+                addXpWithLeveling(playerData, Number(reward.xp || 0));
+                gameState.playerProgress[playerKey].teamContribution = false;
+            });
+            completion = {
+                objectiveId: objective.id,
+                objectiveName: objective.name,
+                reward
+            };
+            gameState.activeTeamObjective = null;
+        }
+
+        scheduleAutoSave();
+        res.json({ success: true, contributed: true, everyoneContributed, completion, activeTeamObjective: gameState.activeTeamObjective });
+    });
+
+    app.get('/api/event-cards', (req, res) => {
+        const gameState = getGameState();
+        res.json(gameState.eventCards || []);
+    });
+
+    app.post('/api/event-cards/draw', (req, res) => {
+        const gameState = getGameState();
+        ensureMetaState(gameState);
+        const cards = gameState.eventCards || [];
+        if (cards.length === 0) {
+            return res.status(400).json({ error: 'No event cards configured' });
+        }
+
+        const card = cards[Math.floor(Math.random() * cards.length)];
+        const effect = card.effect || {};
+
+        Object.keys(gameState.players || {}).forEach((playerKey) => {
+            const playerData = gameState.players[playerKey];
+            if (effect.rads) {
+                playerData.rads = clamp((playerData.rads || 0) + Number(effect.rads), 0, 10);
+            }
+            if (effect.hp) {
+                playerData.hp = clamp((playerData.hp || 0) + Number(effect.hp), 0, playerData.maxHp || 10);
+            }
+            if (effect.tabs) {
+                playerData.tabs = (playerData.tabs || 0) + Number(effect.tabs);
+            }
+            if (effect.randomScrap) {
+                const scrapKeys = Object.keys(playerData.scrap || {});
+                if (scrapKeys.length > 0) {
+                    const pick = scrapKeys[Math.floor(Math.random() * scrapKeys.length)];
+                    playerData.scrap[pick] = (playerData.scrap[pick] || 0) + Number(effect.randomScrap);
+                    gameState.sessionMetrics.scrapGained[playerKey] = (gameState.sessionMetrics.scrapGained[playerKey] || 0) + Number(effect.randomScrap);
+                }
+            }
+
+            playerData.activeRadioData = {
+                id: `event_${Date.now()}`,
+                title: `EVENT CARD: ${card.name}`,
+                text: card.text,
+                type: 'event-card'
+            };
+            playerData.activeRadio = null;
+        });
+
+        scheduleAutoSave();
+        res.json({ success: true, card });
+    });
+
+    app.get('/api/session/recap', (req, res) => {
+        const gameState = getGameState();
+        const recap = buildSessionRecap(gameState);
+        scheduleAutoSave();
+        res.json(recap);
     });
 
     app.post('/api/reset', (req, res) => {
