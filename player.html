@@ -41,6 +41,12 @@
             opacity: 0.45;
             cursor: not-allowed;
         }
+        .tab-btn-active {
+            background-color: var(--pip-green);
+            color: var(--pip-dark);
+            border-color: var(--pip-green);
+            box-shadow: 0 0 10px rgba(26, 255, 128, 0.35);
+        }
         .crt-scanline {
             background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
             background-size: 100% 2px, 3px 100%;
@@ -179,14 +185,14 @@
     </header>
 
     <!-- NAVIGATION -->
-    <nav class="grid grid-cols-7 gap-1 mb-6 sm:grid-cols-7 md:grid-cols-7">
-        <button onclick="showTab('status')" class="pip-btn p-2 text-[9px]">STATUS</button>
-        <button onclick="showTab('perks')" class="pip-btn p-2 text-[9px]">PERK</button>
-        <button onclick="showTab('quests')" class="pip-btn p-2 text-[9px]">QUESTS</button>
-        <button onclick="showTab('crafting')" class="pip-btn p-2 text-[9px]">CRAFT</button>
-        <button onclick="showTab('quarters')" class="pip-btn p-2 text-[9px]">QUARTERS</button>
-        <button onclick="showTab('radio')" class="pip-btn p-2 text-[9px]">RADIO</button>
-        <button onclick="showTab('trade')" class="pip-btn p-2 text-[9px]">TRADE</button>
+    <nav id="player-tab-nav" class="grid grid-cols-7 gap-1 mb-6 sm:grid-cols-7 md:grid-cols-7">
+        <button onclick="showTab('status')" data-tab-target="status" class="pip-btn p-2 text-[9px] tab-btn-active">STATUS</button>
+        <button onclick="showTab('perks')" data-tab-target="perks" class="pip-btn p-2 text-[9px]">PERKS</button>
+        <button onclick="showTab('quests')" data-tab-target="quests" class="pip-btn p-2 text-[9px]">QUESTS</button>
+        <button onclick="showTab('crafting')" data-tab-target="crafting" class="pip-btn p-2 text-[9px]">CRAFTING</button>
+        <button onclick="showTab('quarters')" data-tab-target="quarters" class="pip-btn p-2 text-[9px]">QUARTERS</button>
+        <button onclick="showTab('radio')" data-tab-target="radio" class="pip-btn p-2 text-[9px]">RADIO</button>
+        <button onclick="showTab('trade')" data-tab-target="trade" class="pip-btn p-2 text-[9px]">TRADE</button>
     </nav>
 
     <!-- TAB: STATUS -->
@@ -280,6 +286,13 @@
     <!-- TAB: QUESTS -->
     <section id="quests" class="tab-content">
         <div class="pip-border p-4 bg-black/50 space-y-4">
+            <div class="border-b border-pip-green/40 pb-2">
+                <h2 class="text-xl">MISSION CONTROL</h2>
+                <p class="text-[10px] opacity-70">Generate tasks, run learning missions, and track completions.</p>
+            </div>
+
+            <div class="pip-border p-3 border-pip-green/30 bg-black/20">
+                <h3 class="text-xs font-bold text-green-300 mb-2">RANDOM TASKS</h3>
             <div class="pip-border p-3 border-dashed border-yellow-500 bg-yellow-950/10">
                 <h3 class="text-xs font-bold text-yellow-500 mb-3">GENERATE RANDOM TASK</h3>
                 <button onclick="requestRandomQuest(this)" class="pip-btn w-full py-3 text-sm font-bold">GENERATE TASK</button>
@@ -296,10 +309,13 @@
                     <button onclick="completeRandomQuest(this)" class="pip-btn w-full py-2 text-sm">COMPLETE TASK</button>
                 </div>
             </div>
+            </div>
 
+            <div class="pip-border p-3 border-pip-green/30 bg-black/20">
+                <h3 class="text-xs font-bold text-green-300 mb-2">LEARNING MISSIONS</h3>
             <div class="pip-border p-3 border-dashed border-blue-500 bg-blue-950/10">
                 <h3 class="text-xs font-bold text-blue-400 mb-2">EDUCATIONAL QUESTS</h3>
-                <p class="text-[10px] opacity-80 mb-2">Each learning tab has multiple generated quiz missions. Pick one and submit your answer.</p>
+                <p class="text-[10px] opacity-80 mb-2">Each learning tab has rotating quiz missions. Complete one to generate a new question.</p>
                 <div id="educational-category-tabs" class="grid grid-cols-3 gap-1 mb-2"></div>
                 <p id="educational-category-hint" class="text-[10px] opacity-70 mb-2">Select a learning tab.</p>
                 <select id="educational-quest-select" class="w-full p-2 bg-black border border-pip-green text-pip-green text-[10px] mb-2" onchange="previewEducationalQuest()">
@@ -308,8 +324,9 @@
                 <div id="educational-quest-preview" class="text-[10px] opacity-80 mb-2">No quest selected.</div>
                 <button onclick="completeEducationalQuest(this)" id="educational-quest-complete-btn" class="pip-btn w-full py-2 text-[10px]" disabled>SUBMIT ANSWER</button>
                 <div id="educational-completed-list" class="mt-3 text-[10px] border border-green-500/40 bg-green-950/10 p-2">
-                    <p class="opacity-70">No completed educational missions in this tab yet.</p>
+                    <p class="opacity-70">No completed educational attempts in this tab yet.</p>
                 </div>
+            </div>
             </div>
 
             <div>
@@ -319,6 +336,8 @@
                 </div>
             </div>
 
+            <div class="pip-border p-3 border-pip-green/30 bg-black/20 space-y-3">
+                <h3 class="text-xs font-bold text-green-300">TEAM & HISTORY</h3>
             <div class="pip-border p-3 border-dashed border-cyan-500 bg-cyan-950/10">
                 <h3 class="text-xs font-bold text-cyan-400 mb-2">TEAM OBJECTIVE</h3>
                 <div id="team-objective-box" class="text-[10px] opacity-80 mb-2">NO ACTIVE TEAM OBJECTIVE</div>
@@ -330,6 +349,7 @@
                 <div id="daily-completed-list" class="space-y-1 text-[10px]">
                     <p class="opacity-70">No tasks completed yet.</p>
                 </div>
+            </div>
             </div>
         </div>
     </section>
@@ -723,6 +743,11 @@
         function showTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
+
+            document.querySelectorAll('#player-tab-nav [data-tab-target]').forEach((button) => {
+                const isActive = button.getAttribute('data-tab-target') === tabId;
+                button.classList.toggle('tab-btn-active', isActive);
+            });
         }
 
         function updateUI() {
@@ -1086,7 +1111,7 @@
 
         async function requestRandomQuest(button) {
             try {
-                currentRandomQuest = await apiRequest('/api/random-quest', {
+                currentRandomQuest = await apiRequest(`/api/player/${playerName}/random-quest`, {
                     button,
                     busyText: 'ROLLING...'
                 });
@@ -1193,7 +1218,7 @@
             }
 
             const completedCount = getCompletedEducationalForCategory().length;
-            hint.textContent = `ACTIVE TAB: ${getEducationalCategoryLabel(activeEducationalCategory)} | DONE: ${completedCount}`;
+            hint.textContent = `ACTIVE TAB: ${getEducationalCategoryLabel(activeEducationalCategory)} | COMPLETED: ${completedCount}`;
 
             educationalCategories.forEach((category) => {
                 const button = document.createElement('button');
@@ -1235,7 +1260,7 @@
 
             const completed = getCompletedEducationalForCategory();
             if (!completed.length) {
-                container.innerHTML = '<p class="opacity-70">No completed educational missions in this tab yet.</p>';
+                container.innerHTML = '<p class="opacity-70">No completed educational attempts in this tab yet.</p>';
                 return;
             }
 
@@ -1246,7 +1271,7 @@
             });
 
             container.innerHTML = `
-                <p class="font-bold text-green-300 mb-1">DONE (ONE-TIME): ${sorted.length}</p>
+                <p class="font-bold text-green-300 mb-1">COMPLETED ATTEMPTS: ${sorted.length}</p>
                 ${sorted.slice(0, 8).map((entry) => `<p class="text-[9px]">• ${entry.title} ${entry.correct ? '(CORRECT)' : '(WRONG)'}</p>`).join('')}
             `;
         }

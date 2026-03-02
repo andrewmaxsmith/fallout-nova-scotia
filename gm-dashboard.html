@@ -43,6 +43,12 @@
             background-color: var(--pip-dark);
             color: var(--pip-green);
         }
+        .tab-btn-active {
+            background-color: var(--pip-green);
+            color: var(--pip-dark);
+            border-color: var(--pip-green);
+            box-shadow: 0 0 10px rgba(26, 255, 128, 0.35);
+        }
         .crt-scanline {
             background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
             background-size: 100% 2px, 3px 100%;
@@ -135,13 +141,13 @@
         </header>
 
         <!-- NAVIGATION -->
-        <nav class="grid grid-cols-6 gap-2 mb-6">
-            <button onclick="showTab('players')" class="pip-btn">PLAYERS</button>
-            <button onclick="showTab('quarters')" class="pip-btn">QUARTERS</button>
-            <button onclick="showTab('perks')" class="pip-btn">PERKS</button>
-            <button onclick="showTab('quests')" class="pip-btn">QUESTS</button>
-            <button onclick="showTab('effects')" class="pip-btn">EFFECTS</button>
-            <button onclick="showTab('radio')" class="pip-btn">RADIO</button>
+        <nav id="gm-tab-nav" class="grid grid-cols-6 gap-2 mb-6">
+            <button onclick="showTab('players')" data-tab-target="players" class="pip-btn tab-btn-active">PLAYERS</button>
+            <button onclick="showTab('quarters')" data-tab-target="quarters" class="pip-btn">QUARTERS</button>
+            <button onclick="showTab('perks')" data-tab-target="perks" class="pip-btn">PERKS</button>
+            <button onclick="showTab('quests')" data-tab-target="quests" class="pip-btn">QUESTS</button>
+            <button onclick="showTab('effects')" data-tab-target="effects" class="pip-btn">EFFECTS</button>
+            <button onclick="showTab('radio')" data-tab-target="radio" class="pip-btn">RADIO</button>
         </nav>
 
         <section class="pip-border p-4 bg-black/50 mb-6">
@@ -281,6 +287,7 @@
                 <!-- QUEST LIST -->
                 <div class="pip-border p-4 bg-black/50">
                     <h2 class="text-xl font-bold mb-4">SEND QUEST</h2>
+                    <p class="text-[10px] opacity-70 mb-3">Select a contract and send it to one or both players.</p>
                     <div id="quest-list" class="space-y-2">
                         <!-- Quests injected here -->
                     </div>
@@ -288,6 +295,11 @@
 
                 <!-- PLAYER QUEST STATUS & ENCOUNTERS -->
                 <div class="pip-border p-4 bg-black/50 space-y-4">
+                    <div class="border-b border-pip-green/40 pb-2">
+                        <h2 class="text-xl font-bold">OPERATIONS PANEL</h2>
+                        <p class="text-[10px] opacity-70">Live events, team objectives, and current player mission status.</p>
+                    </div>
+
                     <div class="pip-border p-3 border-dashed border-cyan-500 bg-cyan-950/10">
                         <h3 class="text-sm font-bold text-cyan-400 mb-2">GM EVENT CARDS</h3>
                         <button onclick="drawEventCard(this)" class="pip-btn w-full py-2 text-sm font-bold mb-2">DRAW EVENT CARD</button>
@@ -390,11 +402,16 @@
         <section id="radio" class="tab-content">
             <div class="pip-border p-4 bg-black/50">
                 <h2 class="text-xl font-bold mb-4">BROADCAST SIGNALS</h2>
+                <p class="text-[10px] opacity-70 mb-4">Manage inbound transmissions and outbound radio commands.</p>
                 <div class="pip-border p-3 border-dashed border-green-500 bg-green-950/10 mb-6">
                     <h3 class="text-sm font-bold text-green-400 mb-2">INCOMING PLAYER TRANSMISSIONS</h3>
                     <div id="overseer-inbox" class="space-y-2 text-[10px]">
                         <p class="opacity-60">No transmissions yet.</p>
                     </div>
+                </div>
+
+                <div class="border-b border-pip-green/30 mb-4 pb-2">
+                    <p class="text-xs font-bold text-green-300">OUTBOUND CONTROLS</p>
                 </div>
                 <div class="pip-border p-3 border-dashed border-yellow-500 bg-yellow-950/10 mb-6">
                     <h3 class="text-sm font-bold text-yellow-500 mb-2">RANDOM BROADCAST</h3>
@@ -679,6 +696,11 @@
         function showTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
+
+            document.querySelectorAll('#gm-tab-nav [data-tab-target]').forEach((button) => {
+                const isActive = button.getAttribute('data-tab-target') === tabId;
+                button.classList.toggle('tab-btn-active', isActive);
+            });
         }
 
         async function updatePlayer(player, stat, value) {

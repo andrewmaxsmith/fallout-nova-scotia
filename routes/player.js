@@ -20,6 +20,103 @@ function shuffleArray(items) {
     return next;
 }
 
+function randomInt(min, max) {
+    const floorMin = Math.ceil(min);
+    const floorMax = Math.floor(max);
+    return Math.floor(Math.random() * (floorMax - floorMin + 1)) + floorMin;
+}
+
+function pickRandom(items) {
+    if (!Array.isArray(items) || items.length === 0) {
+        return null;
+    }
+    return items[randomInt(0, items.length - 1)];
+}
+
+const RANDOM_TASK_OBJECTS = ['room', 'desk', 'shelf', 'table', 'entryway', 'backpack'];
+const RANDOM_TASK_AREAS = ['living room', 'kitchen', 'bedroom', 'hallway', 'play area'];
+const RANDOM_TASK_MOVES = ['jumping jacks', 'step-ups', 'squats', 'balance holds', 'fast marches'];
+const RANDOM_TASK_CREATIVE = ['comic panel', 'mini poster', 'short story', 'checklist chart', 'team signal card'];
+
+let generatedRandomQuestCounter = 0;
+
+function createProceduralRandomQuest() {
+    const missionType = pickRandom(['tidy', 'movement', 'learning', 'creative']);
+    generatedRandomQuestCounter += 1;
+    const id = `rq-gen-${Date.now()}-${generatedRandomQuestCounter}`;
+
+    if (missionType === 'tidy') {
+        const targetArea = pickRandom(RANDOM_TASK_AREAS);
+        const targetObject = pickRandom(RANDOM_TASK_OBJECTS);
+        const itemCount = randomInt(8, 18);
+        const minutes = randomInt(6, 12);
+        return {
+            id,
+            title: `HOUSE: ${targetArea.toUpperCase()} RESET`,
+            desc: `Set a ${minutes}-minute timer. Put away ${itemCount} items, organize one ${targetObject}, and report when the zone is clear.`,
+            reward: randomInt(2, 4),
+            xp: randomInt(0, 1),
+            generated: true
+        };
+    }
+
+    if (missionType === 'movement') {
+        const movement = pickRandom(RANDOM_TASK_MOVES);
+        const rounds = randomInt(2, 4);
+        const count = randomInt(8, 15);
+        return {
+            id,
+            title: 'SPORT: FIELD DRILL',
+            desc: `Complete ${rounds} rounds of ${count} ${movement} safely with good form. Take a short break between rounds.`,
+            reward: randomInt(3, 5),
+            xp: 1,
+            generated: true
+        };
+    }
+
+    if (missionType === 'learning') {
+        const minutes = randomInt(8, 15);
+        const facts = randomInt(2, 4);
+        return {
+            id,
+            title: 'LEARNING: FACT SCAN',
+            desc: `Read or listen for ${minutes} minutes, then share ${facts} facts you learned with the GM.`,
+            reward: randomInt(3, 5),
+            xp: 1,
+            generated: true
+        };
+    }
+
+    const creativeProject = pickRandom(RANDOM_TASK_CREATIVE);
+    const steps = randomInt(3, 5);
+    return {
+        id,
+        title: 'CRAFT: CREATIVE BUILD',
+        desc: `Create one ${creativeProject} in ${steps} clear steps, then explain it in one sentence.`,
+        reward: randomInt(3, 5),
+        xp: randomInt(0, 1),
+        generated: true
+    };
+}
+
+function issueRandomQuestForPlayer(playerData, gameState) {
+    const staticQuestPool = Array.isArray(gameState?.randomQuests) ? gameState.randomQuests : [];
+    const useProcedural = staticQuestPool.length === 0 || Math.random() < 0.75;
+    const quest = useProcedural
+        ? createProceduralRandomQuest()
+        : staticQuestPool[Math.floor(Math.random() * staticQuestPool.length)];
+
+    if (!quest) {
+        return null;
+    }
+
+    playerData.activeRandomQuest = {
+        ...quest,
+        issuedAt: new Date().toISOString()
+    };
+    return playerData.activeRandomQuest;
+}
+
 function createQuestEntry(category, idSuffix, payload) {
     const categoryDef = EDUCATIONAL_CATEGORY_DEFINITIONS[category];
     if (!categoryDef) {
@@ -156,37 +253,209 @@ function buildEducationalQuestLibrary() {
 
 const EDUCATIONAL_QUEST_LIBRARY = buildEducationalQuestLibrary();
 
-function refillEducationalCategory(board, categoryKey, completedQuestIds) {
+let generatedEducationalQuestCounter = 0;
+
+function createProceduralQuestPayload(category) {
+    if (category === 'math') {
+        const mode = pickRandom(['add', 'subtract', 'multiply', 'divide']);
+        if (mode === 'add') {
+            const a = randomInt(3, 40);
+            const b = randomInt(2, 30);
+            const answer = a + b;
+            return {
+                title: 'MATH MISSION (GENERATED)',
+                question: `What is ${a} + ${b}?`,
+                options: [String(answer), String(answer + pickRandom([1, 2, 3])), String(Math.max(0, answer - pickRandom([1, 2, 3])))],
+                correctOptionIndex: 0
+            };
+        }
+        if (mode === 'subtract') {
+            const a = randomInt(10, 60);
+            const b = randomInt(1, Math.min(30, a - 1));
+            const answer = a - b;
+            return {
+                title: 'MATH MISSION (GENERATED)',
+                question: `What is ${a} - ${b}?`,
+                options: [String(answer), String(answer + pickRandom([1, 2, 4])), String(Math.max(0, answer - pickRandom([1, 2, 4])))],
+                correctOptionIndex: 0
+            };
+        }
+        if (mode === 'multiply') {
+            const a = randomInt(2, 12);
+            const b = randomInt(2, 12);
+            const answer = a * b;
+            return {
+                title: 'MATH MISSION (GENERATED)',
+                question: `What is ${a} × ${b}?`,
+                options: [String(answer), String(answer + pickRandom([a, b, 2])), String(Math.max(0, answer - pickRandom([a, b, 2])))],
+                correctOptionIndex: 0
+            };
+        }
+
+        const divisor = randomInt(2, 12);
+        const answer = randomInt(2, 12);
+        const dividend = divisor * answer;
+        return {
+            title: 'MATH MISSION (GENERATED)',
+            question: `What is ${dividend} ÷ ${divisor}?`,
+            options: [String(answer), String(answer + pickRandom([1, 2, 3])), String(Math.max(1, answer - pickRandom([1, 2, 3])))],
+            correctOptionIndex: 0
+        };
+    }
+
+    if (category === 'spelling') {
+        const words = ['friend', 'school', 'because', 'window', 'pencil', 'planet', 'animal', 'kitchen', 'bridge', 'library', 'purple', 'morning', 'harbor', 'signal', 'mission'];
+        const correct = pickRandom(words);
+        if (!correct || correct.length < 4) {
+            return null;
+        }
+        const swapIndex = randomInt(1, correct.length - 2);
+        const swapped = `${correct.slice(0, swapIndex)}${correct.charAt(swapIndex + 1)}${correct.charAt(swapIndex)}${correct.slice(swapIndex + 2)}`;
+        const missingLetterIndex = randomInt(1, correct.length - 2);
+        const missingLetter = `${correct.slice(0, missingLetterIndex)}${correct.slice(missingLetterIndex + 1)}`;
+        return {
+            title: 'SPELLING MISSION (GENERATED)',
+            question: 'Pick the correctly spelled word.',
+            options: [correct, swapped, missingLetter],
+            correctOptionIndex: 0
+        };
+    }
+
+    if (category === 'reading') {
+        const names = ['Mia', 'Logan', 'Rylyn', 'Ava', 'Noah', 'Ella'];
+        const verbs = ['packed', 'cleaned', 'sorted', 'carried', 'organized', 'checked'];
+        const objects = ['backpack', 'books', 'supplies', 'boots', 'radio', 'map'];
+        const places = ['before school', 'in the hallway', 'at the table', 'near the door', 'in the shelter'];
+        const name = pickRandom(names);
+        const verb = pickRandom(verbs);
+        const object = pickRandom(objects);
+        const place = pickRandom(places);
+        return {
+            title: 'READING MISSION (GENERATED)',
+            question: `In this sentence: "${name} ${verb} the ${object} ${place}." What is the action word?`,
+            options: [verb, object, name],
+            correctOptionIndex: 0
+        };
+    }
+
+    if (category === 'science') {
+        const facts = [
+            { q: 'What gas do humans need to breathe?', a: 'Oxygen', b: 'Helium', c: 'Carbon dioxide' },
+            { q: 'Which part of a plant absorbs water from soil?', a: 'Roots', b: 'Leaves', c: 'Flowers' },
+            { q: 'Which planet do we live on?', a: 'Earth', b: 'Mars', c: 'Venus' },
+            { q: 'What force pulls objects toward Earth?', a: 'Gravity', b: 'Magnetism', c: 'Friction' },
+            { q: 'What do bees help plants do?', a: 'Pollinate', b: 'Hibernate', c: 'Evaporate' }
+        ];
+        const fact = pickRandom(facts);
+        return {
+            title: 'SCIENCE MISSION (GENERATED)',
+            question: fact.q,
+            options: [fact.a, fact.b, fact.c],
+            correctOptionIndex: 0
+        };
+    }
+
+    if (category === 'writing') {
+        const samples = [
+            {
+                q: 'Which sentence is punctuated correctly?',
+                options: ['We finished our quest.', 'We finished our quest', 'We finished our quest..']
+            },
+            {
+                q: 'Which sentence starts with a capital letter?',
+                options: ['Today we trained at the harbor.', 'today we trained at the harbor.', 'today We trained at the harbor.']
+            },
+            {
+                q: 'Which sentence uses the comma correctly?',
+                options: ['After dinner, we cleaned the table.', 'After dinner we, cleaned the table.', 'After, dinner we cleaned the table.']
+            }
+        ];
+        const sample = pickRandom(samples);
+        return {
+            title: 'WRITING MISSION (GENERATED)',
+            question: sample.q,
+            options: sample.options,
+            correctOptionIndex: 0
+        };
+    }
+
+    if (category === 'mapReading') {
+        const directions = ['North', 'East', 'South', 'West'];
+        const opposite = { North: 'South', South: 'North', East: 'West', West: 'East' };
+        const dir = pickRandom(directions);
+        const wrongOne = pickRandom(directions.filter((item) => item !== opposite[dir]));
+        const wrongTwo = pickRandom(directions.filter((item) => item !== opposite[dir] && item !== wrongOne));
+        return {
+            title: 'MAP READING MISSION (GENERATED)',
+            question: `Which direction is opposite ${dir}?`,
+            options: [opposite[dir], wrongOne, wrongTwo],
+            correctOptionIndex: 0
+        };
+    }
+
+    return null;
+}
+
+function createProceduralEducationalQuest(category, board) {
+    const existingIds = new Set((board?.quests || []).map((quest) => quest.id));
+    const existingQuestions = new Set((board?.quests || []).map((quest) => quest.question));
+
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+        const payload = createProceduralQuestPayload(category);
+        if (!payload) {
+            return null;
+        }
+
+        generatedEducationalQuestCounter += 1;
+        const idSuffix = `gen-${Date.now()}-${generatedEducationalQuestCounter}`;
+        const quest = createQuestEntry(category, idSuffix, payload);
+        if (!quest) {
+            return null;
+        }
+
+        if (!existingIds.has(quest.id) && !existingQuestions.has(quest.question)) {
+            return quest;
+        }
+    }
+
+    return null;
+}
+
+function refillEducationalCategory(board, categoryKey) {
     if (!board || !Array.isArray(board.quests)) {
         return;
     }
 
-    const completedIds = completedQuestIds instanceof Set ? completedQuestIds : new Set();
     const existingCategory = board.quests.filter(quest => quest.category === categoryKey);
     const existingIds = new Set(board.quests.map((quest) => quest.id));
 
     const candidates = EDUCATIONAL_QUEST_LIBRARY.filter((quest) => (
         quest.category === categoryKey
-        && !completedIds.has(quest.id)
         && !existingIds.has(quest.id)
     ));
 
     const shuffledCandidates = shuffleArray(candidates);
-    while (existingCategory.length < EDUCATIONAL_QUESTS_PER_CATEGORY && shuffledCandidates.length > 0) {
-        const nextQuest = shuffledCandidates.shift();
+    while (existingCategory.length < EDUCATIONAL_QUESTS_PER_CATEGORY) {
+        let nextQuest = createProceduralEducationalQuest(categoryKey, board);
+        if (!nextQuest && shuffledCandidates.length > 0) {
+            nextQuest = shuffledCandidates.shift();
+        }
+        if (!nextQuest) {
+            break;
+        }
         board.quests.push(nextQuest);
         existingCategory.push(nextQuest);
     }
 }
 
-function createEducationalBoard(completedQuestIds) {
+function createEducationalBoard() {
     const board = {
         generatedAt: new Date().toISOString(),
         quests: []
     };
 
     EDUCATIONAL_CATEGORY_ORDER.forEach((categoryKey) => {
-        refillEducationalCategory(board, categoryKey, completedQuestIds);
+        refillEducationalCategory(board, categoryKey);
     });
 
     return board;
@@ -200,21 +469,14 @@ function getSafeEducationalCategories() {
 }
 
 function ensureEducationalBoard(playerData, { force = false } = {}) {
-    const completedQuestIds = new Set(
-        (playerData?.educationalCompleted || [])
-            .map((entry) => entry?.questId)
-            .filter(Boolean)
-    );
-
     const board = playerData?.educationalBoard;
     if (force || !board || !Array.isArray(board.quests)) {
-        playerData.educationalBoard = createEducationalBoard(completedQuestIds);
+        playerData.educationalBoard = createEducationalBoard();
         return playerData.educationalBoard;
     }
 
-    board.quests = board.quests.filter((quest) => !completedQuestIds.has(quest.id));
     EDUCATIONAL_CATEGORY_ORDER.forEach((categoryKey) => {
-        refillEducationalCategory(board, categoryKey, completedQuestIds);
+        refillEducationalCategory(board, categoryKey);
     });
     board.generatedAt = board.generatedAt || new Date().toISOString();
 
@@ -255,6 +517,24 @@ function registerPlayerRoutes(app, deps) {
         }
     });
 
+    app.get('/api/player/:player/random-quest', (req, res) => {
+        const { player } = req.params;
+        const gameState = getGameState();
+        const playerData = gameState.players[player];
+
+        if (!playerData) {
+            return res.status(404).json({ error: 'Player not found' });
+        }
+
+        const quest = issueRandomQuestForPlayer(playerData, gameState);
+        if (!quest) {
+            return res.status(404).json({ error: 'No random tasks available' });
+        }
+
+        scheduleAutoSave();
+        res.json(quest);
+    });
+
     app.get('/api/player/:player/educational-quests', (req, res) => {
         const { player } = req.params;
         const gameState = getGameState();
@@ -293,9 +573,10 @@ function registerPlayerRoutes(app, deps) {
             return res.status(404).json({ error: 'Player not found' });
         }
 
-        const quest = gameState.randomQuests.find(q => q.id === questId);
+        const activeQuest = playerData.activeRandomQuest;
+        const quest = (activeQuest && activeQuest.id === questId) ? activeQuest : null;
         if (!quest) {
-            return res.status(404).json({ error: 'Random task not found' });
+            return res.status(404).json({ error: 'Random task not found or not currently active for this player.' });
         }
 
         ensurePlayerProgressFields(playerData);
@@ -316,6 +597,9 @@ function registerPlayerRoutes(app, deps) {
 
         playerData.pendingPerks = (playerData.pendingPerks || 0) + levelsGained;
         playerData.xpToNext = getXpRequiredForLevel(playerData.level);
+        if (playerData.activeRandomQuest && playerData.activeRandomQuest.id === questId) {
+            playerData.activeRandomQuest = null;
+        }
 
         scheduleAutoSave();
 
@@ -338,12 +622,6 @@ function registerPlayerRoutes(app, deps) {
 
         if (!playerData) {
             return res.status(404).json({ error: 'Player not found' });
-        }
-
-        const alreadyCompleted = Array.isArray(playerData.educationalCompleted)
-            && playerData.educationalCompleted.some((entry) => entry?.questId === questId);
-        if (alreadyCompleted) {
-            return res.status(409).json({ error: 'Educational quest already completed and cannot be repeated.' });
         }
 
         const board = ensureEducationalBoard(playerData);
@@ -423,8 +701,7 @@ function registerPlayerRoutes(app, deps) {
         });
 
         educationalQuests.splice(questIndex, 1);
-        const completedQuestIds = new Set((playerData.educationalCompleted || []).map((entry) => entry?.questId).filter(Boolean));
-        refillEducationalCategory(board, quest.category, completedQuestIds);
+        refillEducationalCategory(board, quest.category);
         board.generatedAt = new Date().toISOString();
 
         scheduleAutoSave();
