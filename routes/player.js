@@ -11,6 +11,10 @@ const EDUCATIONAL_CATEGORY_DEFINITIONS = {
 
 const EDUCATIONAL_CATEGORY_ORDER = ['reading', 'math', 'spelling', 'science', 'writing', 'mapReading'];
 
+function isEducationalCategory(categoryId) {
+    return EDUCATIONAL_CATEGORY_ORDER.includes(categoryId);
+}
+
 function shuffleArray(items) {
     const next = [...items];
     for (let i = next.length - 1; i > 0; i -= 1) {
@@ -448,6 +452,32 @@ function refillEducationalCategory(board, categoryKey) {
     }
 }
 
+function createGeneratedEducationalQuest(board, categoryKey) {
+    if (!board || !isEducationalCategory(categoryKey)) {
+        return null;
+    }
+
+    let quest = createProceduralEducationalQuest(categoryKey, board);
+    if (!quest) {
+        const existingIds = new Set((board.quests || []).map((item) => item.id));
+        const candidates = EDUCATIONAL_QUEST_LIBRARY.filter((item) => (
+            item.category === categoryKey
+            && !existingIds.has(item.id)
+        ));
+        const fallback = pickRandom(candidates);
+        quest = fallback || null;
+    }
+
+    if (!quest) {
+        return null;
+    }
+
+    board.quests = Array.isArray(board.quests) ? board.quests : [];
+    board.quests.push(quest);
+    board.generatedAt = new Date().toISOString();
+    return quest;
+}
+
 function createEducationalBoard() {
     const board = {
         generatedAt: new Date().toISOString(),
@@ -560,6 +590,40 @@ function registerPlayerRoutes(app, deps) {
             categories: getSafeEducationalCategories(),
             generatedAt: board.generatedAt,
             quests: safeQuests
+        });
+    });
+
+    app.post('/api/player/:player/educational-quests/generate', (req, res) => {
+        const { player } = req.params;
+        const { category } = req.body;
+        const gameState = getGameState();
+        const playerData = gameState.players[player];
+
+        if (!playerData) {
+            return res.status(404).json({ error: 'Player not found' });
+        }
+
+        if (!isEducationalCategory(category)) {
+            return res.status(400).json({ error: 'Invalid educational category.' });
+        }
+
+        const board = ensureEducationalBoard(playerData);
+        const quest = createGeneratedEducationalQuest(board, category);
+        if (!quest) {
+            return res.status(404).json({ error: 'Could not generate educational quiz for this category.' });
+        }
+
+        scheduleAutoSave();
+
+        return res.json({
+            id: quest.id,
+            category: quest.category,
+            categoryLabel: quest.categoryLabel,
+            title: quest.title,
+            question: quest.question,
+            options: Array.isArray(quest.options) ? quest.options : [],
+            rewardTabs: Number(quest.rewardTabs || 0),
+            rewardXp: Number(quest.rewardXp || 0)
         });
     });
 
