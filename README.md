@@ -1,5 +1,15 @@
 # FALLOUT: NEW NOVA SCOTIA - GAME MASTER SYSTEM
 
+## 🧾 Changelog
+
+### v1.4.2
+- Added level-scaled `maxHp` and `maxRads` progression (+1 each level as a baseline).
+- Added perk-based cap bonuses (`p16` +max HP, `p6` +max RADS).
+- Added first-time faction selection popup at level 3 and stats-tab faction change controls.
+- Added incoming radio popup alert window for new transmissions.
+- Added GM dashboard controls for `maxRads` per player.
+- Fixed educational quiz answer deselecting during polling by persisting selected choice.
+
 ## 🎮 Setup & Installation
 
 ### Requirements
