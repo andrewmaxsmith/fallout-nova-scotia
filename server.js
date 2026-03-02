@@ -4,6 +4,7 @@ const path = require('path');
 const os = require('os');
 const fs = require('fs');
 const QRCode = require('qrcode');
+const { validateNumber, validateNumericRecord } = require('./validators');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -169,7 +170,7 @@ app.post('/api/storage/test-save', async (req, res) => {
 });
 
 // Game state with version tracking for migration
-let gameState = {
+const BASE_GAME_STATE = {
     version: GAME_STATE_VERSION,
     players: {
         logan: {
@@ -556,6 +557,12 @@ let gameState = {
     ],
     trades: []
 };
+
+function createInitialGameState() {
+    return JSON.parse(JSON.stringify(BASE_GAME_STATE));
+}
+
+let gameState = createInitialGameState();
 
 function ensureSaveDirectories() {
     fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -1022,8 +1029,14 @@ app.post('/api/save/import', async (req, res) => {
 app.post('/api/player/:player/stat/:stat', (req, res) => {
     const { player, stat } = req.params;
     const { value } = req.body;
+
+    const validation = validateNumber(value, { min: -999999, max: 999999, integer: true, label: 'value' });
+    if (!validation.ok) {
+        return res.status(400).json({ error: validation.error });
+    }
+
     if (gameState.players[player] && gameState.players[player][stat] !== undefined) {
-        gameState.players[player][stat] = value;
+        gameState.players[player][stat] = validation.value;
         scheduleAutoSave();
         res.json({ success: true, message: `Updated ${player} ${stat}` });
     } else {
@@ -1035,12 +1048,26 @@ app.post('/api/player/:player/stat/:stat', (req, res) => {
 app.post('/api/player/:player/stats', (req, res) => {
     const { player } = req.params;
     const { stats } = req.body;
-    if (gameState.players[player] && stats && typeof stats === 'object') {
+
+    const statKeys = ['charm', 'hardiness', 'agility', 'perception', 'politeness', 'yarns'];
+    const statsValidation = validateNumericRecord(stats, {
+        allowedKeys: statKeys,
+        min: 0,
+        max: 20,
+        integer: true,
+        label: 'stats'
+    });
+
+    if (!statsValidation.ok) {
+        return res.status(400).json({ error: statsValidation.error });
+    }
+
+    if (gameState.players[player]) {
         gameState.players[player].stats = stats;
         scheduleAutoSave();
         res.json({ success: true, message: `Updated ${player} stats`, stats: stats });
     } else {
-        res.status(400).json({ error: 'Invalid stats object' });
+        res.status(404).json({ error: 'Player not found' });
     }
 });
 
@@ -1087,8 +1114,13 @@ app.post('/api/player/:player/radio-message', (req, res) => {
     if (!gameState.players[player]) {
         return res.status(404).json({ error: 'Player not found' });
     }
-    if (!message || message.trim().length === 0) {
-        return res.status(400).json({ error: 'Message cannot be empty' });
+    if (typeof message !== 'string') {
+        return res.status(400).json({ error: 'Message must be text' });
+    }
+
+    const cleanedMessage = message.trim();
+    if (cleanedMessage.length === 0 || cleanedMessage.length > 280) {
+        return res.status(400).json({ error: 'Message must be 1-280 characters' });
     }
     
     // Create a custom radio signal
@@ -1096,7 +1128,7 @@ app.post('/api/player/:player/radio-message', (req, res) => {
         id: `custom_${Date.now()}`,
         title: 'OVERSEER TRANSMISSION',
         frequency: '88.5 FM',
-        text: message.trim(),
+        text: cleanedMessage,
         type: 'custom'
     };
     
@@ -1110,10 +1142,18 @@ app.post('/api/player/:player/radio-message', (req, res) => {
 app.post('/api/player/:player/scrap/:type', (req, res) => {
     const { player, type } = req.params;
     const { amount } = req.body;
+
+    const amountValidation = validateNumber(amount, { min: -999, max: 999, integer: true, label: 'amount' });
+    if (!amountValidation.ok) {
+        return res.status(400).json({ error: amountValidation.error });
+    }
+
     if (gameState.players[player] && gameState.players[player].scrap[type] !== undefined) {
-        gameState.players[player].scrap[type] += amount;
+        gameState.players[player].scrap[type] += amountValidation.value;
         scheduleAutoSave();
         res.json({ success: true, amount: gameState.players[player].scrap[type] });
+    } else {
+        res.status(404).json({ error: 'Player or scrap type not found' });
     }
 });
 
@@ -1121,23 +1161,34 @@ app.post('/api/player/:player/scrap/:type', (req, res) => {
 app.post('/api/player/:player/scrap/multi', (req, res) => {
     const { player } = req.params;
     const { scrapMap } = req.body;
-    
-    if (gameState.players[player]) {
-        const playerScrap = gameState.players[player].scrap;
-        let totalGranted = 0;
-        
-        Object.entries(scrapMap).forEach(([type, amount]) => {
-            if (playerScrap[type] !== undefined && amount > 0) {
-                playerScrap[type] += amount;
-                totalGranted += amount;
-            }
-        });
-        
-        scheduleAutoSave();
-        res.json({ success: true, totalGranted, scrap: playerScrap });
-    } else {
-        res.status(404).json({ error: 'Player not found' });
+
+    if (!gameState.players[player]) {
+        return res.status(404).json({ error: 'Player not found' });
     }
+
+    const allowedScrapKeys = Object.keys(gameState.players[player].scrap || {});
+    const scrapValidation = validateNumericRecord(scrapMap, {
+        allowedKeys: allowedScrapKeys,
+        min: 1,
+        max: 999,
+        integer: true,
+        label: 'scrapMap'
+    });
+
+    if (!scrapValidation.ok) {
+        return res.status(400).json({ error: scrapValidation.error });
+    }
+    
+    const playerScrap = gameState.players[player].scrap;
+    let totalGranted = 0;
+
+    Object.entries(scrapMap).forEach(([type, amount]) => {
+        playerScrap[type] += amount;
+        totalGranted += amount;
+    });
+
+    scheduleAutoSave();
+    res.json({ success: true, totalGranted, scrap: playerScrap });
 });
 
 // Complete quest for player
@@ -1776,383 +1827,7 @@ app.post('/api/trade/:tradeId/reject', (req, res) => {
 
 // Reset all game data to initial state
 app.post('/api/reset', (req, res) => {
-    // Re-initialize game state to default
-    gameState = {
-        players: {
-            logan: {
-                name: 'Logan',
-                level: 1,
-                xp: 0,
-                hp: 10,
-                maxHp: 10,
-                rads: 0,
-                tabs: 10,
-                stats: { charm: 1, hardiness: 1, agility: 1, perception: 1, politeness: 1, yarns: 1 },
-                scrap: { maritimeMetal: 0, syntheticSap: 0, hubCircuitry: 0, plaidScraps: 0, propaneTank: 0, radMeat: 0, spices: 0, cleanWater: 0 },
-                inventory: [],
-                activeQuests: [],
-                completedQuests: [],
-                activeRadio: null,
-                activeRadioData: null,
-                faction: null,
-                class: null,
-                unlockedPerks: [],
-                pendingPerks: 0,
-                craftedGear: [],
-                purchasedUpgrades: [],
-                activeEffects: []
-            },
-            rylyn: {
-                name: 'Rylyn',
-                level: 1,
-                xp: 0,
-                hp: 10,
-                maxHp: 10,
-                rads: 0,
-                tabs: 10,
-                stats: { charm: 1, hardiness: 1, agility: 1, perception: 1, politeness: 1, yarns: 1 },
-                scrap: { maritimeMetal: 0, syntheticSap: 0, hubCircuitry: 0, plaidScraps: 0, propaneTank: 0, radMeat: 0, spices: 0, cleanWater: 0 },
-                inventory: [],
-                activeQuests: [],
-                completedQuests: [],
-                activeRadio: null,
-                activeRadioData: null,
-                faction: null,
-                class: null,
-                unlockedPerks: [],
-                pendingPerks: 0,
-                craftedGear: [],
-                purchasedUpgrades: [],
-                activeEffects: []
-            }
-        },
-        perks: [
-            { id: 'p1', name: "IRON CALVES", desc: "Climbing Jacob's Ladder no longer causes HP loss.", tier: 1 },
-            { id: 'p2', name: "AQUA-BLUENOSER", desc: "Immune to Radiation while at the shoreline.", tier: 1 },
-            { id: 'p3', name: "THRIFTY TOWNIE", desc: "Gain 2 extra Pop Tabs from every quest.", tier: 2 },
-            { id: 'p4', name: "DONAIR DIGESTION", desc: "Healing items (snacks) restore double HP.", tier: 1 },
-            { id: 'p5', name: "SCRAPPER", desc: "50% chance to find double scrap items.", tier: 2 },
-            { id: 'p6', name: "LEAD BELLY", desc: "Eating 'Red Mud' food causes 0 Radiation.", tier: 1 },
-            { id: 'p7', name: "WASTELAND WAND", desc: "+1 Agility on trails and outdoor areas.", tier: 2 },
-            { id: 'p8', name: "SCAVENGER'S EYE", desc: "+1 Perception for finding hidden items.", tier: 3 },
-            { id: 'p9', name: "PLAID PRIDE", desc: "+2 Charisma with faction members.", tier: 2 },
-            { id: 'p10', name: "QUICK-HANDS", desc: "+10% attack speed with melee weapons.", tier: 3 }
-        ],
-        statusEffects: [
-            {
-                id: 'se1',
-                name: "DONAIR SWEATS",
-                desc: "You smell so strongly of garlic and spiced beef that you can't sneak, and people don't want to talk to you.",
-                trigger: "Consuming low-quality Mystery Meat",
-                type: 'debuff',
-                effects: { agility: -1, politeness: -1 },
-                recovery: "Drink clean water or wait 30 minutes",
-                durationMinutes: 30
-            },
-            {
-                id: 'se2',
-                name: "FOG-BRAIN",
-                desc: "Your vision is obscured by a thick, glowing pea-soup fog. You might be walking toward a cliff or a Tim Hortons; you can't tell.",
-                trigger: "Spending too long in the irradiated coastal mist",
-                type: 'debuff',
-                effects: { perception: -2 },
-                recovery: "Find a campfire or high ground",
-                durationMinutes: null
-            },
-            {
-                id: 'se3',
-                name: "KITCHEN PARTY HYPE",
-                desc: "A surge of local pride makes you feel invincible and incredibly talkative.",
-                trigger: "Hearing a fiddle tune or successfully telling a Yarn",
-                type: 'buff',
-                effects: { charm: 2, hardiness: 1 },
-                durationMinutes: 15
-            },
-            {
-                id: 'se4',
-                name: "BLACK ROCK SLIP",
-                desc: "You didn't stay off the black rocks at Peggy's Cove. The Atlantic Ocean humbled you.",
-                trigger: "Rolling a 1 near the coastline",
-                type: 'debuff',
-                effects: { hp: -3, hardiness: -1 },
-                permanent: true
-            },
-            {
-                id: 'se5',
-                name: "OVER-POLITE STANDOFF",
-                desc: "A classic Nova Scotian deadlock where nobody wants to be the one to go first.",
-                trigger: "Encountering another player at a doorway or loot pile",
-                type: 'mutual_debuff',
-                effects: { skipNextTurn: true },
-                durationTurns: 1
-            }
-        ],
-        quests: [
-            { id: 'h1', title: "VAULT: Sanitize Quarters", desc: "Clean your room until no scrap remains on the floor.", category: 'vault', rewardTabs: 10, rewardScrap: { syntheticSap: 1 }, xp: 1 },
-            { id: 'h2', title: "VAULT: Nutrient Synthesis", desc: "Assist the Overseer with preparing a family meal.", category: 'vault', rewardTabs: 15, rewardScrap: { cleanWater: 1, spices: 1 }, xp: 1 },
-            { id: 'h3', title: "VAULT: Static Discharge", desc: "Fold and put away a basket of clean laundry.", category: 'vault', rewardTabs: 10, rewardScrap: { plaidScraps: 1 }, xp: 1 },
-            { id: 'q2', title: "The Great Drain", desc: "Visit Burncoat Head at low tide.", category: 'main', rewardTabs: 20, rewardScrap: { maritimeMetal: 2 }, xp: 1 },
-            { id: 'q5', title: "Jacob's Ladder Trial", desc: "Complete the brutal 175 step challenge without falling.", category: 'main', rewardTabs: 45, rewardScrap: { hubCircuitry: 1 }, xp: 2 },
-            { id: 'q6', title: "Witches' Cauldron Mystery", desc: "Dive into the radioactive pool and retrieve the pre-war crate.", category: 'main', rewardTabs: 45, rewardScrap: { radMeat: 1, cleanWater: 1 }, xp: 2 },
-            { id: 'q11', title: "Battle for the Bazaar", desc: "Defend Masstown Market from Highway 104 Raiders.", category: 'main', rewardTabs: 100, rewardScrap: { maritimeMetal: 2, hubCircuitry: 2 }, xp: 3 },
-            { id: 'q12', title: "The Tidal Bore Race", desc: "Gather all Scrap and Supplies and return to safety before the 5-minute tide rush!", category: 'side', rewardTabs: 50, rewardScrap: { maritimeMetal: 1, syntheticSap: 1 }, xp: 2 },
-            { id: 'q13', title: "The Plaid Patch-Up", desc: "Find Plaid Scrap and use Synthetic Sap to patch the Vault air-lock before the next Rad-Storm.", category: 'side', rewardTabs: 35, rewardScrap: { plaidScraps: 2, syntheticSap: 1 }, xp: 1 },
-            { id: 'q14', title: "Three-Crows Signal Boost", desc: "One player stands at the Highest Peak for 60 seconds while the other tunes the Pip-Boy. Recite the Wasteland Oath!", category: 'side', rewardTabs: 20, rewardScrap: { hubCircuitry: 1 }, xp: 1 },
-            { id: 'q15', title: "The Junk-Jet Prototype", desc: "Collect 5 pieces of Scrap from different Biomes and justify each one to the Overseer.", category: 'side', rewardTabs: 60, rewardScrap: { propaneTank: 1, maritimeMetal: 1 }, xp: 2 },
-            { id: 'q16', title: "Five Islands Provincial Park (The Great Drain)", desc: "Master the Mud-Slog and survive the Tidal Rush at the Great Drain.", category: 'main', rewardTabs: 55, rewardScrap: { maritimeMetal: 2, cleanWater: 1 }, xp: 2 },
-            { id: 'q17', title: "Shubenacadie Wildlife Park (The Beast Pens)", desc: "Scout the perimeter and photograph three Wasteland Creatures without startling them.", category: 'main', rewardTabs: 50, rewardScrap: { radMeat: 1, spices: 1 }, xp: 2 }
-        ],
-        randomQuests: [
-            { id: 'rq1', title: "HOUSE: Tidy the Living Room", desc: "Pick up toys and organize the space.", reward: 5, xp: 1 },
-            { id: 'rq2', title: "HOUSE: Wash the Dishes", desc: "Clean and rinse all dishes in the sink.", reward: 5, xp: 1 },
-            { id: 'rq3', title: "HOUSE: Make Your Bed", desc: "Pull covers tight and arrange pillows.", reward: 5, xp: 1 },
-            { id: 'rq4', title: "HOUSE: Sweep the Kitchen", desc: "Clear crumbs and debris from the floor.", reward: 5, xp: 1 },
-            { id: 'rq5', title: "CRAFT: Build a Lego Structure", desc: "Create and complete any Lego model.", reward: 8, xp: 1 },
-            { id: 'rq6', title: "CRAFT: Draw or Paint", desc: "Create a piece of art and show it off.", reward: 8, xp: 1 },
-            { id: 'rq7', title: "CRAFT: Assemble a Model", desc: "Build something cool from a kit.", reward: 10, xp: 1 },
-            { id: 'rq8', title: "SPORT: Play Soccer in the Yard", desc: "Get some exercise kicking the ball.", reward: 8, xp: 1 },
-            { id: 'rq9', title: "SPORT: Go for a Bike Ride", desc: "Ride your bike around the neighborhood.", reward: 10, xp: 1 },
-            { id: 'rq10', title: "SPORT: Play Catch", desc: "Toss a ball back and forth.", reward: 5, xp: 1 },
-            { id: 'rq11', title: "CHORE: Fold Laundry", desc: "Sort and fold clean clothes.", reward: 5, xp: 1 },
-            { id: 'rq12', title: "CHORE: Take Out Trash", desc: "Empty the bins and replace bags.", reward: 5, xp: 1 },
-            { id: 'rq13', title: "CHORE: Organize Closet", desc: "Sort and arrange your belongings.", reward: 8, xp: 1 }
-        ],
-        recipes: [
-            {
-                id: 'r1',
-                name: 'BLUENOSE BAYONET',
-                desc: 'A reach weapon that deals extra damage to Rad-Skeeters.',
-                ingredients: [{ type: 'maritimeMetal', amount: 2 }],
-                output: { item: 'Bluenose Bayonet', qty: 1 }
-            },
-            {
-                id: 'r2',
-                name: 'TRAPPER\'S PLATE',
-                desc: 'High-resistance armor that makes the wearer immune to the Red Mud agility penalty.',
-                ingredients: [{ type: 'maritimeMetal', amount: 4 }, { type: 'plaidScraps', amount: 2 }],
-                output: { item: 'Trapper\'s Plate', qty: 1 }
-            },
-            {
-                id: 'r3',
-                name: 'PROPANE POPPER',
-                desc: 'A makeshift grenade that causes a massive fire AOE, perfect for clearing out swarms.',
-                ingredients: [{ type: 'propaneTank', amount: 1 }, { type: 'syntheticSap', amount: 2 }],
-                output: { item: 'Propane Popper', qty: 1 }
-            },
-            {
-                id: 'r4',
-                name: 'DONAIR-DAB KIT',
-                desc: 'A powerful healing item (50% HP) but adds +10 RADS unless you have LEAD BELLY perk.',
-                ingredients: [{ type: 'radMeat', amount: 1 }, { type: 'spices', amount: 1 }, { type: 'cleanWater', amount: 1 }],
-                output: { item: 'Donair-Dab Kit', qty: 1 }
-            },
-            {
-                id: 'r5',
-                name: 'STIMPAK',
-                desc: 'Restores 4 HP.',
-                ingredients: [{ type: 'syntheticSap', amount: 1 }],
-                output: { item: 'Stimpak', qty: 1 }
-            },
-            {
-                id: 'r6',
-                name: 'RAD-AWAY',
-                desc: 'Removes 2 Rads.',
-                ingredients: [{ type: 'syntheticSap', amount: 2 }],
-                output: { item: 'Rad-Away', qty: 1 }
-            },
-            {
-                id: 'r7',
-                name: 'PEGGY\'S COVE CLEATS',
-                desc: 'Studded shoreline boots. +1 Agility and +1 Hardiness when crafted (one-time).',
-                ingredients: [{ type: 'maritimeMetal', amount: 2 }, { type: 'plaidScraps', amount: 1 }],
-                output: { item: 'Peggy\'s Cove Cleats', qty: 1 }
-            },
-            {
-                id: 'r8',
-                name: 'BASIN FOG LENS',
-                desc: 'A salvaged monocle tuned for coastal haze. +1 Perception when crafted (one-time).',
-                ingredients: [{ type: 'hubCircuitry', amount: 1 }, { type: 'cleanWater', amount: 1 }],
-                output: { item: 'Basin Fog Lens', qty: 1 }
-            },
-            {
-                id: 'r9',
-                name: 'APPLE-CORE SASH',
-                desc: 'A Valley propaganda sash that boosts confidence. +1 Charm and +1 Politeness when crafted (one-time).',
-                ingredients: [{ type: 'plaidScraps', amount: 2 }, { type: 'spices', amount: 1 }],
-                output: { item: 'Apple-Core Sash', qty: 1 }
-            }
-        ],
-        trades: [],
-        radioSignals: [
-            { id: 'r1', title: "ENTERING DEBERT", text: "You're treadin' on ancient ground now, scavengers. Debert awaits." },
-            { id: 'r2', title: "THE HERMIT'S LAST WORDS", text: "Eyes like burning pitch... it walks the northern woods..." },
-            { id: 'r3', title: "DEBERT NUMBERS STATION", text: "[SYNTHESIZED VOICE] Coordinates: North 45.3471 West 63.2851..." },
-            { id: 'r4', title: "THE MASTODON'S CALL", text: "[DEAFENING RUMBLE] The Awakening approaches..." },
-            { id: 'r5', title: "TIDAL BORE WARNING", text: "ALERT! The Tidal Bore is moving... 5 minutes until the surge. All units retreat to high ground NOW!" },
-            { id: 'r6', title: "PLAID PATCH ALERT", text: "Vault integrity compromised. Air-lock seal has failed. Patch required immediately. Plaid Scrap + Synthetic Sap needed." },
-            { id: 'r7', title: "SIGNAL BOOST REQUEST", text: "Three-Crows Radio fading... signal weakening. We need a Signal Flare at the Highest Peak. Someone hold the light!" },
-            { id: 'r8', title: "JUNK-JET BROADCAST", text: "Prototype testing in progress. Scrap collectors needed. Bring us 5 pieces from different Biomes for analysis." },
-            { id: 'r9', title: "GREAT DRAIN LOCATION", text: "Coordinates locked: Five Islands Provincial Park. Beware the Red Mud. The Tidal Rush is unpredictable. Proceed with caution." },
-            { id: 'r10', title: "BEAST PENS SIGHTING", text: "Movement detected at Shubenacadie Wildlife Park. Rad-Moose and Yao Guai variants confirmed. Scout teams deploy. Biological data required." }
-        ],
-        broadcastSignals: [
-            { id: 'b1', title: "THREE-CROWS RADIO: MUSIC HOUR", text: "[STATIC] Now playing: The Atomic Dream by The Pip-Boys..." },
-            { id: 'b2', title: "WEATHER ALERT", text: "ATTENTION: High-pressure rad-front moving in from the northeast. Recommend increasing vault shielding." },
-            { id: 'b3', title: "SURVIVOR LOG", text: "[CRACKLING VOICE] This is Overseer Sinclair... Day 847... We endure..." },
-            { id: 'b4', title: "STRANGE SIGNAL", text: "[MYSTERIOUS BEEPING] ...cannot identify source... ...repeating pattern..." },
-            { id: 'b5', title: "DISTRESS CALL", text: "[GARBLED TRANSMISSION] ...anyone... ...need help... ...coordinates unknown..." },
-            { id: 'b6', title: "OLD WORLD BROADCAST", text: "[ANCIENT RECORDING] Welcome to Three-Crows Radio, serving Halifax since 1957..." },
-            { id: 'b7', title: "VAULT-TEC ANNIVERSARY", text: "Celebrating another year of safety and security! Vault-Tec: Ensuring your family's future!" },
-            { id: 'b8', title: "UNKNOWN TRANSMISSION", text: "[WHISPERED] ...they're coming... ...prepare the defenses... ...the old ones stir..." },
-            { id: 'b9', title: "THE BIG STOP BEACON", text: "Greetings traveler! You are 400 miles from the nearest functioning IRVING Big Stop. Today's special is: Rad-Turkey Club and a side of Glow-Slaw. Please have your Tabs ready. Note: We are currently out of napkins." },
-            { id: 'b10', title: "MARITIME AUTOMATED WEATHER", text: "Conditions in the Minas Basin: 100% chance of acid rain, followed by a light dusting of nuclear soot. Wind speeds are currently high enough to throw a Rad-Cow into New Brunswick. Have a pleasant day, and stay off the black rocks." },
-            { id: 'b11', title: "EMERGENCY BROADCAST (HERITAGE MINUTE EDITION)", text: "I... I can't find a vein! Dramatic piano music plays. This has been a Maritime Heritage Minute. If you find a pre-war medicinal syringe, please return it to the nearest vault." },
-            { id: 'b12', title: "THE BRIDGE TOLL BANDIT", text: "This is a public service announcement for anyone crossing the MacKay. The toll is no longer $1.00. It is now your left boot and a roll of duct tape. Don't make me come down from the rafters, I haven't had my coffee yet." },
-            { id: 'b13', title: "THE FIDDLE-HEAD RADIO", text: "[Aggressive, high-speed fiddle music plays for 10 seconds] IF YOU CAN HEAR THIS, THE KITCHEN PARTY AT SECTOR 4 IS STILL GOING. WE HAVE THREE GALLONS OF MOON-MIST AND A RADIATED LOBSTER. NO RAIDERS ALLOWED UNLESS YOU CAN PLAY THE SPOONS." },
-            { id: 'b14', title: "PROPAGANDA FROM THE VALLEY", text: "Why settle for the salty ruins of Halifax when you can have the mutated orchards of the Annapolis Valley? Our apples are the size of basketballs and only 20% lethal! Join the Apple-Core today!" },
-            { id: 'b15', title: "THE GHOST OF THE BLUENOSE", text: "Can you hear the creaking? She's sailing on the fog again... if you see a schooner made of scrap metal and glowing sails near Lunenburg, do not wave. She doesn't want passengers. She wants your Hub Circuitry." },
-            { id: 'b16', title: "THE DOUBLE-DOUBLE LOOP", text: "[A distorted, slow-motion voice over heavy static] Large... double... double... large... double... double... screaming... I SAID LARGE DOUBLE DOUBLE." },
-            { id: 'b17', title: "THE OAK ISLAND PING", text: "Entry 4,002. We've dug another ten feet. We found a coconut fiber mat and a single pre-war bottle cap. Could this be the treasure? Or just another trap? Heavy sound of water rushing into a tunnel... Not again!" }
-        ],
-        quarterUpgrades: [
-            {
-                id: 'qupg1',
-                name: 'STRUCTURAL REINFORCEMENT',
-                desc: 'Clothespins and binder clips reinforce tent walls against Room-Draft Rad-storms.',
-                tier: 1,
-                cost: 50,
-                stat: 'hardiness',
-                statBoost: 1,
-                effect: 'Vault walls are now taut and resistant to radiation storms.'
-            },
-            {
-                id: 'qupg2',
-                name: 'TACTICAL LUMENS',
-                desc: 'Battery-powered fairy lights illuminate the Vault at night.',
-                tier: 1,
-                cost: 75,
-                stat: 'perception',
-                statBoost: 1,
-                effect: 'Lights prevent stubbed toes and improve nighttime visibility.'
-            },
-            {
-                id: 'qupg3',
-                name: 'SOFT-FLOOR PROTOCOL',
-                desc: 'Extra yoga mats and rugs create cushioned flooring.',
-                tier: 1,
-                cost: 100,
-                stat: null,
-                hpRecovery: 'full',
-                effect: 'Sleeping in the Vault now fully restores Health.'
-            },
-            {
-                id: 'qupg4',
-                name: 'SALVAGED SUPPLY BIN',
-                desc: 'A plastic bin or cardboard crate inside the Vault for storage.',
-                tier: 1,
-                cost: 60,
-                stat: null,
-                inventorySlots: 3,
-                effect: 'Store up to 3 extra pieces of scrap without carry weight penalties.'
-            },
-            {
-                id: 'qupg5',
-                name: 'DELTA MASCOT POSTER',
-                desc: 'A drawing or photo of the Company mascot pinned to the Vault wall.',
-                tier: 1,
-                cost: 45,
-                stat: 'charm',
-                statBoost: 1,
-                effect: 'Familiar face boosts morale and negotiation with factions.'
-            },
-            {
-                id: 'qupg6',
-                name: 'AIR-LOCK SEALANT',
-                desc: 'Duct tape and masking tape seal the blanket fort seams.',
-                tier: 1,
-                cost: 40,
-                stat: null,
-                specialEffect: 'skeeterImmunity',
-                effect: 'Immune to Rad-Skeeter Swarm encounters while inside the Vault.'
-            },
-            {
-                id: 'qupg7',
-                name: 'RATION DISPENSER',
-                desc: 'A dedicated bowl or container for session snacks inside the Vault.',
-                tier: 1,
-                cost: 80,
-                stat: null,
-                specialEffect: 'fortifiedRecovery',
-                effect: '+1 Hardiness for the duration of the next Wasteland Encounter.'
-            },
-            {
-                id: 'qupg8',
-                name: 'SCRAP-COMMS LINK',
-                desc: 'Tin can phone, toy walkie-talkie, or colored string between Vaults.',
-                tier: 1,
-                cost: 100,
-                stat: null,
-                specialEffect: 'assistBonus',
-                effect: 'Once per session, call the other survivor for +1 to any C.H.A.P.P.Y. roll.'
-            }
-        ],
-        trades: [],
-        questRadioMap: {
-            q12: 'r5',
-            q13: 'r6',
-            q14: 'r7',
-            q15: 'r8',
-            q16: 'r9',
-            q17: 'r10'
-        },
-        randomEncounters: [
-            {
-                id: 'e1',
-                title: 'RAD-MOOSE SIGHTING',
-                text: 'WARNING: A glowing Rad-Moose has been spotted near your sector. Keep your distance or prepare for a fight.'
-            },
-            {
-                id: 'e2',
-                title: 'HIGHWAY 104 AMBUSH',
-                text: 'ALERT: Raiders have set up a scrap-metal barricade. They are demanding 5 Tabs for safe passage.'
-            },
-            {
-                id: 'e3',
-                title: 'FERAL GHOUL PACK',
-                text: 'RADIO STATIC: ...they are coming out of the basement! Feral pack moving fast through the ruins!'
-            },
-            {
-                id: 'e4',
-                title: 'ABANDONED SLOCUMS JOE',
-                text: 'LUCK: You have found a preserved Slocums Joe. It is dusty, but there might be some useful scrap or a snack inside.'
-            },
-            {
-                id: 'e5',
-                title: 'CRASHED VERTIBIRD',
-                text: 'SIGNAL: Emergency beacon detected. A Pre-War transport has crashed nearby. High chance of finding Steel and Circuits.'
-            },
-            {
-                id: 'e6',
-                title: 'TRAVELING MERCHANT',
-                text: "TRADER: 'Hey there! Name is Halifax. I have got the best Adhesive in the Maritimes if you have got the Tabs!'"
-            },
-            {
-                id: 'e7',
-                title: 'ACID RAIN MIST',
-                text: 'WEATHER: Yellow clouds are rolling in from the coast. Seek shelter or take +2 RADS.'
-            },
-            {
-                id: 'e8',
-                title: 'MYSTERIOUS RADIO SIGNAL',
-                text: 'SIGNAL: A strange, upbeat fiddle tune is playing on a loop. It fills you with Nova Scotian pride. (+1 Politeness temporarily).'
-            },
-            {
-                id: 'e9',
-                title: 'KITCHEN PARTY NOISE',
-                text: 'SOUND: You hear the faint sound of a kitchen party in the distance. Following the noise might lead to a safe settlement.'
-            }
-        ]
-    };
+    gameState = createInitialGameState();
     
     scheduleAutoSave();
     res.json({ success: true, message: 'Game data reset to initial state' });
