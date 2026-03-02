@@ -14,7 +14,7 @@ const PORT = process.env.PORT || 5000;
 const SAVE_DEBOUNCE_MS = 500;
 const PERIODIC_SAVE_MS = Number(process.env.PERIODIC_SAVE_MS || 60000);
 const SAVE_BACKUP_LIMIT = Number(process.env.SAVE_BACKUP_LIMIT || 20);
-const GAME_STATE_VERSION = 4; // Increment when schema changes
+const GAME_STATE_VERSION = 5; // Increment when schema changes
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const SUPABASE_TABLE = process.env.SUPABASE_TABLE || 'game_state';
@@ -169,7 +169,8 @@ const BASE_GAME_STATE = {
             craftedGear: [],
             purchasedUpgrades: [],
             activeEffects: [],
-            educationalCompleted: []
+            educationalCompleted: [],
+            educationalBoard: null
         },
         rylyn: {
             name: 'Rylyn',
@@ -193,7 +194,8 @@ const BASE_GAME_STATE = {
             craftedGear: [],
             purchasedUpgrades: [],
             activeEffects: [],
-            educationalCompleted: []
+            educationalCompleted: [],
+            educationalBoard: null
         }
     },
     perks: [
@@ -311,74 +313,7 @@ const BASE_GAME_STATE = {
         { id: 'rq21', title: "CHORE: Bedside Reset", desc: "Clear your bedside area and place books and water neatly.", reward: 2, xp: 0 },
         { id: 'rq22', title: "LEARNING: Math Sprint", desc: "Solve 10 math questions at your level and check answers with an adult.", reward: 3, xp: 1 }
     ],
-    educationalQuests: [
-        {
-            id: 'eq1',
-            title: 'READING CHECKPOINT',
-            desc: 'Read the sentence and answer the question.',
-            question: 'Which word is a color? "The blue boat is fast."',
-            options: ['boat', 'blue', 'fast'],
-            correctOptionIndex: 1,
-            rewardTabs: 1,
-            rewardXp: 0,
-            wrongPenalty: { hp: 1 }
-        },
-        {
-            id: 'eq2',
-            title: 'MATH BURST',
-            desc: 'Solve the math question.',
-            question: 'What is 4 + 3?',
-            options: ['6', '7', '8'],
-            correctOptionIndex: 1,
-            rewardTabs: 1,
-            rewardXp: 1,
-            wrongPenalty: { rads: 1 }
-        },
-        {
-            id: 'eq3',
-            title: 'SPELLING SCOUT',
-            desc: 'Pick the correctly spelled word.',
-            question: 'Which spelling is correct?',
-            options: ['frend', 'friend', 'freind'],
-            correctOptionIndex: 1,
-            rewardTabs: 1,
-            rewardXp: 0,
-            wrongPenalty: { hp: 1 }
-        },
-        {
-            id: 'eq4',
-            title: 'SCIENCE SPOTTER',
-            desc: 'Answer a simple science question.',
-            question: 'What do plants need to grow best?',
-            options: ['Sunlight and water', 'Only candy', 'Only TV'],
-            correctOptionIndex: 0,
-            rewardTabs: 2,
-            rewardXp: 1,
-            wrongPenalty: { rads: 1 }
-        },
-        {
-            id: 'eq5',
-            title: 'WRITING SIGNAL',
-            desc: 'Find the sentence with correct punctuation.',
-            question: 'Which sentence ends correctly?',
-            options: ['I like dogs', 'I like dogs.', 'I like dogs..'],
-            correctOptionIndex: 1,
-            rewardTabs: 1,
-            rewardXp: 0,
-            wrongPenalty: { hp: 1 }
-        },
-        {
-            id: 'eq6',
-            title: 'MAP READER',
-            desc: 'Answer a simple direction question.',
-            question: 'If north is up, what direction is right?',
-            options: ['West', 'East', 'South'],
-            correctOptionIndex: 1,
-            rewardTabs: 1,
-            rewardXp: 1,
-            wrongPenalty: { rads: 1 }
-        }
-    ],
+    educationalQuests: [],
     radioSignals: [
         { id: 'r1', title: "ENTERING DEBERT", text: "You're treadin' on ancient ground now, scavengers. Debert awaits." },
         { id: 'r2', title: "THE HERMIT'S LAST WORDS", text: "Eyes like burning pitch... it walks the northern woods..." },

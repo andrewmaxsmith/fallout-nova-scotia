@@ -299,9 +299,11 @@
 
             <div class="pip-border p-3 border-dashed border-blue-500 bg-blue-950/10">
                 <h3 class="text-xs font-bold text-blue-400 mb-2">EDUCATIONAL QUESTS</h3>
-                <p class="text-[10px] opacity-80 mb-2">Pick a learning quest, finish it, and earn small XP/Tabs rewards.</p>
+                <p class="text-[10px] opacity-80 mb-2">Each learning tab has multiple generated quiz missions. Pick one and submit your answer.</p>
+                <div id="educational-category-tabs" class="grid grid-cols-3 gap-1 mb-2"></div>
+                <p id="educational-category-hint" class="text-[10px] opacity-70 mb-2">Select a learning tab.</p>
                 <select id="educational-quest-select" class="w-full p-2 bg-black border border-pip-green text-pip-green text-[10px] mb-2" onchange="previewEducationalQuest()">
-                    <option value="">Select educational quest...</option>
+                    <option value="">Select generated quest...</option>
                 </select>
                 <div id="educational-quest-preview" class="text-[10px] opacity-80 mb-2">No quest selected.</div>
                 <button onclick="completeEducationalQuest(this)" id="educational-quest-complete-btn" class="pip-btn w-full py-2 text-[10px]" disabled>SUBMIT ANSWER</button>
@@ -491,6 +493,8 @@
         let allRecipes = [];
         let allQuartersUpgrades = [];
         let allEducationalQuests = [];
+        let educationalCategories = [];
+        let activeEducationalCategory = 'reading';
         let playerQuarters = [];
         let fullGameState = {};
         let activeTeamObjective = null;
@@ -677,7 +681,7 @@
                     apiRequest(`/api/player/${playerName}/quarters`, { showError: false }),
                     apiRequest('/api/game-state', { showError: false }),
                     apiRequest(`/api/player/${playerName}/achievements`, { showError: false }),
-                    apiRequest('/api/educational-quests', { showError: false })
+                    apiRequest(`/api/player/${playerName}/educational-quests`, { showError: false })
                 ]);
 
                 playerData = player || {};
@@ -686,7 +690,15 @@
                 allPerks = perks || [];
                 allRecipes = recipes || [];
                 allQuartersUpgrades = quartersShop || [];
-                allEducationalQuests = educationalQuests || [];
+                educationalCategories = Array.isArray(educationalQuests?.categories) ? educationalQuests.categories : [];
+                allEducationalQuests = Array.isArray(educationalQuests?.quests) ? educationalQuests.quests : [];
+                if (!educationalCategories.length) {
+                    const uniqueCategories = Array.from(new Set(allEducationalQuests.map((quest) => quest.category).filter(Boolean)));
+                    educationalCategories = uniqueCategories.map((id) => ({ id, label: id.toUpperCase() }));
+                }
+                if (!educationalCategories.some((category) => category.id === activeEducationalCategory)) {
+                    activeEducationalCategory = educationalCategories[0]?.id || 'reading';
+                }
                 playerQuarters = quarters || [];
                 fullGameState = state || {};
                 activeTeamObjective = fullGameState.activeTeamObjective || null;
@@ -758,6 +770,7 @@
             }
             // Update quests
             updateQuests();
+            renderEducationalCategoryTabs();
             updateEducationalQuestOptions();
             updateTeamObjective();
 
@@ -1145,21 +1158,61 @@
             }
         }
 
+        function getEducationalCategoryLabel(categoryId) {
+            const category = (educationalCategories || []).find((item) => item.id === categoryId);
+            return category?.label || (categoryId ? categoryId.toUpperCase() : 'EDUCATION');
+        }
+
+        function getQuestsForActiveEducationalCategory() {
+            return (allEducationalQuests || []).filter((quest) => quest.category === activeEducationalCategory);
+        }
+
+        function setEducationalCategory(categoryId) {
+            activeEducationalCategory = categoryId;
+            renderEducationalCategoryTabs();
+            updateEducationalQuestOptions();
+        }
+
+        function renderEducationalCategoryTabs() {
+            const container = document.getElementById('educational-category-tabs');
+            const hint = document.getElementById('educational-category-hint');
+            if (!container || !hint) return;
+
+            container.innerHTML = '';
+            if (!Array.isArray(educationalCategories) || educationalCategories.length === 0) {
+                hint.textContent = 'No educational tabs available right now.';
+                return;
+            }
+
+            hint.textContent = `ACTIVE TAB: ${getEducationalCategoryLabel(activeEducationalCategory)}`;
+
+            educationalCategories.forEach((category) => {
+                const button = document.createElement('button');
+                const isActive = category.id === activeEducationalCategory;
+                button.className = `pip-btn py-1 text-[9px] ${isActive ? 'bg-green-400 text-black' : ''}`;
+                button.textContent = category.label;
+                button.onclick = () => setEducationalCategory(category.id);
+                container.appendChild(button);
+            });
+        }
+
         function updateEducationalQuestOptions() {
             const select = document.getElementById('educational-quest-select');
             if (!select) return;
 
             const previous = select.value;
-            select.innerHTML = '<option value="">Select educational quest...</option>';
+            const categoryQuests = getQuestsForActiveEducationalCategory();
+            const categoryLabel = getEducationalCategoryLabel(activeEducationalCategory);
+            select.innerHTML = `<option value="">Select ${categoryLabel} quest...</option>`;
 
-            (allEducationalQuests || []).forEach((quest) => {
+            categoryQuests.forEach((quest) => {
                 const option = document.createElement('option');
                 option.value = quest.id;
                 option.textContent = `${quest.title} (+${quest.rewardTabs || 0} Tabs, +${quest.rewardXp || 0} XP)`;
                 select.appendChild(option);
             });
 
-            if (previous && (allEducationalQuests || []).some(q => q.id === previous)) {
+            if (previous && categoryQuests.some(q => q.id === previous)) {
                 select.value = previous;
             }
 
@@ -1191,7 +1244,7 @@
 
             preview.innerHTML = `
                 <p class="font-bold text-blue-300 mb-1">${selected.title}</p>
-                <p class="opacity-80 mb-1">${selected.desc}</p>
+                <p class="text-[9px] text-blue-200 mb-1">TAB: ${getEducationalCategoryLabel(selected.category)}</p>
                 <p class="text-cyan-300 mb-2">QUESTION: ${selected.question || 'No question provided.'}</p>
                 <div class="mb-2">${optionsHtml}</div>
                 <p class="text-yellow-500">REWARD: +${selected.rewardTabs || 0} TABS, +${selected.rewardXp || 0} XP</p>

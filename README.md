@@ -179,8 +179,9 @@ Players see real-time updates (polls every 2 seconds):
 - All active quest contracts
 - Quest descriptions and rewards
 - Shows tabs earned per quest
-- Educational quest picker (player-selected learning quests)
-- Complete selected educational quest for small rewards (+Tabs, +XP)
+- Educational learning tabs: Reading, Math, Spelling, Science, Writing, Map Reading
+- Multiple randomized quiz missions under each learning tab
+- Complete selected quiz for small rewards (+Tabs, +XP), wrong answers apply small HP/RAD penalties
 
 ### CRAFTING Tab
 - Inventory of scrap materials
@@ -256,12 +257,12 @@ g:\My Drive\fallout\
 ### Player Endpoints
 - `GET /api/player/:player` - Get player data
 - `GET /api/quests` - Get all quests
-- `GET /api/educational-quests` - Get all educational quests
+- `GET /api/player/:player/educational-quests` - Get that player's generated educational quiz board (categories + randomized quests)
 - `GET /api/radio` - Get all radio signals
 - `GET /api/recipes` - Get all recipes
 - `GET /api/trades` - Get trade offers
 - `POST /api/player/:player/craft/:recipeId` - Craft an item
-- `POST /api/player/:player/complete-educational-quest` - Complete selected educational quest for small Tabs/XP rewards
+- `POST /api/player/:player/complete-educational-quest` - Submit quiz answer, award Tabs/XP on correct, apply HP/RAD penalty on wrong
 
 ### Perk Endpoints
 - `GET /api/perks` - Get all perks
