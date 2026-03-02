@@ -11,7 +11,7 @@ services:
         value: "60000"
       - key: SAVE_BACKUP_LIMIT
         value: "20"
-    disks:
-      - name: fallout-data
-        mountPath: /var/data
-        sizeGB: 1
+    disk:
+      name: fallout-data
+      mountPath: /var/data
+      sizeGB: 1
