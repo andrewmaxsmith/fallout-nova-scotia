@@ -110,7 +110,34 @@ function registerGameplayRoutes(app, deps) {
         return Boolean(Array.isArray(playerData?.unlockedPerks) && playerData.unlockedPerks.includes(perkId));
     }
 
+    function getActiveEffectModifiers(gameState, playerData) {
+        if (!playerData || !Array.isArray(playerData.activeEffects)) {
+            return [];
+        }
+
+        const effectById = new Map((gameState.statusEffects || []).map((effect) => [effect.id, effect]));
+        return playerData.activeEffects
+            .map((effectId) => effectById.get(effectId))
+            .filter((effect) => effect && effect.modifiers && typeof effect.modifiers === 'object')
+            .map((effect) => effect.modifiers);
+    }
+
+    function getActiveEffectNumericSum(gameState, playerData, key) {
+        return getActiveEffectModifiers(gameState, playerData)
+            .reduce((sum, modifiers) => sum + Number(modifiers[key] || 0), 0);
+    }
+
+    function getActiveEffectStatCheckBonus(gameState, playerData, statKey) {
+        return getActiveEffectModifiers(gameState, playerData).reduce((sum, modifiers) => {
+            const statBonus = modifiers.statCheckBonus && typeof modifiers.statCheckBonus === 'object'
+                ? Number(modifiers.statCheckBonus[statKey] || 0)
+                : 0;
+            return sum + statBonus;
+        }, 0);
+    }
+
     function applyMissionTabsReward(playerData, baseTabs) {
+        const gameState = getGameState();
         const safeBase = Math.max(0, Number(baseTabs || 0));
         if (safeBase <= 0) return 0;
 
@@ -122,13 +149,23 @@ function registerGameplayRoutes(app, deps) {
             totalTabs += Math.ceil(safeBase * 0.10);
         }
 
+        totalTabs += getActiveEffectNumericSum(gameState, playerData, 'missionTabsBonus');
+        const missionTabsPercent = getActiveEffectNumericSum(gameState, playerData, 'missionTabsPercent');
+        if (missionTabsPercent !== 0) {
+            totalTabs += Math.round(safeBase * missionTabsPercent);
+        }
+
+        totalTabs = Math.max(0, totalTabs);
+
         playerData.tabs = (playerData.tabs || 0) + totalTabs;
         return totalTabs;
     }
 
     function applyScrapRewards(playerData, rewardScrap) {
+        const gameState = getGameState();
         const safeMap = rewardScrap && typeof rewardScrap === 'object' ? rewardScrap : {};
         const applied = {};
+        const effectScrapBonus = getActiveEffectNumericSum(gameState, playerData, 'scrapRewardBonus');
 
         Object.entries(safeMap).forEach(([type, rawAmount]) => {
             let amount = Math.max(0, Number(rawAmount || 0));
@@ -139,6 +176,8 @@ function registerGameplayRoutes(app, deps) {
             if (hasPerk(playerData, 'p5') && Math.random() < 0.5) {
                 amount *= 2;
             }
+
+            amount = Math.max(0, amount + effectScrapBonus);
 
             if (playerData.scrap[type] === undefined) {
                 playerData.scrap[type] = 0;
@@ -151,17 +190,21 @@ function registerGameplayRoutes(app, deps) {
     }
 
     function applyHealingWithPerks(playerData, baseHeal) {
+        const gameState = getGameState();
         const safeBase = Math.max(0, Number(baseHeal || 0));
         if (safeBase <= 0) return 0;
 
         const multiplier = hasPerk(playerData, 'p4') ? 2 : 1;
-        const healAmount = Math.max(0, Math.ceil(safeBase * multiplier));
+        const effectHealingBonus = getActiveEffectNumericSum(gameState, playerData, 'healingBonusFlat');
+        const effectHealingPenalty = getActiveEffectNumericSum(gameState, playerData, 'healingPenaltyFlat');
+        const healAmount = Math.max(0, Math.ceil(safeBase * multiplier) + effectHealingBonus - effectHealingPenalty);
         const beforeHp = Number(playerData.hp || 0);
         playerData.hp = clamp(beforeHp + healAmount, 0, playerData.maxHp || 10);
         return playerData.hp - beforeHp;
     }
 
     function applyRadGainWithPerks(playerData, baseRads, { isFood = false } = {}) {
+        const gameState = getGameState();
         const safeBase = Math.max(0, Number(baseRads || 0));
         if (safeBase <= 0) return 0;
 
@@ -177,12 +220,17 @@ function registerGameplayRoutes(app, deps) {
             adjusted = Math.max(0, adjusted - 1);
         }
 
+        adjusted += getActiveEffectNumericSum(gameState, playerData, 'radGainBonus');
+        adjusted -= getActiveEffectNumericSum(gameState, playerData, 'radGainReduction');
+        adjusted = Math.max(0, adjusted);
+
         const beforeRads = Number(playerData.rads || 0);
         playerData.rads = clamp(beforeRads + adjusted, 0, playerData.maxRads || 10);
         return playerData.rads - beforeRads;
     }
 
     function applyHpLossWithPerks(playerData, baseHpLoss) {
+        const gameState = getGameState();
         const safeBase = Math.max(0, Number(baseHpLoss || 0));
         if (safeBase <= 0) return 0;
 
@@ -190,6 +238,10 @@ function registerGameplayRoutes(app, deps) {
         if (hasPerk(playerData, 'p15')) {
             adjusted = Math.max(0, adjusted - 1);
         }
+
+        adjusted += getActiveEffectNumericSum(gameState, playerData, 'hpLossBonus');
+        adjusted -= getActiveEffectNumericSum(gameState, playerData, 'hpLossReduction');
+        adjusted = Math.max(0, adjusted);
 
         const beforeHp = Number(playerData.hp || 0);
         playerData.hp = clamp(beforeHp - adjusted, 0, playerData.maxHp || 10);
@@ -623,15 +675,17 @@ function registerGameplayRoutes(app, deps) {
         }
 
         const statKey = CHAPPY_STATS.includes(String(stat)) ? stat : 'perception';
-        const statValue = Number(playerData.stats?.[statKey] || 0);
+        const statValue = Number(playerData.stats?.[statKey] || 0) + getActiveEffectStatCheckBonus(gameState, playerData, statKey);
         const roll = Math.floor(Math.random() * 20) + 1;
         const total = roll + statValue;
-        const dc = Number(gameState.radioConsequences?.verifyDc || 10);
+        const dcBase = Number(gameState.radioConsequences?.verifyDc || 10);
+        const dc = Math.max(1, dcBase + getActiveEffectNumericSum(gameState, playerData, 'radioVerifyDcBonus'));
 
         let outcome = 'success';
         let notes = [];
         if (total >= dc) {
-            const tabsGain = Number(gameState.radioConsequences?.success?.tabsGain || 0);
+            const tabsGainBase = Number(gameState.radioConsequences?.success?.tabsGain || 0);
+            const tabsGain = Math.max(0, tabsGainBase + getActiveEffectNumericSum(gameState, playerData, 'tabsGainBonus'));
             playerData.tabs = (playerData.tabs || 0) + tabsGain;
             const passive = syncPlayerPassive(gameState, player);
             if (passive === 'signaler') {
@@ -882,12 +936,18 @@ function registerGameplayRoutes(app, deps) {
             if (effect.effects) {
                 Object.entries(effect.effects).forEach(([stat, value]) => {
                     if (stat === 'hp' && typeof value === 'number') {
-                        playerData.hp = Math.max(0, playerData.hp + value);
+                        playerData.hp = clamp((playerData.hp || 0) + value, 0, playerData.maxHp || 10);
+                    } else if (stat === 'rads' && typeof value === 'number') {
+                        playerData.rads = clamp((playerData.rads || 0) + value, 0, playerData.maxRads || 10);
+                    } else if (stat === 'tabs' && typeof value === 'number') {
+                        playerData.tabs = Math.max(0, (playerData.tabs || 0) + value);
                     } else if (playerData.stats && playerData.stats[stat] !== undefined) {
                         playerData.stats[stat] += value;
                     }
                 });
             }
+
+            ensurePlayerProgressFields(playerData);
 
             scheduleAutoSave();
             res.json({ success: true, message: `Effect "${effect.name}" applied to ${player}`, effect });
@@ -910,12 +970,18 @@ function registerGameplayRoutes(app, deps) {
         if (effect && effect.effects) {
             Object.entries(effect.effects).forEach(([stat, value]) => {
                 if (stat === 'hp' && typeof value === 'number') {
-                    gameState.players[player].hp = Math.max(0, gameState.players[player].hp - value);
+                    gameState.players[player].hp = clamp((gameState.players[player].hp || 0) - value, 0, gameState.players[player].maxHp || 10);
+                } else if (stat === 'rads' && typeof value === 'number') {
+                    gameState.players[player].rads = clamp((gameState.players[player].rads || 0) - value, 0, gameState.players[player].maxRads || 10);
+                } else if (stat === 'tabs' && typeof value === 'number') {
+                    gameState.players[player].tabs = Math.max(0, (gameState.players[player].tabs || 0) - value);
                 } else if (gameState.players[player].stats && gameState.players[player].stats[stat] !== undefined) {
                     gameState.players[player].stats[stat] -= value;
                 }
             });
         }
+
+        ensurePlayerProgressFields(gameState.players[player]);
 
         scheduleAutoSave();
         res.json({ success: true, message: `Effect removed from ${player}` });

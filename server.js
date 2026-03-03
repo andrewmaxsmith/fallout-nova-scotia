@@ -231,6 +231,7 @@ const BASE_GAME_STATE = {
             trigger: "Consuming low-quality Mystery Meat",
             type: 'debuff',
             effects: { agility: -1, politeness: -1 },
+            modifiers: { hpLossBonus: 1, missionTabsBonus: -1 },
             recovery: "Drink clean water or wait 30 minutes",
             durationMinutes: 30
         },
@@ -241,6 +242,11 @@ const BASE_GAME_STATE = {
             trigger: "Spending too long in the irradiated coastal mist",
             type: 'debuff',
             effects: { perception: -2 },
+            modifiers: {
+                radioVerifyDcBonus: 2,
+                radGainBonus: 1,
+                statCheckBonus: { perception: -2 }
+            },
             recovery: "Find a campfire or high ground",
             durationMinutes: null
         },
@@ -251,6 +257,11 @@ const BASE_GAME_STATE = {
             trigger: "Hearing a fiddle tune or successfully telling a Yarn",
             type: 'buff',
             effects: { charm: 2, hardiness: 1 },
+            modifiers: {
+                missionTabsPercent: 0.15,
+                healingBonusFlat: 1,
+                statCheckBonus: { charm: 2, politeness: 1, yarns: 1 }
+            },
             durationMinutes: 15
         },
         {
@@ -260,6 +271,7 @@ const BASE_GAME_STATE = {
             trigger: "Rolling a 1 near the coastline",
             type: 'debuff',
             effects: { hp: -3, hardiness: -1 },
+            modifiers: { hpLossBonus: 1, radGainBonus: 1 },
             permanent: true
         },
         {
@@ -269,7 +281,79 @@ const BASE_GAME_STATE = {
             trigger: "Encountering another player at a doorway or loot pile",
             type: 'mutual_debuff',
             effects: { skipNextTurn: true },
+            modifiers: { missionTabsBonus: -2, missionXpBonus: -1 },
             durationTurns: 1
+        },
+        {
+            id: 'se6',
+            name: "BATTLE RHYTHM",
+            desc: "You lock into the beat of the wasteland. Momentum carries your actions.",
+            trigger: "Winning a high-roll encounter",
+            type: 'buff',
+            effects: { agility: 1, hardiness: 1 },
+            modifiers: {
+                hpLossReduction: 1,
+                missionTabsBonus: 2,
+                scrapRewardBonus: 1,
+                statCheckBonus: { agility: 1 }
+            },
+            durationMinutes: 20
+        },
+        {
+            id: 'se7',
+            name: "COASTAL SHIELD",
+            desc: "A salty wind hardens your resolve against radioactive drizzle.",
+            trigger: "Using shoreline cover effectively",
+            type: 'buff',
+            effects: { hardiness: 1 },
+            modifiers: {
+                radGainReduction: 2,
+                hpLossReduction: 1
+            },
+            durationMinutes: 25
+        },
+        {
+            id: 'se8',
+            name: "SCRAP FEVER",
+            desc: "Your eyes light up at every rusted corner; everything looks salvageable.",
+            trigger: "After a successful salvage chain",
+            type: 'buff',
+            effects: { perception: 1, agility: 1 },
+            modifiers: {
+                scrapRewardBonus: 1,
+                tabsGainBonus: 1,
+                missionTabsPercent: 0.10
+            },
+            durationMinutes: 20
+        },
+        {
+            id: 'se9',
+            name: "RAD SICKNESS",
+            desc: "The glow gets in your lungs. Actions feel slower and sloppier.",
+            trigger: "Failing radiation safety checks",
+            type: 'debuff',
+            effects: { agility: -1, perception: -1 },
+            modifiers: {
+                radGainBonus: 1,
+                hpLossBonus: 1,
+                healingPenaltyFlat: 1,
+                missionTabsBonus: -2
+            },
+            durationMinutes: 30
+        },
+        {
+            id: 'se10',
+            name: "VAULT FOCUS",
+            desc: "You steady your breathing and execute tasks with clean precision.",
+            trigger: "Completing two educational tasks in a row",
+            type: 'buff',
+            effects: { perception: 1, politeness: 1 },
+            modifiers: {
+                missionXpBonus: 1,
+                missionTabsBonus: 1,
+                statCheckBonus: { perception: 1, yarns: 1 }
+            },
+            durationMinutes: 20
         }
     ],
     quests: [
@@ -1312,6 +1396,31 @@ function resolveEncounterOutcome(player, encounter) {
     }
 
     const playerData = gameState.players[player];
+    const effectById = new Map((gameState.statusEffects || []).map((effect) => [effect.id, effect]));
+    const activeEffectModifiers = (Array.isArray(playerData.activeEffects) ? playerData.activeEffects : [])
+        .map((effectId) => effectById.get(effectId))
+        .filter((effect) => effect && effect.modifiers && typeof effect.modifiers === 'object')
+        .map((effect) => effect.modifiers);
+    const getModifierSum = (key) => activeEffectModifiers.reduce((sum, modifiers) => sum + Number(modifiers[key] || 0), 0);
+
+    if (hpDelta < 0) {
+        const hpLoss = Math.abs(hpDelta);
+        const adjustedLoss = Math.max(0, hpLoss + getModifierSum('hpLossBonus') - getModifierSum('hpLossReduction'));
+        hpDelta = -adjustedLoss;
+    }
+
+    if (radDelta > 0) {
+        radDelta = Math.max(0, radDelta + getModifierSum('radGainBonus') - getModifierSum('radGainReduction'));
+    }
+
+    if (tabsDelta > 0) {
+        tabsDelta = Math.max(0, tabsDelta + getModifierSum('tabsGainBonus'));
+    }
+
+    if (scrapDelta > 0) {
+        scrapDelta = Math.max(0, scrapDelta + getModifierSum('scrapRewardBonus'));
+    }
+
     playerData.hp = clamp((playerData.hp || 0) + hpDelta, 0, playerData.maxHp || 10);
     playerData.rads = clamp((playerData.rads || 0) + radDelta, 0, playerData.maxRads || 10);
     playerData.tabs = Math.max(0, (playerData.tabs || 0) + tabsDelta);

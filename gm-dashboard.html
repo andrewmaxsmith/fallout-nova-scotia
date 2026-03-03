@@ -102,6 +102,22 @@
             from { opacity: 0; transform: translateY(-4px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.92);
+            z-index: 220;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .modal-overlay.hidden {
+            display: none;
+        }
         @media (max-width: 768px) {
             .max-w-6xl {
                 max-width: 100%;
@@ -127,6 +143,14 @@
 <body class="p-4">
     <div class="crt-scanline"></div>
     <div id="notice-stack" class="notice-stack" aria-live="polite" aria-atomic="false"></div>
+
+    <div id="gm-radio-popup-overlay" class="modal-overlay hidden">
+        <div class="pip-border p-6 bg-black max-w-md w-full">
+            <h1 id="gm-radio-popup-title" class="text-xl font-bold text-yellow-500 mb-3 text-center">INCOMING TRANSMISSION</h1>
+            <div id="gm-radio-popup-message" class="text-[10px] leading-relaxed opacity-90 mb-4 whitespace-pre-line"></div>
+            <button onclick="closeGmRadioPopup()" class="pip-btn w-full py-2 text-sm font-bold">ACKNOWLEDGE</button>
+        </div>
+    </div>
     
     <div class="max-w-6xl mx-auto">
         <!-- HEADER -->
@@ -991,6 +1015,10 @@
                     ? latestTransmission.player.toUpperCase()
                     : 'PLAYER';
                 showNotice(`NEW RADIO TRANSMISSION FROM ${fromPlayer}`, 'info', 3200);
+                openGmRadioPopup(
+                    latestTransmission?.title || `TRANSMISSION FROM ${fromPlayer}`,
+                    latestTransmission?.text || 'Incoming transmission received.'
+                );
                 lastSeenOverseerTransmissionId = latestTransmissionId;
             }
 
@@ -999,7 +1027,7 @@
                 return;
             }
 
-            inbox.slice(0, 20).forEach((entry) => {
+            inbox.slice(0, 4).forEach((entry) => {
                 const created = entry.createdAt ? new Date(entry.createdAt) : null;
                 const timeLabel = created && !Number.isNaN(created.getTime())
                     ? created.toLocaleString()
@@ -1025,6 +1053,23 @@
                 card.appendChild(timeEl);
                 overseerInbox.appendChild(card);
             });
+        }
+
+        function openGmRadioPopup(title, message) {
+            const overlay = document.getElementById('gm-radio-popup-overlay');
+            const titleEl = document.getElementById('gm-radio-popup-title');
+            const messageEl = document.getElementById('gm-radio-popup-message');
+            if (!overlay || !titleEl || !messageEl) return;
+
+            titleEl.textContent = title || 'INCOMING TRANSMISSION';
+            messageEl.textContent = message || 'Incoming transmission received.';
+            overlay.classList.remove('hidden');
+        }
+
+        function closeGmRadioPopup() {
+            const overlay = document.getElementById('gm-radio-popup-overlay');
+            if (!overlay) return;
+            overlay.classList.add('hidden');
         }
 
         function renderQuarters() {

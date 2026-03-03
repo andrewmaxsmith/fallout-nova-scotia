@@ -586,7 +586,25 @@ function registerPlayerRoutes(app, deps) {
         return Boolean(Array.isArray(playerData?.unlockedPerks) && playerData.unlockedPerks.includes(perkId));
     }
 
+    function getActiveEffectModifiers(gameState, playerData) {
+        if (!playerData || !Array.isArray(playerData.activeEffects)) {
+            return [];
+        }
+
+        const effectById = new Map((gameState.statusEffects || []).map((effect) => [effect.id, effect]));
+        return playerData.activeEffects
+            .map((effectId) => effectById.get(effectId))
+            .filter((effect) => effect && effect.modifiers && typeof effect.modifiers === 'object')
+            .map((effect) => effect.modifiers);
+    }
+
+    function getActiveEffectNumericSum(gameState, playerData, key) {
+        return getActiveEffectModifiers(gameState, playerData)
+            .reduce((sum, modifiers) => sum + Number(modifiers[key] || 0), 0);
+    }
+
     function applyMissionTabsReward(playerData, baseTabs) {
+        const gameState = getGameState();
         const safeBase = Math.max(0, Number(baseTabs || 0));
         if (safeBase <= 0) {
             return 0;
@@ -600,11 +618,31 @@ function registerPlayerRoutes(app, deps) {
             totalTabs += Math.ceil(safeBase * 0.10);
         }
 
+        totalTabs += getActiveEffectNumericSum(gameState, playerData, 'missionTabsBonus');
+        const missionTabsPercent = getActiveEffectNumericSum(gameState, playerData, 'missionTabsPercent');
+        if (missionTabsPercent !== 0) {
+            totalTabs += Math.round(safeBase * missionTabsPercent);
+        }
+
+        totalTabs = Math.max(0, totalTabs);
+
         playerData.tabs = (playerData.tabs || 0) + totalTabs;
         return totalTabs;
     }
 
+    function applyMissionXpReward(playerData, baseXp) {
+        const gameState = getGameState();
+        const safeBase = Math.max(0, Number(baseXp || 0));
+        if (safeBase <= 0) {
+            return 0;
+        }
+
+        const adjusted = Math.max(0, safeBase + getActiveEffectNumericSum(gameState, playerData, 'missionXpBonus'));
+        return adjusted;
+    }
+
     function applyRadGainWithPerks(playerData, baseRads) {
+        const gameState = getGameState();
         const safeBase = Math.max(0, Number(baseRads || 0));
         if (safeBase <= 0) {
             return 0;
@@ -618,12 +656,17 @@ function registerPlayerRoutes(app, deps) {
             adjusted = Math.max(0, adjusted - 1);
         }
 
+        adjusted += getActiveEffectNumericSum(gameState, playerData, 'radGainBonus');
+        adjusted -= getActiveEffectNumericSum(gameState, playerData, 'radGainReduction');
+        adjusted = Math.max(0, adjusted);
+
         const beforeRads = Number(playerData.rads || 0);
         playerData.rads = Math.min(playerData.maxRads || 10, beforeRads + adjusted);
         return playerData.rads - beforeRads;
     }
 
     function applyHpLossWithPerks(playerData, baseHpLoss) {
+        const gameState = getGameState();
         const safeBase = Math.max(0, Number(baseHpLoss || 0));
         if (safeBase <= 0) {
             return 0;
@@ -633,6 +676,10 @@ function registerPlayerRoutes(app, deps) {
         if (hasPerk(playerData, 'p15')) {
             adjusted = Math.max(0, adjusted - 1);
         }
+
+        adjusted += getActiveEffectNumericSum(gameState, playerData, 'hpLossBonus');
+        adjusted -= getActiveEffectNumericSum(gameState, playerData, 'hpLossReduction');
+        adjusted = Math.max(0, adjusted);
 
         const beforeHp = Number(playerData.hp || 0);
         playerData.hp = Math.max(0, beforeHp - adjusted);
@@ -826,7 +873,7 @@ function registerPlayerRoutes(app, deps) {
         ensurePlayerProgressFields(playerData);
 
         const tabsReward = quest.reward || 0;
-        const xpReward = quest.xp || 0;
+        const xpReward = applyMissionXpReward(playerData, quest.xp || 0);
         const tabsAwarded = applyMissionTabsReward(playerData, tabsReward);
         const levelsGained = addXpWithLeveling(playerData, xpReward);
         if (playerData.activeRandomQuest && playerData.activeRandomQuest.id === questId) {
@@ -877,7 +924,7 @@ function registerPlayerRoutes(app, deps) {
 
         const isCorrect = Number(quest.correctOptionIndex) === answerIndex;
         const tabsReward = isCorrect ? Number(quest.rewardTabs || 0) : 0;
-        const xpReward = isCorrect ? Number(quest.rewardXp || 0) : 0;
+        const xpReward = isCorrect ? applyMissionXpReward(playerData, Number(quest.rewardXp || 0)) : 0;
         const tabsAwarded = applyMissionTabsReward(playerData, tabsReward);
         const levelsGained = addXpWithLeveling(playerData, xpReward);
 
