@@ -619,6 +619,14 @@ function registerGameplayRoutes(app, deps) {
         const { questId } = req.body;
         const gameState = getGameState();
 
+        if (!gameState.players[player]) {
+            return res.status(404).json({ error: 'Player not found' });
+        }
+
+        if (!questId) {
+            return res.status(400).json({ error: 'questId is required' });
+        }
+
         if (gameState.players[player] && questId) {
             const quest = gameState.quests.find(q => q.id === questId);
             if (quest && !gameState.players[player].activeQuests.includes(questId)) {
@@ -650,6 +658,14 @@ function registerGameplayRoutes(app, deps) {
         const { player } = req.params;
         const { radioId } = req.body;
         const gameState = getGameState();
+
+        if (!gameState.players[player]) {
+            return res.status(404).json({ error: 'Player not found' });
+        }
+
+        if (!radioId) {
+            return res.status(400).json({ error: 'radioId is required' });
+        }
 
         if (gameState.players[player]) {
             ensureMetaState(gameState);

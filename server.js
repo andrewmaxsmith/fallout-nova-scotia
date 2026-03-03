@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
@@ -15,6 +17,12 @@ const SAVE_DEBOUNCE_MS = 500;
 const PERIODIC_SAVE_MS = Number(process.env.PERIODIC_SAVE_MS || 60000);
 const SAVE_BACKUP_LIMIT = Number(process.env.SAVE_BACKUP_LIMIT || 20);
 const GAME_STATE_VERSION = 6; // Increment when schema changes
+const DISABLE_INDEXING = process.env.DISABLE_INDEXING !== 'false';
+const BLOCK_KNOWN_CRAWLERS = process.env.BLOCK_KNOWN_CRAWLERS !== 'false';
+const BLOCKED_CRAWLER_UAS = String(process.env.BLOCKED_CRAWLER_UAS || 'googlebot,bingbot,yandexbot,baiduspider,duckduckbot,slurp,sogou,exabot,facebot,ia_archiver')
+    .split(',')
+    .map((entry) => String(entry).trim().toLowerCase())
+    .filter(Boolean);
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const SUPABASE_TABLE = process.env.SUPABASE_TABLE || 'game_state';
@@ -63,24 +71,76 @@ let saveInFlight = false;
 let saveQueued = false;
 
 app.use(cors());
-app.use(express.json());
+app.disable('x-powered-by');
+app.set('trust proxy', 1);
+
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' }
+}));
+
+const apiRateLimitWindowMs = Number(process.env.API_RATE_LIMIT_WINDOW_MS || 60000);
+const apiRateLimitMax = Number(process.env.API_RATE_LIMIT_MAX || 180);
+app.use('/api', rateLimit({
+    windowMs: Number.isFinite(apiRateLimitWindowMs) ? apiRateLimitWindowMs : 60000,
+    max: Number.isFinite(apiRateLimitMax) ? apiRateLimitMax : 180,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests. Please slow down.' }
+}));
+
+app.use(express.json({ limit: '100kb' }));
+
+app.get('/robots.txt', (req, res) => {
+    res.type('text/plain');
+    if (DISABLE_INDEXING) {
+        return res.send('User-agent: *\nDisallow: /\n');
+    }
+    return res.send('User-agent: *\nAllow: /\n');
+});
+
+if (DISABLE_INDEXING) {
+    app.use((req, res, next) => {
+        res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet, noimageindex');
+        next();
+    });
+}
+
+if (BLOCK_KNOWN_CRAWLERS && BLOCKED_CRAWLER_UAS.length > 0) {
+    app.use((req, res, next) => {
+        if (req.path === '/robots.txt') {
+            return next();
+        }
+
+        const userAgent = String(req.headers['user-agent'] || '').toLowerCase();
+        const isBlockedCrawler = BLOCKED_CRAWLER_UAS.some((token) => userAgent.includes(token));
+        if (isBlockedCrawler) {
+            return res.status(403).json({ error: 'Crawler access denied' });
+        }
+        return next();
+    });
+}
+
 app.use(express.static(__dirname));
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'gm-dashboard.html'));
 });
 
-app.get('/healthz', (req, res) => {
-    res.status(200).json({
-        ok: true,
-        storageMode: SUPABASE_ENABLED ? 'supabase' : 'filesystem',
-        supabaseEnabled: SUPABASE_ENABLED,
-        supabaseTable: SUPABASE_TABLE,
+app.get('/healthz', async (req, res) => {
+    const status = await getStorageStatus();
+    const statusCode = status.ok ? 200 : 503;
+    res.status(statusCode).json({
+        ok: status.ok,
+        storageMode: status.storageMode,
+        supabaseEnabled: status.supabaseEnabled,
+        supabaseTable: status.supabaseTable,
+        providerHealthy: status.providerHealthy,
+        providerMessage: status.providerMessage,
+        lastSavedAt: status.lastSavedAt,
+        hasUnsavedChanges: status.hasUnsavedChanges,
         dataDir: DATA_DIR,
         saveFile: SAVE_FILE_PATH,
-        backupDir: BACKUP_DIR,
-        lastSavedAt,
-        hasUnsavedChanges
+        backupDir: BACKUP_DIR
     });
 });
 
