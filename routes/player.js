@@ -567,11 +567,12 @@ function registerPlayerRoutes(app, deps) {
             return levelsGained;
         }
 
-        playerData.xp = (playerData.xp || 0) + safeXp;
+        playerData.level = Math.max(1, Number(playerData.level) || 1);
+        playerData.xp = Math.max(0, Number(playerData.xp) || 0) + safeXp;
         let xpNeeded = getXpRequiredForLevel(playerData.level);
         while (playerData.xp >= xpNeeded) {
             playerData.xp -= xpNeeded;
-            playerData.level += 1;
+            playerData.level = Number(playerData.level) + 1;
             levelsGained += 1;
             xpNeeded = getXpRequiredForLevel(playerData.level);
         }
