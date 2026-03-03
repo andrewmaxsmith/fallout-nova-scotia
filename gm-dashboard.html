@@ -119,40 +119,6 @@
             display: none;
         }
 
-        .ns-map-base {
-            width: 100%;
-            height: 100%;
-            display: block;
-        }
-
-        .map-poi-dot,
-        .map-mission-dot {
-            position: absolute;
-            width: 10px;
-            height: 10px;
-            border-radius: 9999px;
-            transform: translate(-50%, -50%);
-            border: 1px solid #0a0a0a;
-        }
-
-        .map-poi-dot {
-            background: #06b6d4;
-            opacity: 0.85;
-        }
-
-        .map-poi-dot.map-poi-linked {
-            background: #facc15;
-            width: 12px;
-            height: 12px;
-            box-shadow: 0 0 8px rgba(250, 204, 21, 0.6);
-        }
-
-        .map-mission-dot {
-            background: #f97316;
-            width: 12px;
-            height: 12px;
-            box-shadow: 0 0 10px rgba(249, 115, 22, 0.55);
-        }
         @media (max-width: 768px) {
             .max-w-6xl {
                 max-width: 100%;
@@ -471,29 +437,6 @@
                         </div>
                     </div>
 
-                    <div class="pip-border p-3 border-dashed border-cyan-500 bg-cyan-950/10">
-                        <h3 class="text-sm font-bold text-cyan-400 mb-2">NOVA SCOTIA MISSION MAP</h3>
-                        <div class="relative h-56 border border-cyan-500/50 bg-black/40 mb-2" id="gm-mission-map-canvas">
-                            <svg class="ns-map-base" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                                <rect x="0" y="0" width="100" height="100" fill="rgba(6, 10, 6, 0.9)"></rect>
-                                <path d="M9 71 L12 69 L15 66 L18 63 L20 61 L22 58 L25 55 L27 52 L30 49 L33 47 L37 45 L40 44 L43 42 L47 39 L50 37 L54 35 L58 33 L61 31 L65 30 L68 29 L71 29 L74 30 L76 32 L78 35 L79 38 L80 41 L79 44 L77 47 L75 49 L72 52 L68 54 L64 56 L60 58 L57 60 L54 63 L51 65 L48 67 L44 70 L40 72 L36 74 L32 76 L28 77 L24 77 L20 76 L16 74 L12 73 Z" fill="rgba(26,255,128,0.2)" stroke="rgba(26,255,128,0.7)" stroke-width="0.8"></path>
-                                <path d="M79 17 L82 16 L85 16 L88 17 L91 19 L93 22 L94 25 L93 28 L91 30 L88 31 L85 31 L82 30 L80 28 L78 25 L77 22 Z" fill="rgba(26,255,128,0.2)" stroke="rgba(26,255,128,0.7)" stroke-width="0.8"></path>
-                                <path d="M76 33 L79 35" stroke="rgba(26,255,128,0.55)" stroke-width="0.7"></path>
-                                <path d="M34 48 L37 50 L41 50 L44 48" stroke="rgba(6,10,6,0.65)" stroke-width="0.6"></path>
-                                <path d="M52 38 L56 40 L60 40 L63 38" stroke="rgba(6,10,6,0.65)" stroke-width="0.6"></path>
-                                <path d="M6 82 L10 81 L13 82" stroke="rgba(26,255,128,0.35)" stroke-width="0.5"></path>
-                            </svg>
-                            <div id="gm-mission-map-markers" class="absolute inset-0"></div>
-                        </div>
-                        <div class="flex gap-2 text-[8px] opacity-80 mb-2">
-                            <span>● CYAN POI</span>
-                            <span>● YELLOW MISSION POI</span>
-                            <span>● ORANGE ACTIVE MISSION</span>
-                        </div>
-                        <div id="gm-mission-map-summary" class="text-[9px] opacity-80">
-                            <p>LOADING MISSION MAP...</p>
-                        </div>
-                    </div>
                 </div>
             </div>
         </section>
@@ -591,8 +534,6 @@
         // This forces the tablet to use the exact secure URL of your Render site
         const API_URL = window.location.origin.replace(/\/$/, "");
         let gameData = {};
-        let questLocationById = {};
-        let questDataById = {};
         let notificationCounter = 0;
         const pendingStatUpdates = {};
         let statSyncToastTimer = null;
@@ -727,25 +668,9 @@
 
         async function loadGameState() {
             try {
-                const [state, questsWithLocation] = await Promise.all([
-                    apiRequest('/api/game-state', { showError: false }),
-                    apiRequest('/api/quests', { showError: false })
-                ]);
+                const state = await apiRequest('/api/game-state', { showError: false });
                 if (state && typeof state === 'object') {
                     gameData = state;
-
-                    const lookup = {};
-                    if (Array.isArray(questsWithLocation)) {
-                        questsWithLocation.forEach((quest) => {
-                            if (quest?.id) {
-                                questDataById[quest.id] = quest;
-                            }
-                            if (quest?.id && quest.location) {
-                                lookup[quest.id] = quest.location;
-                            }
-                        });
-                    }
-                    questLocationById = lookup;
 
                     renderPlayerPanels();
                 }
@@ -806,82 +731,6 @@
         function renderPlayerPanels() {
             renderPlayerPanel('logan');
             renderPlayerPanel('rylyn');
-        }
-
-        function renderMissionMap() {
-            const markerLayer = document.getElementById('gm-mission-map-markers');
-            const summary = document.getElementById('gm-mission-map-summary');
-            if (!markerLayer || !summary) return;
-
-            markerLayer.innerHTML = '';
-
-            const bounds = { minLat: 43.35, maxLat: 47.15, minLng: -66.6, maxLng: -59.35 };
-            const lngRange = Math.max(0.0001, Number(bounds.maxLng) - Number(bounds.minLng));
-            const latRange = Math.max(0.0001, Number(bounds.maxLat) - Number(bounds.minLat));
-
-            const uniqueLocations = {};
-            Object.values(questLocationById).forEach((location) => {
-                if (location?.id) {
-                    uniqueLocations[location.id] = location;
-                }
-            });
-
-            const activeMissions = [];
-            Object.entries(gameData.players || {}).forEach(([playerKey, playerData]) => {
-                const activeIds = Array.isArray(playerData?.activeQuests) ? playerData.activeQuests : [];
-                activeIds.forEach((questId) => {
-                    const quest = questDataById[questId] || (gameData.quests || []).find((q) => q.id === questId);
-                    if (!quest || !quest.location) return;
-                    activeMissions.push({
-                        player: playerKey,
-                        title: quest.title,
-                        location: quest.location
-                    });
-                });
-            });
-
-            const missionLocationIds = new Set(activeMissions.map((entry) => entry.location?.id).filter(Boolean));
-
-            Object.values(uniqueLocations).forEach((poi) => {
-                if (Number.isNaN(Number(poi.lat)) || Number.isNaN(Number(poi.lng))) {
-                    return;
-                }
-
-                const leftPercent = ((Number(poi.lng) - Number(bounds.minLng)) / lngRange) * 100;
-                const topPercent = 100 - (((Number(poi.lat) - Number(bounds.minLat)) / latRange) * 100);
-                const dot = document.createElement('div');
-                dot.className = `map-poi-dot ${missionLocationIds.has(poi.id) ? 'map-poi-linked' : ''}`;
-                dot.style.left = `${Math.min(98, Math.max(2, leftPercent))}%`;
-                dot.style.top = `${Math.min(96, Math.max(4, topPercent))}%`;
-                dot.title = `${poi.name} (${poi.region})`;
-                markerLayer.appendChild(dot);
-            });
-
-            activeMissions.forEach((mission) => {
-                const location = mission.location;
-                if (Number.isNaN(Number(location.lat)) || Number.isNaN(Number(location.lng))) {
-                    return;
-                }
-
-                const leftPercent = ((Number(location.lng) - Number(bounds.minLng)) / lngRange) * 100;
-                const topPercent = 100 - (((Number(location.lat) - Number(bounds.minLat)) / latRange) * 100);
-                const marker = document.createElement('div');
-                marker.className = 'map-mission-dot';
-                marker.style.left = `${Math.min(98, Math.max(2, leftPercent))}%`;
-                marker.style.top = `${Math.min(96, Math.max(4, topPercent))}%`;
-                marker.title = `${mission.player.toUpperCase()}: ${mission.title} @ ${location.name}`;
-                markerLayer.appendChild(marker);
-            });
-
-            if (activeMissions.length === 0) {
-                summary.innerHTML = '<p>NO ACTIVE MISSIONS TO PLOT.</p>';
-                return;
-            }
-
-            const rows = activeMissions
-                .map((mission) => `<p>${mission.player.toUpperCase()}: ${mission.title} → ${mission.location.name}</p>`)
-                .join('');
-            summary.innerHTML = rows;
         }
 
         function setStorageStatusUi(status, isError = false) {
@@ -1069,11 +918,9 @@
                         if (quest) {
                             const div = document.createElement('div');
                             div.className = 'border border-yellow-500/50 p-2 mb-2';
-                            const location = questLocationById[quest.id];
                             div.innerHTML = `
                                 <p class="font-bold text-yellow-400 text-[10px]">${quest.title}</p>
                                 <p class="text-[9px] opacity-90 mb-1">${quest.desc}</p>
-                                ${location ? `<p class="text-[8px] text-cyan-300 mb-1">LOCATION: ${location.name} (${location.region})</p>` : ''}
                                 <p class="text-[8px] opacity-70 mb-1">Reward: ${(quest.rewardTabs ?? quest.reward ?? 0)} tabs, ${quest.xp} XP</p>
                                 <button onclick="completeQuestForPlayer('logan', '${quest.id}', this)" class="pip-btn text-[8px] w-full mt-1 bg-green-900 hover:bg-green-700">✓ COMPLETE</button>
                             `;
@@ -1093,11 +940,9 @@
                         if (quest) {
                             const div = document.createElement('div');
                             div.className = 'border border-yellow-500/50 p-2 mb-2';
-                            const location = questLocationById[quest.id];
                             div.innerHTML = `
                                 <p class="font-bold text-yellow-400 text-[10px]">${quest.title}</p>
                                 <p class="text-[9px] opacity-90 mb-1">${quest.desc}</p>
-                                ${location ? `<p class="text-[8px] text-cyan-300 mb-1">LOCATION: ${location.name} (${location.region})</p>` : ''}
                                 <p class="text-[8px] opacity-70 mb-1">Reward: ${(quest.rewardTabs ?? quest.reward ?? 0)} tabs, ${quest.xp} XP</p>
                                 <button onclick="completeQuestForPlayer('rylyn', '${quest.id}', this)" class="pip-btn text-[8px] w-full mt-1 bg-green-900 hover:bg-green-700">✓ COMPLETE</button>
                             `;
@@ -1157,11 +1002,9 @@
                             const div = document.createElement('div');
                             div.className = 'border border-pip-green/30 p-2 text-[10px] mb-2';
                             const scrapRewards = q.rewardScrap ? Object.entries(q.rewardScrap).map(([type, amt]) => `${type} x${amt}`).join(', ') : 'None';
-                            const location = questLocationById[q.id];
                             div.innerHTML = `
                                 <p class="font-bold text-yellow-400">${q.title}</p>
                                 <p class="text-[9px] opacity-90 mb-1">${q.desc}</p>
-                                ${location ? `<p class="text-[8px] text-cyan-300 mb-1">LOCATION: ${location.name} (${location.region})</p>` : ''}
                                 <p class="text-[8px] opacity-70 mb-2">TABS: ${q.rewardTabs} | SCRAP: ${scrapRewards} | XP: ${q.xp}</p>
                                 ${chain ? `<p class="text-[8px] text-cyan-400 mb-1">CHAIN: ${chain.name}</p>` : ''}
                                 <div class="flex gap-1">
@@ -1175,7 +1018,6 @@
                 });
             }
 
-            renderMissionMap();
         }
 
         function renderRadio() {
