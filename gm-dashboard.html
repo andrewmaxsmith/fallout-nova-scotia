@@ -969,54 +969,120 @@
             }
         }
 
+        function categorizeQuestForGmDropdown(quest) {
+            const title = String(quest?.title || '').toLowerCase();
+            const desc = String(quest?.desc || '').toLowerCase();
+            const text = `${title} ${desc}`;
+
+            const hasAny = (keywords) => keywords.some((keyword) => text.includes(keyword));
+
+            const vaultKeywords = [
+                'vault:', 'sanitize', 'quarters', 'laundry', 'snack', 'bag', 'tidy', 'clean-up',
+                'clean up', 'hamper', 'shelf', 'table', 'room', 'home', 'kitchen', 'bed', 'floor'
+            ];
+            const hikingKeywords = [
+                'outdoor', 'walk', 'trail', 'park', 'nature', 'obstacle', 'hop', 'climb', 'relay run',
+                'wildlife', 'cove', 'harbor', 'islands', 'lighthouse'
+            ];
+            const educationKeywords = [
+                'learning', 'read', 'book', 'quiz', 'fact', 'school', 'map reading', 'spelling', 'science',
+                'writing', 'math', 'signal boost', 'tell 3', 'name 3 animals'
+            ];
+            const workoutKeywords = [
+                'workout', 'fitness', 'drill', 'movement', 'jump', 'squat', 'balance', 'step-up',
+                'stair', 'rounds', 'exercise', 'field drill'
+            ];
+
+            if ((quest?.category === 'vault') || title.startsWith('vault:') || hasAny(vaultKeywords)) {
+                return 'vault';
+            }
+            if (hasAny(workoutKeywords)) {
+                return 'vaultWorkout';
+            }
+            if (hasAny(educationKeywords)) {
+                return 'education';
+            }
+            if (hasAny(hikingKeywords)) {
+                return 'hiking';
+            }
+
+            return 'vault';
+        }
+
         function renderQuests() {
             const list = document.getElementById('quest-list');
             list.innerHTML = '';
-            if (gameData.quests) {
-                const categorized = {
-                    vault: [],
-                    main: [],
-                    side: []
-                };
-                
-                gameData.quests.forEach(q => {
-                    const category = q.category || 'side';
-                    if (!categorized[category]) {
-                        categorized[category] = [];
-                    }
-                    categorized[category].push(q);
-                });
-
-                const categoryLabels = { vault: 'VAULT MISSIONS', main: 'MAIN MISSIONS', side: 'SIDE MISSIONS' };
-                const categoryColors = { vault: 'text-yellow-400', main: 'text-green-400', side: 'text-blue-300' };
-
-                Object.keys(categoryLabels).forEach(cat => {
-                    if (categorized[cat].length > 0) {
-                        const categoryDiv = document.createElement('div');
-                        categoryDiv.className = 'mb-4';
-                        categoryDiv.innerHTML = `<p class="text-sm font-bold ${categoryColors[cat]} mb-2">${categoryLabels[cat]}</p>`;
-                        list.appendChild(categoryDiv);
-
-                        categorized[cat].forEach(q => {
-                            const chain = (gameData.questChains || []).find(c => (c.questIds || []).includes(q.id));
-                            const div = document.createElement('div');
-                            div.className = 'border border-pip-green/30 p-2 text-[10px] mb-2';
-                            const scrapRewards = q.rewardScrap ? Object.entries(q.rewardScrap).map(([type, amt]) => `${type} x${amt}`).join(', ') : 'None';
-                            div.innerHTML = `
-                                <p class="font-bold text-yellow-400">${q.title}</p>
-                                <p class="text-[9px] opacity-90 mb-1">${q.desc}</p>
-                                <p class="text-[8px] opacity-70 mb-2">TABS: ${q.rewardTabs} | SCRAP: ${scrapRewards} | XP: ${q.xp}</p>
-                                ${chain ? `<p class="text-[8px] text-cyan-400 mb-1">CHAIN: ${chain.name}</p>` : ''}
-                                <div class="flex gap-1">
-                                    <button onclick="sendQuestToPlayer('logan', '${q.id}', this)" class="pip-btn text-[8px] px-2 flex-1">→ LOGAN</button>
-                                    <button onclick="sendQuestToPlayer('rylyn', '${q.id}', this)" class="pip-btn text-[8px] px-2 flex-1">→ RYLYN</button>
-                                </div>
-                            `;
-                            list.appendChild(div);
-                        });
-                    }
-                });
+            if (!Array.isArray(gameData.quests) || gameData.quests.length === 0) {
+                list.innerHTML = '<p class="text-[10px] opacity-70">NO QUESTS AVAILABLE.</p>';
+                return;
             }
+
+            const grouped = {
+                vault: [],
+                hiking: [],
+                education: [],
+                vaultWorkout: []
+            };
+
+            gameData.quests.forEach((quest) => {
+                const bucket = categorizeQuestForGmDropdown(quest);
+                grouped[bucket].push(quest);
+            });
+
+            const sections = [
+                { key: 'vault', label: 'VAULT', color: 'text-yellow-400' },
+                { key: 'hiking', label: 'HIKING', color: 'text-green-400' },
+                { key: 'education', label: 'EDUCATION', color: 'text-blue-300' },
+                { key: 'vaultWorkout', label: 'VAULT WORKOUT', color: 'text-purple-300' }
+            ];
+
+            sections.forEach((section, sectionIndex) => {
+                const quests = grouped[section.key];
+                const wrapper = document.createElement('details');
+                wrapper.className = 'mb-3 border border-pip-green/30 bg-black/20';
+                if (sectionIndex === 0) {
+                    wrapper.open = true;
+                }
+
+                const summary = document.createElement('summary');
+                summary.className = `cursor-pointer select-none px-3 py-2 text-xs font-bold ${section.color}`;
+                summary.textContent = `${section.label} (${quests.length})`;
+                wrapper.appendChild(summary);
+
+                const content = document.createElement('div');
+                content.className = 'p-2';
+
+                if (quests.length === 0) {
+                    const empty = document.createElement('p');
+                    empty.className = 'text-[9px] opacity-60';
+                    empty.textContent = 'NO MISSIONS IN THIS GROUP.';
+                    content.appendChild(empty);
+                    wrapper.appendChild(content);
+                    list.appendChild(wrapper);
+                    return;
+                }
+
+                quests.forEach((q) => {
+                    const chain = (gameData.questChains || []).find((c) => (c.questIds || []).includes(q.id));
+                    const div = document.createElement('div');
+                    div.className = 'border border-pip-green/30 p-2 text-[10px] mb-2';
+                    const scrapRewards = q.rewardScrap ? Object.entries(q.rewardScrap).map(([type, amt]) => `${type} x${amt}`).join(', ') : 'None';
+                    div.innerHTML = `
+                        <p class="font-bold text-yellow-400">${q.title}</p>
+                        <p class="text-[9px] opacity-90 mb-1">${q.desc}</p>
+                        <p class="text-[8px] opacity-70 mb-2">TABS: ${q.rewardTabs} | SCRAP: ${scrapRewards} | XP: ${q.xp}</p>
+                        ${chain ? `<p class="text-[8px] text-cyan-400 mb-1">CHAIN: ${chain.name}</p>` : ''}
+                        <div class="flex gap-1">
+                            <button onclick="sendQuestToPlayer('logan', '${q.id}', this)" class="pip-btn text-[8px] px-2 flex-1">→ LOGAN</button>
+                            <button onclick="sendQuestToPlayer('rylyn', '${q.id}', this)" class="pip-btn text-[8px] px-2 flex-1">→ RYLYN</button>
+                        </div>
+                    `;
+                    content.appendChild(div);
+                });
+
+                wrapper.appendChild(content);
+                list.appendChild(wrapper);
+            });
 
         }
 
