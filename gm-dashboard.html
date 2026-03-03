@@ -138,6 +138,44 @@
                 font-size: 8px;
             }
         }
+
+        @media (orientation: landscape) and (min-width: 768px) and (max-width: 1366px) {
+            body {
+                padding: 10px;
+            }
+
+            .max-w-6xl {
+                max-width: 100%;
+            }
+
+            #gm-tab-nav {
+                position: sticky;
+                top: 0;
+                z-index: 60;
+                background: var(--pip-bg);
+                padding: 6px;
+                border: 1px solid var(--pip-green);
+            }
+
+            #gm-tab-nav .pip-btn {
+                padding: 6px 8px;
+                font-size: 11px;
+            }
+
+            .player-card {
+                padding: 8px;
+                margin-bottom: 6px;
+            }
+
+            #players .grid.grid-cols-2,
+            #quests .grid.grid-cols-2,
+            #quarters .grid.grid-cols-2,
+            #perks .grid.grid-cols-2,
+            #effects .grid.grid-cols-2,
+            #radio .grid.grid-cols-2 {
+                gap: 0.75rem;
+            }
+        }
     </style>
 </head>
 <body class="p-4">
@@ -494,6 +532,7 @@
         // This forces the tablet to use the exact secure URL of your Render site
         const API_URL = window.location.origin.replace(/\/$/, "");
         let gameData = {};
+        let questLocationById = {};
         let notificationCounter = 0;
         const pendingStatUpdates = {};
         let statSyncToastTimer = null;
@@ -628,9 +667,23 @@
 
         async function loadGameState() {
             try {
-                const state = await apiRequest('/api/game-state', { showError: false });
+                const [state, questsWithLocation] = await Promise.all([
+                    apiRequest('/api/game-state', { showError: false }),
+                    apiRequest('/api/quests', { showError: false })
+                ]);
                 if (state && typeof state === 'object') {
                     gameData = state;
+
+                    const lookup = {};
+                    if (Array.isArray(questsWithLocation)) {
+                        questsWithLocation.forEach((quest) => {
+                            if (quest?.id && quest.location) {
+                                lookup[quest.id] = quest.location;
+                            }
+                        });
+                    }
+                    questLocationById = lookup;
+
                     renderPlayerPanels();
                 }
             } catch (e) {
@@ -877,9 +930,11 @@
                         if (quest) {
                             const div = document.createElement('div');
                             div.className = 'border border-yellow-500/50 p-2 mb-2';
+                            const location = questLocationById[quest.id];
                             div.innerHTML = `
                                 <p class="font-bold text-yellow-400 text-[10px]">${quest.title}</p>
                                 <p class="text-[9px] opacity-90 mb-1">${quest.desc}</p>
+                                ${location ? `<p class="text-[8px] text-cyan-300 mb-1">LOCATION: ${location.name} (${location.region})</p>` : ''}
                                 <p class="text-[8px] opacity-70 mb-1">Reward: ${(quest.rewardTabs ?? quest.reward ?? 0)} tabs, ${quest.xp} XP</p>
                                 <button onclick="completeQuestForPlayer('logan', '${quest.id}', this)" class="pip-btn text-[8px] w-full mt-1 bg-green-900 hover:bg-green-700">✓ COMPLETE</button>
                             `;
@@ -899,9 +954,11 @@
                         if (quest) {
                             const div = document.createElement('div');
                             div.className = 'border border-yellow-500/50 p-2 mb-2';
+                            const location = questLocationById[quest.id];
                             div.innerHTML = `
                                 <p class="font-bold text-yellow-400 text-[10px]">${quest.title}</p>
                                 <p class="text-[9px] opacity-90 mb-1">${quest.desc}</p>
+                                ${location ? `<p class="text-[8px] text-cyan-300 mb-1">LOCATION: ${location.name} (${location.region})</p>` : ''}
                                 <p class="text-[8px] opacity-70 mb-1">Reward: ${(quest.rewardTabs ?? quest.reward ?? 0)} tabs, ${quest.xp} XP</p>
                                 <button onclick="completeQuestForPlayer('rylyn', '${quest.id}', this)" class="pip-btn text-[8px] w-full mt-1 bg-green-900 hover:bg-green-700">✓ COMPLETE</button>
                             `;
@@ -961,9 +1018,11 @@
                             const div = document.createElement('div');
                             div.className = 'border border-pip-green/30 p-2 text-[10px] mb-2';
                             const scrapRewards = q.rewardScrap ? Object.entries(q.rewardScrap).map(([type, amt]) => `${type} x${amt}`).join(', ') : 'None';
+                            const location = questLocationById[q.id];
                             div.innerHTML = `
                                 <p class="font-bold text-yellow-400">${q.title}</p>
                                 <p class="text-[9px] opacity-90 mb-1">${q.desc}</p>
+                                ${location ? `<p class="text-[8px] text-cyan-300 mb-1">LOCATION: ${location.name} (${location.region})</p>` : ''}
                                 <p class="text-[8px] opacity-70 mb-2">TABS: ${q.rewardTabs} | SCRAP: ${scrapRewards} | XP: ${q.xp}</p>
                                 ${chain ? `<p class="text-[8px] text-cyan-400 mb-1">CHAIN: ${chain.name}</p>` : ''}
                                 <div class="flex gap-1">

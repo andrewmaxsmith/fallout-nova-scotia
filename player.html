@@ -153,6 +153,37 @@
         .modal-overlay.hidden {
             display: none;
         }
+
+        @media (orientation: landscape) and (min-width: 768px) and (max-width: 1366px) {
+            body.max-w-lg {
+                max-width: 1024px;
+                padding-bottom: 12px;
+            }
+
+            #player-tab-nav {
+                position: sticky;
+                top: 0;
+                z-index: 60;
+                background: var(--pip-bg);
+                padding: 6px;
+                border: 1px solid var(--pip-green);
+            }
+
+            #player-tab-nav .pip-btn {
+                padding: 6px 6px;
+                font-size: 10px;
+            }
+
+            #status .grid.grid-cols-2,
+            #trade .grid.grid-cols-2,
+            #quarters .grid.grid-cols-2 {
+                gap: 0.75rem;
+            }
+
+            #map #mission-map-canvas {
+                height: 20rem;
+            }
+        }
     </style>
 </head>
 <body class="p-4 max-w-lg mx-auto pb-24">
@@ -215,10 +246,11 @@
     </header>
 
     <!-- NAVIGATION -->
-    <nav id="player-tab-nav" class="grid grid-cols-7 gap-1 mb-6 sm:grid-cols-7 md:grid-cols-7">
+    <nav id="player-tab-nav" class="grid grid-cols-8 gap-1 mb-6 sm:grid-cols-8 md:grid-cols-8">
         <button onclick="showTab('status')" data-tab-target="status" class="pip-btn p-2 text-[9px] tab-btn-active">STATUS</button>
         <button onclick="showTab('perks')" data-tab-target="perks" class="pip-btn p-2 text-[9px]">PERKS</button>
         <button onclick="showTab('quests')" data-tab-target="quests" class="pip-btn p-2 text-[9px]">QUESTS</button>
+        <button onclick="showTab('map')" data-tab-target="map" class="pip-btn p-2 text-[9px]">MAP</button>
         <button onclick="showTab('crafting')" data-tab-target="crafting" class="pip-btn p-2 text-[9px]">CRAFTING</button>
         <button onclick="showTab('quarters')" data-tab-target="quarters" class="pip-btn p-2 text-[9px]">QUARTERS</button>
         <button onclick="showTab('radio')" data-tab-target="radio" class="pip-btn p-2 text-[9px]">RADIO</button>
@@ -336,6 +368,7 @@
                 <div class="pip-border p-3 bg-green-950/20 border-green-500">
                     <h4 id="daily-quest-title" class="font-bold text-yellow-500 mb-2">TASK TITLE</h4>
                     <p id="daily-quest-desc" class="text-[10px] opacity-80 mb-4">Task description goes here.</p>
+                    <p id="daily-quest-location" class="text-[9px] text-cyan-300 mb-2">LOCATION: UNASSIGNED</p>
                     <div class="flex justify-between items-center mb-2">
                         <p class="text-[10px] text-yellow-500">REWARD:</p>
                         <p id="daily-quest-reward" class="text-lg font-bold text-yellow-500">5 TABS</p>
@@ -382,6 +415,32 @@
                     <p class="opacity-70">No tasks completed yet.</p>
                 </div>
             </div>
+            </div>
+        </div>
+    </section>
+
+
+
+    <!-- TAB: MAP -->
+    <section id="map" class="tab-content">
+        <div class="pip-border p-4 bg-black/50 space-y-4">
+            <div class="border-b border-pip-green/40 pb-2">
+                <h2 class="text-xl">NOVA SCOTIA MISSION MAP</h2>
+                <p class="text-[10px] opacity-70">ACTIVE QUESTS ARE LINKED TO REAL-WORLD LOCATIONS.</p>
+            </div>
+
+            <div class="pip-border p-3 border-cyan-500/60 bg-cyan-950/10">
+                <div class="relative h-64 border border-cyan-500/50 bg-black/40" id="mission-map-canvas">
+                    <div id="mission-map-markers" class="absolute inset-0"></div>
+                </div>
+                <p class="text-[9px] opacity-70 mt-2">MAP SCALE: APPROXIMATE PROVINCIAL PLOT (WEST → EAST, SOUTH → NORTH).</p>
+            </div>
+
+            <div>
+                <h3 class="text-xs font-bold text-yellow-500 mb-2">ACTIVE LOCATION LINKS</h3>
+                <div id="mission-map-missions" class="space-y-2 text-[10px]">
+                    <p class="opacity-70">NO ACTIVE MISSIONS TO PLOT.</p>
+                </div>
             </div>
         </div>
     </section>
@@ -555,6 +614,7 @@
         let playerQuarters = [];
         let fullGameState = {};
         let activeTeamObjective = null;
+        let playerMapData = null;
         let playerAchievements = [];
         let cachedTierPerkChoiceIds = [];
         let cachedTierForPerkChoices = null;
@@ -743,7 +803,7 @@
 
         async function loadData() {
             try {
-                const [player, quests, radio, perks, recipes, quartersShop, quarters, state, achievementData, educationalQuests] = await Promise.all([
+                const [player, quests, radio, perks, recipes, quartersShop, quarters, state, achievementData, educationalQuests, mapPayload] = await Promise.all([
                     apiRequest(`/api/player/${playerName}`, { showError: false }),
                     apiRequest('/api/quests', { showError: false }),
                     apiRequest('/api/radio', { showError: false }),
@@ -753,7 +813,8 @@
                     apiRequest(`/api/player/${playerName}/quarters`, { showError: false }),
                     apiRequest('/api/game-state', { showError: false }),
                     apiRequest(`/api/player/${playerName}/achievements`, { showError: false }),
-                    apiRequest(`/api/player/${playerName}/educational-quests`, { showError: false })
+                    apiRequest(`/api/player/${playerName}/educational-quests`, { showError: false }),
+                    apiRequest(`/api/player/${playerName}/map`, { showError: false })
                 ]);
 
                 playerData = player || {};
@@ -774,6 +835,7 @@
                 playerQuarters = quarters || [];
                 fullGameState = state || {};
                 activeTeamObjective = fullGameState.activeTeamObjective || null;
+                playerMapData = mapPayload || null;
                 playerAchievements = achievementData?.unlocked || [];
 
                 updateUI();
@@ -874,6 +936,7 @@
             renderEducationalQuizPanel();
             updateEducationalCompletedList();
             updateTeamObjective();
+            updateMissionMap();
 
             // Update scrap
             updateScrap();
@@ -981,6 +1044,7 @@
                         div.innerHTML = `
                             <h4 class="font-bold text-sm">${quest.title}</h4>
                             <p class="text-[10px] opacity-80 mb-2">${quest.desc}</p>
+                            ${quest.location ? `<p class="text-[9px] text-cyan-300 mb-1">LOCATION: ${quest.location.name} (${quest.location.region})</p>` : ''}
                             <p class="text-[10px] text-yellow-500">TABS: ${quest.rewardTabs} | SCRAP: ${scrapRewards}</p>
                             <p class="text-[10px] text-green-400">XP: ${quest.xp}</p>
                             ${chain ? `<p class="text-[9px] text-cyan-400 mt-1">CHAIN: ${chain.name}</p>` : ''}
@@ -1030,6 +1094,60 @@
 
             button.disabled = meDone;
             button.textContent = meDone ? 'CONTRIBUTION COMPLETE' : 'CONTRIBUTE';
+        }
+
+        function updateMissionMap() {
+            const markerLayer = document.getElementById('mission-map-markers');
+            const list = document.getElementById('mission-map-missions');
+            if (!markerLayer || !list) return;
+
+            markerLayer.innerHTML = '';
+            const missions = Array.isArray(playerMapData?.activeMissions) ? playerMapData.activeMissions : [];
+            const bounds = playerMapData?.bounds || { minLat: 43.35, maxLat: 47.15, minLng: -66.6, maxLng: -59.35 };
+
+            if (missions.length === 0) {
+                list.innerHTML = '<p class="opacity-70">NO ACTIVE MISSIONS TO PLOT.</p>';
+                return;
+            }
+
+            list.innerHTML = '';
+
+            missions.forEach((mission) => {
+                const location = mission.location;
+                if (!location || Number.isNaN(Number(location.lat)) || Number.isNaN(Number(location.lng))) {
+                    return;
+                }
+
+                const lngRange = Math.max(0.0001, Number(bounds.maxLng) - Number(bounds.minLng));
+                const latRange = Math.max(0.0001, Number(bounds.maxLat) - Number(bounds.minLat));
+                const leftPercent = ((Number(location.lng) - Number(bounds.minLng)) / lngRange) * 100;
+                const topPercent = 100 - (((Number(location.lat) - Number(bounds.minLat)) / latRange) * 100);
+
+                const marker = document.createElement('button');
+                marker.className = 'absolute text-yellow-400 font-bold text-xs';
+                marker.style.left = `${Math.min(98, Math.max(2, leftPercent))}%`;
+                marker.style.top = `${Math.min(96, Math.max(4, topPercent))}%`;
+                marker.style.transform = 'translate(-50%, -50%)';
+                marker.textContent = '●';
+                marker.title = `${mission.title} @ ${location.name}`;
+                marker.onclick = () => notify(`MAP LOCK: ${mission.title} @ ${location.name}`);
+                markerLayer.appendChild(marker);
+
+                const card = document.createElement('div');
+                card.className = 'border border-cyan-500/40 p-2 bg-black/20';
+                const mapsUrl = `https://www.openstreetmap.org/?mlat=${encodeURIComponent(location.lat)}&mlon=${encodeURIComponent(location.lng)}#map=10/${encodeURIComponent(location.lat)}/${encodeURIComponent(location.lng)}`;
+                card.innerHTML = `
+                    <p class="font-bold text-cyan-300">${mission.title}</p>
+                    <p class="opacity-80">${location.name} | ${location.region}</p>
+                    <p class="opacity-70">COORDS: ${Number(location.lat).toFixed(4)}, ${Number(location.lng).toFixed(4)}</p>
+                    <a href="${mapsUrl}" target="_blank" rel="noopener noreferrer" class="text-yellow-500 underline">OPEN REAL MAP</a>
+                `;
+                list.appendChild(card);
+            });
+
+            if (!list.children.length) {
+                list.innerHTML = '<p class="opacity-70">ACTIVE MISSIONS HAVE NO LOCATION DATA YET.</p>';
+            }
         }
 
         function updateAchievements() {
@@ -1156,7 +1274,12 @@
                 });
 
                 if (result.completion) {
-                    notify(`TEAM OBJECTIVE COMPLETE: ${result.completion.objectiveName}`);
+                    const outcome = result.completion.outcome;
+                    if (outcome) {
+                        notify(`TEAM OBJECTIVE COMPLETE [${outcome.roll}] ${outcome.label}: ${outcome.message}`);
+                    } else {
+                        notify(`TEAM OBJECTIVE COMPLETE: ${result.completion.objectiveName}`);
+                    }
                 } else {
                     notify('CONTRIBUTION LOGGED');
                 }
@@ -1283,6 +1406,9 @@
                 // Display the quest
                 document.getElementById('daily-quest-title').textContent = currentRandomQuest.title;
                 document.getElementById('daily-quest-desc').textContent = currentRandomQuest.desc;
+                document.getElementById('daily-quest-location').textContent = currentRandomQuest.location
+                    ? `LOCATION: ${currentRandomQuest.location.name} (${currentRandomQuest.location.region})`
+                    : 'LOCATION: UNASSIGNED';
                 document.getElementById('daily-quest-reward').textContent = `${currentRandomQuest.reward} TABS | ${currentRandomQuest.xp || 0} XP`;
                 document.getElementById('daily-quest-display').classList.remove('hidden');
                 

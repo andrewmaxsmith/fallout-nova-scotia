@@ -42,6 +42,169 @@ const RANDOM_TASK_AREAS = ['living room', 'kitchen', 'bedroom', 'hallway', 'play
 const RANDOM_TASK_MOVES = ['jumping jacks', 'step-ups', 'squats', 'balance holds', 'fast marches'];
 const RANDOM_TASK_CREATIVE = ['comic panel', 'mini poster', 'short story', 'checklist chart', 'team signal card'];
 
+const NOVA_SCOTIA_LOCATION_REGISTRY = [
+    { id: 'halifax-citadel', name: 'Halifax Citadel', region: 'Halifax', lat: 44.6488, lng: -63.5752 },
+    { id: 'halifax-waterfront', name: 'Halifax Waterfront', region: 'Halifax', lat: 44.6452, lng: -63.5724 },
+    { id: 'dartmouth-ferry', name: 'Dartmouth Ferry Terminal', region: 'Halifax Harbour', lat: 44.6648, lng: -63.5676 },
+    { id: 'lunenburg-harbour', name: 'Lunenburg Harbour', region: 'South Shore', lat: 44.3775, lng: -64.3188 },
+    { id: 'peggys-cove', name: 'Peggy’s Cove Lighthouse', region: 'South Shore', lat: 44.4924, lng: -63.9151 },
+    { id: 'wolfville', name: 'Wolfville', region: 'Annapolis Valley', lat: 45.0919, lng: -64.3671 },
+    { id: 'annapolis-royal', name: 'Annapolis Royal', region: 'Annapolis Valley', lat: 44.7421, lng: -65.5158 },
+    { id: 'truro', name: 'Truro', region: 'North Shore Hub', lat: 45.3656, lng: -63.2797 },
+    { id: 'debert', name: 'Debert', region: 'Colchester', lat: 45.4239, lng: -63.4621 },
+    { id: 'shubenacadie', name: 'Shubenacadie Wildlife Park', region: 'Shubenacadie', lat: 45.1183, lng: -63.4173 },
+    { id: 'five-islands', name: 'Five Islands Provincial Park', region: 'Fundy Coast', lat: 45.3903, lng: -64.0526 },
+    { id: 'sydney', name: 'Sydney Waterfront', region: 'Cape Breton', lat: 46.1368, lng: -60.1942 },
+    { id: 'baddeck', name: 'Baddeck', region: 'Cape Breton Highlands', lat: 46.1, lng: -60.7535 }
+];
+
+const NOVA_SCOTIA_LOCATION_BY_ID = NOVA_SCOTIA_LOCATION_REGISTRY.reduce((acc, location) => {
+    acc[location.id] = location;
+    return acc;
+}, {});
+
+const QUEST_LOCATION_OVERRIDES = {
+    q16: 'five-islands',
+    q17: 'shubenacadie',
+    q18: 'halifax-waterfront',
+    q19: 'wolfville',
+    q20: 'peggys-cove',
+    q21: 'annapolis-royal',
+    q22: 'truro',
+    q23: 'baddeck',
+    q5: 'truro',
+    q6: 'halifax-waterfront',
+    q11: 'halifax-citadel',
+    q12: 'five-islands',
+    q13: 'wolfville',
+    q14: 'debert',
+    q15: 'dartmouth-ferry',
+    h1: 'halifax-citadel',
+    h2: 'halifax-waterfront',
+    h3: 'dartmouth-ferry',
+    h4: 'truro',
+    h5: 'wolfville'
+};
+
+function hashStringToInt(value) {
+    const input = String(value || 'mission');
+    let hash = 0;
+    for (let i = 0; i < input.length; i += 1) {
+        hash = ((hash << 5) - hash) + input.charCodeAt(i);
+        hash |= 0;
+    }
+    return Math.abs(hash);
+}
+
+function pickDeterministicLocationId(seedText) {
+    if (NOVA_SCOTIA_LOCATION_REGISTRY.length === 0) {
+        return null;
+    }
+    const idx = hashStringToInt(seedText) % NOVA_SCOTIA_LOCATION_REGISTRY.length;
+    return NOVA_SCOTIA_LOCATION_REGISTRY[idx].id;
+}
+
+function inferLocationIdForQuest(quest) {
+    if (!quest) {
+        return null;
+    }
+
+    if (quest.locationId && NOVA_SCOTIA_LOCATION_BY_ID[quest.locationId]) {
+        return quest.locationId;
+    }
+
+    if (QUEST_LOCATION_OVERRIDES[quest.id]) {
+        return QUEST_LOCATION_OVERRIDES[quest.id];
+    }
+
+    const text = `${quest.title || ''} ${quest.desc || ''}`.toLowerCase();
+    if (text.includes('halifax') || text.includes('harbor') || text.includes('citadel')) {
+        return 'halifax-waterfront';
+    }
+    if (text.includes('lighthouse') || text.includes('cove')) {
+        return 'peggys-cove';
+    }
+    if (text.includes('lunenburg')) {
+        return 'lunenburg-harbour';
+    }
+    if (text.includes('annapolis') || text.includes('valley') || text.includes('maple')) {
+        return 'annapolis-royal';
+    }
+    if (text.includes('five islands') || text.includes('tidal bore')) {
+        return 'five-islands';
+    }
+    if (text.includes('shubenacadie') || text.includes('wildlife')) {
+        return 'shubenacadie';
+    }
+    if (text.includes('debert') || text.includes('signal') || text.includes('relay')) {
+        return 'debert';
+    }
+    if (text.includes('cape breton') || text.includes('highland')) {
+        return 'baddeck';
+    }
+
+    return pickDeterministicLocationId(quest.id || quest.title || text);
+}
+
+function attachQuestLocation(quest) {
+    if (!quest) {
+        return null;
+    }
+
+    const locationId = inferLocationIdForQuest(quest);
+    const location = locationId ? NOVA_SCOTIA_LOCATION_BY_ID[locationId] : null;
+
+    return {
+        ...quest,
+        locationId: location ? location.id : null,
+        location: location
+            ? {
+                id: location.id,
+                name: location.name,
+                region: location.region,
+                lat: Number(location.lat),
+                lng: Number(location.lng)
+            }
+            : null
+    };
+}
+
+function buildPlayerMapPayload(playerData, gameState) {
+    const activeQuestIds = Array.isArray(playerData?.activeQuests) ? playerData.activeQuests : [];
+    const activeMissions = activeQuestIds
+        .map((questId) => gameState.quests.find((quest) => quest.id === questId))
+        .filter(Boolean)
+        .map((quest) => attachQuestLocation(quest))
+        .map((quest) => ({
+            id: quest.id,
+            title: quest.title,
+            type: 'quest',
+            location: quest.location
+        }));
+
+    if (playerData?.activeRandomQuest) {
+        const randomQuest = attachQuestLocation(playerData.activeRandomQuest);
+        activeMissions.push({
+            id: randomQuest.id,
+            title: randomQuest.title,
+            type: 'random',
+            location: randomQuest.location
+        });
+    }
+
+    return {
+        bounds: {
+            minLat: 43.35,
+            maxLat: 47.15,
+            minLng: -66.6,
+            maxLng: -59.35
+        },
+        locations: NOVA_SCOTIA_LOCATION_REGISTRY,
+        activeMissions,
+        generatedAt: new Date().toISOString()
+    };
+}
+
 let generatedRandomQuestCounter = 0;
 
 function createProceduralRandomQuest() {
@@ -114,10 +277,10 @@ function issueRandomQuestForPlayer(playerData, gameState) {
         return null;
     }
 
-    playerData.activeRandomQuest = {
+    playerData.activeRandomQuest = attachQuestLocation({
         ...quest,
         issuedAt: new Date().toISOString()
-    };
+    });
     return playerData.activeRandomQuest;
 }
 
@@ -691,6 +854,9 @@ function registerPlayerRoutes(app, deps) {
         const gameState = getGameState();
         if (gameState.players[player]) {
             ensurePlayerProgressFields(gameState.players[player]);
+            if (gameState.players[player].activeRandomQuest) {
+                gameState.players[player].activeRandomQuest = attachQuestLocation(gameState.players[player].activeRandomQuest);
+            }
             res.json(gameState.players[player]);
         } else {
             res.status(404).json({ error: 'Player not found' });
@@ -761,14 +927,14 @@ function registerPlayerRoutes(app, deps) {
 
     app.get('/api/quests', (req, res) => {
         const gameState = getGameState();
-        res.json(gameState.quests);
+        res.json((gameState.quests || []).map((quest) => attachQuestLocation(quest)));
     });
 
     app.get('/api/random-quest', (req, res) => {
         const gameState = getGameState();
         if (gameState.randomQuests && gameState.randomQuests.length > 0) {
             const randomQuest = gameState.randomQuests[Math.floor(Math.random() * gameState.randomQuests.length)];
-            res.json(randomQuest);
+            res.json(attachQuestLocation(randomQuest));
         } else {
             res.status(404).json({ error: 'No random quests available' });
         }
@@ -790,6 +956,18 @@ function registerPlayerRoutes(app, deps) {
 
         scheduleAutoSave();
         res.json(quest);
+    });
+
+    app.get('/api/player/:player/map', (req, res) => {
+        const { player } = req.params;
+        const gameState = getGameState();
+        const playerData = gameState.players[player];
+
+        if (!playerData) {
+            return res.status(404).json({ error: 'Player not found' });
+        }
+
+        return res.json(buildPlayerMapPayload(playerData, gameState));
     });
 
     app.get('/api/player/:player/educational-quests', (req, res) => {

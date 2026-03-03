@@ -428,6 +428,80 @@ function registerGameplayRoutes(app, deps) {
         return null;
     }
 
+    function resolveTeamObjectiveDiceOutcome(gameState, objective) {
+        const roll = Math.floor(Math.random() * 20) + 1;
+        const baseTabs = Number(objective?.reward?.tabs || 0);
+        const baseXp = Number(objective?.reward?.xp || 0);
+
+        let label = 'SOLID SUCCESS';
+        let message = 'Team execution was steady. Full rewards granted.';
+        let tabsMultiplier = 1;
+        let xpMultiplier = 1;
+        let hpLoss = 0;
+        let radsGain = 0;
+        let randomScrap = 0;
+
+        if (roll <= 4) {
+            label = 'CATASTROPHIC SETBACK';
+            message = 'The operation collapsed. No tabs/xp reward; everyone took minor damage and rads.';
+            tabsMultiplier = 0;
+            xpMultiplier = 0;
+            hpLoss = 1;
+            radsGain = 1;
+        } else if (roll <= 9) {
+            label = 'ROUGH COMPLETION';
+            message = 'The team finished, but with losses. Reduced rewards granted.';
+            tabsMultiplier = 0.5;
+            xpMultiplier = 0.5;
+        } else if (roll >= 19) {
+            label = 'CRITICAL SUCCESS';
+            message = 'Perfect coordination. Bonus rewards and salvage recovered.';
+            tabsMultiplier = 1.5;
+            xpMultiplier = 1.5;
+            randomScrap = 1;
+        }
+
+        const perPlayer = {};
+        Object.keys(gameState.players || {}).forEach((playerKey) => {
+            const playerData = gameState.players[playerKey];
+
+            const tabsBase = Math.max(0, Math.round(baseTabs * tabsMultiplier));
+            const xpBase = Math.max(0, Math.round(baseXp * xpMultiplier));
+            const tabsAwarded = applyMissionTabsReward(playerData, tabsBase);
+            const xpAwarded = applyMissionXpReward(playerData, xpBase);
+            const levelsGained = addXpWithLeveling(playerData, xpAwarded);
+
+            const hpLost = hpLoss > 0 ? applyHpLossWithPerks(playerData, hpLoss) : 0;
+            const radsAdded = radsGain > 0 ? applyRadGainWithPerks(playerData, radsGain) : 0;
+
+            let scrap = null;
+            if (randomScrap > 0) {
+                scrap = applyRandomScrapGain(playerData, randomScrap);
+                if (scrap) {
+                    gameState.sessionMetrics.scrapGained[playerKey] = (gameState.sessionMetrics.scrapGained[playerKey] || 0) + Number(scrap.amount || 0);
+                }
+            }
+
+            gameState.playerProgress[playerKey].teamContribution = false;
+            perPlayer[playerKey] = {
+                tabs: tabsAwarded,
+                xp: xpAwarded,
+                levelsGained,
+                hpLost,
+                radsAdded,
+                scrap
+            };
+        });
+
+        return {
+            roll,
+            label,
+            message,
+            baseReward: { tabs: baseTabs, xp: baseXp },
+            perPlayer
+        };
+    }
+
     function buildSessionRecap(gameState) {
         ensureMetaState(gameState);
         const metrics = gameState.sessionMetrics;
@@ -1517,17 +1591,12 @@ function registerGameplayRoutes(app, deps) {
         const everyoneContributed = Object.keys(gameState.players || {}).every(p => Boolean(objective.contributors[p]));
         let completion = null;
         if (everyoneContributed) {
-            const reward = objective.reward || {};
-            Object.keys(gameState.players || {}).forEach((playerKey) => {
-                const playerData = gameState.players[playerKey];
-                applyMissionTabsReward(playerData, Number(reward.tabs || 0));
-                addXpWithLeveling(playerData, applyMissionXpReward(playerData, Number(reward.xp || 0)));
-                gameState.playerProgress[playerKey].teamContribution = false;
-            });
+            const outcome = resolveTeamObjectiveDiceOutcome(gameState, objective);
             completion = {
                 objectiveId: objective.id,
                 objectiveName: objective.name,
-                reward
+                reward: objective.reward || {},
+                outcome
             };
             gameState.activeTeamObjective = null;
         }
