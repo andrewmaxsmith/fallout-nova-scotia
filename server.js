@@ -75,11 +75,14 @@ app.disable('x-powered-by');
 app.set('trust proxy', 1);
 
 app.use(helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+    crossOriginOpenerPolicy: false,
     crossOriginResourcePolicy: { policy: 'cross-origin' }
 }));
 
 const apiRateLimitWindowMs = Number(process.env.API_RATE_LIMIT_WINDOW_MS || 60000);
-const apiRateLimitMax = Number(process.env.API_RATE_LIMIT_MAX || 180);
+const apiRateLimitMax = Number(process.env.API_RATE_LIMIT_MAX || 3000);
 app.use('/api', rateLimit({
     windowMs: Number.isFinite(apiRateLimitWindowMs) ? apiRateLimitWindowMs : 60000,
     max: Number.isFinite(apiRateLimitMax) ? apiRateLimitMax : 180,
