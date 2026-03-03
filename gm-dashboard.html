@@ -186,7 +186,7 @@
                         <label>LEVEL: <input type="number" id="logan-level" class="stat-input" value="1" min="1" max="99" oninput="queuePlayerStatUpdate('logan', 'level', this)"></label>
                     </div>
                     <div class="player-card">
-                        <label>XP: <input type="number" id="logan-xp" class="stat-input" value="0" min="0" max="999999" oninput="queuePlayerStatUpdate('logan', 'xp', this)"> / <span id="logan-xp-next">5</span></label>
+                        <label>XP +/-: <input type="number" id="logan-xp" class="stat-input" value="0" min="-999999" max="999999" oninput="queuePlayerStatUpdate('logan', 'xp', this)"> | CUR/NEXT: <span id="logan-xp-next">0/5</span></label>
                     </div>
                     <div class="player-card">
                         <label>HP: <input type="number" id="logan-hp" class="stat-input" value="10" min="0" max="999" oninput="queuePlayerStatUpdate('logan', 'hp', this)"> / <input type="number" id="logan-maxhp" class="stat-input" value="10" min="1" max="999" oninput="queuePlayerStatUpdate('logan', 'maxHp', this)"></label>
@@ -214,7 +214,7 @@
                         <label>LEVEL: <input type="number" id="rylyn-level" class="stat-input" value="1" min="1" max="99" oninput="queuePlayerStatUpdate('rylyn', 'level', this)"></label>
                     </div>
                     <div class="player-card">
-                        <label>XP: <input type="number" id="rylyn-xp" class="stat-input" value="0" min="0" max="999999" oninput="queuePlayerStatUpdate('rylyn', 'xp', this)"> / <span id="rylyn-xp-next">5</span></label>
+                        <label>XP +/-: <input type="number" id="rylyn-xp" class="stat-input" value="0" min="-999999" max="999999" oninput="queuePlayerStatUpdate('rylyn', 'xp', this)"> | CUR/NEXT: <span id="rylyn-xp-next">0/5</span></label>
                     </div>
                     <div class="player-card">
                         <label>HP: <input type="number" id="rylyn-hp" class="stat-input" value="10" min="0" max="999" oninput="queuePlayerStatUpdate('rylyn', 'hp', this)"> / <input type="number" id="rylyn-maxhp" class="stat-input" value="10" min="1" max="999" oninput="queuePlayerStatUpdate('rylyn', 'maxHp', this)"></label>
@@ -483,7 +483,7 @@
             rads: { min: 0, max: 1000 },
             maxRads: { min: 1, max: 1000 },
             tabs: { min: 0, max: 999999 },
-            xp: { min: 0, max: 999999 }
+            xp: { min: -999999, max: 999999 }
         };
 
         const CHAPPY_LABELS = {
@@ -626,7 +626,6 @@
             if (!player) return;
 
             setInputValueIfIdle(`${playerKey}-level`, player.level || 1);
-            setInputValueIfIdle(`${playerKey}-xp`, player.xp || 0);
             setInputValueIfIdle(`${playerKey}-hp`, player.hp || 0);
             setInputValueIfIdle(`${playerKey}-maxhp`, player.maxHp || 10);
             setInputValueIfIdle(`${playerKey}-rads`, player.rads || 0);
@@ -635,7 +634,9 @@
 
             const xpNext = document.getElementById(`${playerKey}-xp-next`);
             if (xpNext) {
-                xpNext.textContent = String(Math.max(1, Number(player.xpToNext || 1)));
+                const xpCurrent = Math.max(0, Number(player.xp || 0));
+                const xpRequired = Math.max(1, Number(player.xpToNext || 1));
+                xpNext.textContent = `${xpCurrent}/${xpRequired}`;
             }
 
             const meta = document.getElementById(`${playerKey}-player-meta`);
@@ -776,6 +777,9 @@
                 inputEl.value = clamped;
                 delete pendingStatUpdates[key];
                 await updatePlayer(player, stat, clamped);
+                if (stat === 'xp') {
+                    inputEl.value = 0;
+                }
                 queueStatSyncNotice(player);
             }, 450);
         }

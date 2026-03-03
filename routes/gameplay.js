@@ -348,7 +348,7 @@ function registerGameplayRoutes(app, deps) {
             const playerData = gameState.players[player];
             if (stat === 'xp') {
                 playerData.level = Math.max(1, Number(playerData.level) || 1);
-                playerData.xp = Math.max(0, Number(validation.value) || 0);
+                playerData.xp = Math.max(0, (Number(playerData.xp) || 0) + Number(validation.value || 0));
 
                 let levelsGained = 0;
                 let xpNeeded = getXpRequiredForLevel(playerData.level);
