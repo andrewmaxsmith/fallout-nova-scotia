@@ -345,8 +345,28 @@ function registerGameplayRoutes(app, deps) {
         }
 
         if (gameState.players[player] && gameState.players[player][stat] !== undefined) {
-            gameState.players[player][stat] = validation.value;
-            ensurePlayerProgressFields(gameState.players[player]);
+            const playerData = gameState.players[player];
+            if (stat === 'xp') {
+                playerData.level = Math.max(1, Number(playerData.level) || 1);
+                playerData.xp = Math.max(0, Number(validation.value) || 0);
+
+                let levelsGained = 0;
+                let xpNeeded = getXpRequiredForLevel(playerData.level);
+                while (playerData.xp >= xpNeeded) {
+                    playerData.xp -= xpNeeded;
+                    playerData.level = Number(playerData.level) + 1;
+                    levelsGained += 1;
+                    xpNeeded = getXpRequiredForLevel(playerData.level);
+                }
+
+                if (levelsGained > 0) {
+                    playerData.pendingPerks = (playerData.pendingPerks || 0) + levelsGained;
+                }
+            } else {
+                playerData[stat] = validation.value;
+            }
+
+            ensurePlayerProgressFields(playerData);
             syncPlayerPassive(gameState, player);
             const unlocked = evaluateAchievements(gameState, player);
             scheduleAutoSave();
