@@ -142,11 +142,11 @@ function createQuestEntry(category, idSuffix, payload) {
         question: payload.question,
         options: shuffled.map(option => option.text),
         correctOptionIndex,
-        rewardTabs: Number(payload.rewardTabs ?? categoryDef.rewardTabs),
-        rewardXp: Number(payload.rewardXp ?? categoryDef.rewardXp),
+        rewardTabs: Math.max(0, Number(payload.rewardTabs ?? categoryDef.rewardTabs)),
+        rewardXp: Math.max(0, Number(payload.rewardXp ?? categoryDef.rewardXp)),
         wrongPenalty: {
-            hp: Number(payload.wrongPenalty?.hp ?? categoryDef.wrongPenalty?.hp ?? 0),
-            rads: Number(payload.wrongPenalty?.rads ?? categoryDef.wrongPenalty?.rads ?? 0)
+            hp: Math.max(0, Number(payload.wrongPenalty?.hp ?? categoryDef.wrongPenalty?.hp ?? 0)),
+            rads: Math.max(0, Number(payload.wrongPenalty?.rads ?? categoryDef.wrongPenalty?.rads ?? 0))
         }
     };
 }

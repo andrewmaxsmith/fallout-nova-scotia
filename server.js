@@ -1362,6 +1362,16 @@ function getRandomScrapType(player) {
     return keys[Math.floor(Math.random() * keys.length)];
 }
 
+function getActiveEffectModifierSum(playerData, key) {
+    const effectById = new Map((gameState.statusEffects || []).map((effect) => [effect.id, effect]));
+    const activeEffectModifiers = (Array.isArray(playerData?.activeEffects) ? playerData.activeEffects : [])
+        .map((effectId) => effectById.get(effectId))
+        .filter((effect) => effect && effect.modifiers && typeof effect.modifiers === 'object')
+        .map((effect) => effect.modifiers);
+
+    return activeEffectModifiers.reduce((sum, modifiers) => sum + Number(modifiers[key] || 0), 0);
+}
+
 function resolveEncounterOutcome(player, encounter) {
     const roll = Math.floor(Math.random() * 20) + 1;
     let hpDelta = 0;
@@ -1396,29 +1406,22 @@ function resolveEncounterOutcome(player, encounter) {
     }
 
     const playerData = gameState.players[player];
-    const effectById = new Map((gameState.statusEffects || []).map((effect) => [effect.id, effect]));
-    const activeEffectModifiers = (Array.isArray(playerData.activeEffects) ? playerData.activeEffects : [])
-        .map((effectId) => effectById.get(effectId))
-        .filter((effect) => effect && effect.modifiers && typeof effect.modifiers === 'object')
-        .map((effect) => effect.modifiers);
-    const getModifierSum = (key) => activeEffectModifiers.reduce((sum, modifiers) => sum + Number(modifiers[key] || 0), 0);
-
     if (hpDelta < 0) {
         const hpLoss = Math.abs(hpDelta);
-        const adjustedLoss = Math.max(0, hpLoss + getModifierSum('hpLossBonus') - getModifierSum('hpLossReduction'));
+        const adjustedLoss = Math.max(0, hpLoss + getActiveEffectModifierSum(playerData, 'hpLossBonus') - getActiveEffectModifierSum(playerData, 'hpLossReduction'));
         hpDelta = -adjustedLoss;
     }
 
     if (radDelta > 0) {
-        radDelta = Math.max(0, radDelta + getModifierSum('radGainBonus') - getModifierSum('radGainReduction'));
+        radDelta = Math.max(0, radDelta + getActiveEffectModifierSum(playerData, 'radGainBonus') - getActiveEffectModifierSum(playerData, 'radGainReduction'));
     }
 
     if (tabsDelta > 0) {
-        tabsDelta = Math.max(0, tabsDelta + getModifierSum('tabsGainBonus'));
+        tabsDelta = Math.max(0, tabsDelta + getActiveEffectModifierSum(playerData, 'tabsGainBonus'));
     }
 
     if (scrapDelta > 0) {
-        scrapDelta = Math.max(0, scrapDelta + getModifierSum('scrapRewardBonus'));
+        scrapDelta = Math.max(0, scrapDelta + getActiveEffectModifierSum(playerData, 'scrapRewardBonus'));
     }
 
     playerData.hp = clamp((playerData.hp || 0) + hpDelta, 0, playerData.maxHp || 10);
@@ -1459,25 +1462,67 @@ function addInventoryItem(player, name) {
 }
 
 function applyEncounterOutcome(player) {
+    const playerData = gameState.players[player];
+
+    const applyAdjustedHpLoss = (baseLoss) => {
+        const adjustedLoss = Math.max(0,
+            Number(baseLoss || 0)
+            + getActiveEffectModifierSum(playerData, 'hpLossBonus')
+            - getActiveEffectModifierSum(playerData, 'hpLossReduction')
+        );
+        playerData.hp = clamp((playerData.hp || 0) - adjustedLoss, 0, playerData.maxHp || 10);
+    };
+
+    const applyAdjustedRadsGain = (baseGain) => {
+        const adjustedGain = Math.max(0,
+            Number(baseGain || 0)
+            + getActiveEffectModifierSum(playerData, 'radGainBonus')
+            - getActiveEffectModifierSum(playerData, 'radGainReduction')
+        );
+        playerData.rads = clamp((playerData.rads || 0) + adjustedGain, 0, playerData.maxRads || 10);
+    };
+
+    const applyAdjustedTabsGain = (baseGain) => {
+        const adjustedGain = Math.max(0,
+            Number(baseGain || 0)
+            + getActiveEffectModifierSum(playerData, 'tabsGainBonus')
+        );
+        playerData.tabs = Math.max(0, (playerData.tabs || 0) + adjustedGain);
+        return adjustedGain;
+    };
+
+    const applyAdjustedScrapGain = (baseGain) => {
+        const adjustedGain = Math.max(0,
+            Number(baseGain || 0)
+            + getActiveEffectModifierSum(playerData, 'scrapRewardBonus')
+        );
+        if (adjustedGain <= 0) {
+            return 'NO SCRAP GAIN';
+        }
+
+        const scrapType = getRandomScrapType(player);
+        if (scrapType) {
+            playerData.scrap[scrapType] = (playerData.scrap[scrapType] || 0) + adjustedGain;
+            return `${scrapType} +${adjustedGain}`;
+        }
+        return 'NO SCRAP AVAILABLE';
+    };
+
     const outcomes = [
-        { id: 'lose_hp', text: 'LOSE 2 HEALTH', apply: (p) => { p.hp = clamp((p.hp || 0) - 2, 0, p.maxHp || 10); } },
-        { id: 'gain_rads_2', text: 'GAIN 2 RADS', apply: (p) => { p.rads = clamp((p.rads || 0) + 2, 0, p.maxRads || 10); } },
-        { id: 'gain_rads_4', text: 'GAIN 4 RADS', apply: (p) => { p.rads = clamp((p.rads || 0) + 4, 0, p.maxRads || 10); } },
-        { id: 'gain_tabs_2', text: 'GAIN 2 TABS', apply: (p) => { p.tabs = (p.tabs || 0) + 2; } },
-        { id: 'gain_resource', text: 'GAIN RANDOM RESOURCE', apply: (p) => {
-            const scrapType = getRandomScrapType(player);
-            if (scrapType) {
-                p.scrap[scrapType] = (p.scrap[scrapType] || 0) + 1;
-                return `${scrapType} +1`;
-            }
-            return 'NO SCRAP AVAILABLE';
+        { id: 'lose_hp', text: 'LOSE 2 HEALTH', apply: () => { applyAdjustedHpLoss(2); } },
+        { id: 'gain_rads_2', text: 'GAIN 2 RADS', apply: () => { applyAdjustedRadsGain(2); } },
+        { id: 'gain_rads_4', text: 'GAIN 4 RADS', apply: () => { applyAdjustedRadsGain(4); } },
+        { id: 'gain_tabs_2', text: 'GAIN 2 TABS', apply: () => {
+            const gained = applyAdjustedTabsGain(2);
+            return `TABS +${gained}`;
         } },
-        { id: 'gain_stimpak', text: 'GAIN STIMPAK', apply: (p) => { addInventoryItem(player, 'Stimpak'); } },
-        { id: 'gain_radaway', text: 'GAIN RAD-AWAY', apply: (p) => { addInventoryItem(player, 'Rad-Away'); } }
+        { id: 'gain_resource', text: 'GAIN RANDOM RESOURCE', apply: () => applyAdjustedScrapGain(1) },
+        { id: 'gain_stimpak', text: 'GAIN STIMPAK', apply: () => { addInventoryItem(player, 'Stimpak'); } },
+        { id: 'gain_radaway', text: 'GAIN RAD-AWAY', apply: () => { addInventoryItem(player, 'Rad-Away'); } }
     ];
 
     const outcome = outcomes[Math.floor(Math.random() * outcomes.length)];
-    const extra = outcome.apply(gameState.players[player]);
+    const extra = outcome.apply(playerData);
     return {
         id: outcome.id,
         text: outcome.text,

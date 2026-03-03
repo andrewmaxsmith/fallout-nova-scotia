@@ -154,11 +154,30 @@ function registerGameplayRoutes(app, deps) {
         if (missionTabsPercent !== 0) {
             totalTabs += Math.round(safeBase * missionTabsPercent);
         }
+        totalTabs += getActiveEffectNumericSum(gameState, playerData, 'tabsGainBonus');
 
         totalTabs = Math.max(0, totalTabs);
 
         playerData.tabs = (playerData.tabs || 0) + totalTabs;
         return totalTabs;
+    }
+
+    function applyTabsGain(playerData, baseTabs) {
+        const gameState = getGameState();
+        const safeBase = Math.max(0, Number(baseTabs || 0));
+        if (safeBase <= 0) return 0;
+
+        const adjusted = Math.max(0, safeBase + getActiveEffectNumericSum(gameState, playerData, 'tabsGainBonus'));
+        playerData.tabs = (playerData.tabs || 0) + adjusted;
+        return adjusted;
+    }
+
+    function applyMissionXpReward(playerData, baseXp) {
+        const gameState = getGameState();
+        const safeBase = Math.max(0, Number(baseXp || 0));
+        if (safeBase <= 0) return 0;
+
+        return Math.max(0, safeBase + getActiveEffectNumericSum(gameState, playerData, 'missionXpBonus'));
     }
 
     function applyScrapRewards(playerData, rewardScrap) {
@@ -187,6 +206,30 @@ function registerGameplayRoutes(app, deps) {
         });
 
         return applied;
+    }
+
+    function applyRandomScrapGain(playerData, baseAmount) {
+        const safeBase = Math.max(0, Number(baseAmount || 0));
+        if (safeBase <= 0) return null;
+
+        const scrapKeys = Object.keys(playerData.scrap || {});
+        if (scrapKeys.length === 0) return null;
+
+        const pick = scrapKeys[Math.floor(Math.random() * scrapKeys.length)];
+        let amount = safeBase;
+
+        if (hasPerk(playerData, 'p5') && Math.random() < 0.5) {
+            amount *= 2;
+        }
+
+        const gameState = getGameState();
+        amount = Math.max(0, amount + getActiveEffectNumericSum(gameState, playerData, 'scrapRewardBonus'));
+        if (amount <= 0) {
+            return null;
+        }
+
+        playerData.scrap[pick] = (playerData.scrap[pick] || 0) + amount;
+        return { type: pick, amount };
     }
 
     function applyHealingWithPerks(playerData, baseHeal) {
@@ -260,8 +303,8 @@ function registerGameplayRoutes(app, deps) {
         playerData.achievements = [...progress.achievements];
 
         const reward = achievement.reward || {};
-        playerData.tabs = (playerData.tabs || 0) + Number(reward.tabs || 0);
-        addXpWithLeveling(playerData, Number(reward.xp || 0));
+        applyTabsGain(playerData, Number(reward.tabs || 0));
+        addXpWithLeveling(playerData, applyMissionXpReward(playerData, Number(reward.xp || 0)));
 
         return achievement;
     }
@@ -322,8 +365,8 @@ function registerGameplayRoutes(app, deps) {
             if (allComplete && !chainState.completed) {
                 chainState.completed = true;
                 const reward = chain.finalReward || {};
-                playerData.tabs = (playerData.tabs || 0) + Number(reward.tabs || 0);
-                addXpWithLeveling(playerData, Number(reward.xp || 0));
+                applyMissionTabsReward(playerData, Number(reward.tabs || 0));
+                addXpWithLeveling(playerData, applyMissionXpReward(playerData, Number(reward.xp || 0)));
 
                 if (reward.perkId && Array.isArray(playerData.unlockedPerks) && !playerData.unlockedPerks.includes(reward.perkId)) {
                     playerData.unlockedPerks.push(reward.perkId);
@@ -361,23 +404,24 @@ function registerGameplayRoutes(app, deps) {
             const scrapKeys = Object.keys(playerData.scrap || {});
             if (scrapKeys.length > 0) {
                 const pick = scrapKeys[Math.floor(Math.random() * scrapKeys.length)];
-                playerData.scrap[pick] = (playerData.scrap[pick] || 0) + 1;
-                gameState.sessionMetrics.scrapGained[player] = (gameState.sessionMetrics.scrapGained[player] || 0) + 1;
-                return { passiveKey, text: `Scavenger proc: +1 ${pick}` };
+                const amount = Math.max(0, 1 + getActiveEffectNumericSum(gameState, playerData, 'scrapRewardBonus'));
+                if (amount > 0) {
+                    playerData.scrap[pick] = (playerData.scrap[pick] || 0) + amount;
+                    gameState.sessionMetrics.scrapGained[player] = (gameState.sessionMetrics.scrapGained[player] || 0) + amount;
+                    return { passiveKey, text: `Scavenger proc: +${amount} ${pick}` };
+                }
             }
         }
 
         if (passiveKey === 'vanguard' && trigger === 'encounter') {
-            const before = playerData.hp || 0;
-            playerData.hp = clamp(before + 1, 0, playerData.maxHp || 10);
-            const healed = playerData.hp - before;
+            const healed = applyHealingWithPerks(playerData, 1);
             if (healed > 0) {
                 return { passiveKey, text: `Vanguard proc: +${healed} HP` };
             }
         }
 
         if (passiveKey === 'diplomat' && trigger === 'quest') {
-            playerData.tabs = (playerData.tabs || 0) + 2;
+            applyTabsGain(playerData, 2);
             return { passiveKey, text: 'Diplomat proc: +2 Tabs' };
         }
 
@@ -685,11 +729,10 @@ function registerGameplayRoutes(app, deps) {
         let notes = [];
         if (total >= dc) {
             const tabsGainBase = Number(gameState.radioConsequences?.success?.tabsGain || 0);
-            const tabsGain = Math.max(0, tabsGainBase + getActiveEffectNumericSum(gameState, playerData, 'tabsGainBonus'));
-            playerData.tabs = (playerData.tabs || 0) + tabsGain;
+            const tabsGain = applyTabsGain(playerData, tabsGainBase);
             const passive = syncPlayerPassive(gameState, player);
             if (passive === 'signaler') {
-                playerData.tabs += 2;
+                applyTabsGain(playerData, 2);
                 notes.push('Class passive: +2 Tabs');
             }
 
@@ -851,7 +894,8 @@ function registerGameplayRoutes(app, deps) {
                 const tabsReward = quest.rewardTabs || 0;
                 const xpReward = quest.xp || 0;
                 const tabsAwarded = applyMissionTabsReward(playerData, tabsReward);
-                addXpWithLeveling(playerData, xpReward);
+                const xpAwarded = applyMissionXpReward(playerData, xpReward);
+                addXpWithLeveling(playerData, xpAwarded);
 
                 if (quest.rewardScrap) {
                     const appliedScrap = applyScrapRewards(playerData, quest.rewardScrap);
@@ -871,13 +915,17 @@ function registerGameplayRoutes(app, deps) {
                     message: `${player} completed ${quest.title}`,
                     reward: {
                         tabs: tabsAwarded,
-                        xp: xpReward
+                        xp: xpAwarded
                     },
                     chainUpdate,
                     passiveProc,
                     achievementsUnlocked: unlockedAchievements.map(a => ({ id: a.id, name: a.name }))
                 });
+            } else {
+                return res.status(404).json({ error: 'Quest not found' });
             }
+        } else {
+            return res.status(404).json({ error: 'Player not found' });
         }
     });
 
@@ -1075,11 +1123,11 @@ function registerGameplayRoutes(app, deps) {
         }
 
         if (recipe.id === 'r3') {
-            playerData.tabs = (playerData.tabs || 0) + 15;
+            const tabsGained = applyTabsGain(playerData, 15);
             return finalizeCraft({
                 success: true,
                 message: 'Crafted Propane Popper! Salvage blast recovered +15 Tabs.',
-                effect: { tabsGained: 15, tabs: playerData.tabs }
+                effect: { tabsGained, tabs: playerData.tabs }
             });
         }
 
@@ -1129,11 +1177,11 @@ function registerGameplayRoutes(app, deps) {
 
         if (recipe.id === 'r12') {
             const restored = applyHealingWithPerks(playerData, 2);
-            playerData.tabs = (playerData.tabs || 0) + 2;
+            const tabsGained = applyTabsGain(playerData, 2);
             return finalizeCraft({
                 success: true,
                 message: `Crafted Trail Mix Pack! Restored ${restored} HP and gained +2 Tabs.`,
-                effect: { hpRestored: restored, hp: playerData.hp, tabs: playerData.tabs }
+                effect: { hpRestored: restored, tabsGained, hp: playerData.hp, tabs: playerData.tabs }
             });
         }
 
@@ -1451,8 +1499,8 @@ function registerGameplayRoutes(app, deps) {
             const reward = objective.reward || {};
             Object.keys(gameState.players || {}).forEach((playerKey) => {
                 const playerData = gameState.players[playerKey];
-                playerData.tabs = (playerData.tabs || 0) + Number(reward.tabs || 0);
-                addXpWithLeveling(playerData, Number(reward.xp || 0));
+                applyMissionTabsReward(playerData, Number(reward.tabs || 0));
+                addXpWithLeveling(playerData, applyMissionXpReward(playerData, Number(reward.xp || 0)));
                 gameState.playerProgress[playerKey].teamContribution = false;
             });
             completion = {
@@ -1505,17 +1553,12 @@ function registerGameplayRoutes(app, deps) {
                 }
             }
             if (effect.tabs) {
-                playerData.tabs = (playerData.tabs || 0) + Number(effect.tabs);
+                applyTabsGain(playerData, Number(effect.tabs));
             }
             if (effect.randomScrap) {
-                const scrapKeys = Object.keys(playerData.scrap || {});
-                if (scrapKeys.length > 0) {
-                    const pick = scrapKeys[Math.floor(Math.random() * scrapKeys.length)];
-                    const bonusAmount = hasPerk(playerData, 'p5') && Math.random() < 0.5
-                        ? Number(effect.randomScrap) * 2
-                        : Number(effect.randomScrap);
-                    playerData.scrap[pick] = (playerData.scrap[pick] || 0) + bonusAmount;
-                    gameState.sessionMetrics.scrapGained[playerKey] = (gameState.sessionMetrics.scrapGained[playerKey] || 0) + bonusAmount;
+                const randomScrap = applyRandomScrapGain(playerData, Number(effect.randomScrap));
+                if (randomScrap) {
+                    gameState.sessionMetrics.scrapGained[playerKey] = (gameState.sessionMetrics.scrapGained[playerKey] || 0) + randomScrap.amount;
                 }
             }
 
