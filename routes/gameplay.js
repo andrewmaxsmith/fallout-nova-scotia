@@ -903,10 +903,15 @@ function registerGameplayRoutes(app, deps) {
             ensurePlayerProgressFields(playerData);
             const quest = gameState.quests.find(q => q.id === questId);
             if (quest) {
-                playerData.activeQuests = playerData.activeQuests.filter(q => q !== questId);
-                if (!playerData.completedQuests.includes(questId)) {
-                    playerData.completedQuests.push(questId);
+                if (!playerData.activeQuests.includes(questId)) {
+                    return res.status(400).json({ error: 'Quest is not currently active for this player' });
                 }
+                if (playerData.completedQuests.includes(questId)) {
+                    return res.status(400).json({ error: 'Quest already completed' });
+                }
+
+                playerData.activeQuests = playerData.activeQuests.filter(q => q !== questId);
+                playerData.completedQuests.push(questId);
                 const tabsReward = quest.rewardTabs || 0;
                 const xpReward = quest.xp || 0;
                 const tabsAwarded = applyMissionTabsReward(playerData, tabsReward);
