@@ -118,6 +118,41 @@
         .modal-overlay.hidden {
             display: none;
         }
+
+        .ns-map-base {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .map-poi-dot,
+        .map-mission-dot {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-radius: 9999px;
+            transform: translate(-50%, -50%);
+            border: 1px solid #0a0a0a;
+        }
+
+        .map-poi-dot {
+            background: #06b6d4;
+            opacity: 0.85;
+        }
+
+        .map-poi-dot.map-poi-linked {
+            background: #facc15;
+            width: 12px;
+            height: 12px;
+            box-shadow: 0 0 8px rgba(250, 204, 21, 0.6);
+        }
+
+        .map-mission-dot {
+            background: #f97316;
+            width: 12px;
+            height: 12px;
+            box-shadow: 0 0 10px rgba(249, 115, 22, 0.55);
+        }
         @media (max-width: 768px) {
             .max-w-6xl {
                 max-width: 100%;
@@ -435,6 +470,27 @@
                             </div>
                         </div>
                     </div>
+
+                    <div class="pip-border p-3 border-dashed border-cyan-500 bg-cyan-950/10">
+                        <h3 class="text-sm font-bold text-cyan-400 mb-2">NOVA SCOTIA MISSION MAP</h3>
+                        <div class="relative h-56 border border-cyan-500/50 bg-black/40 mb-2" id="gm-mission-map-canvas">
+                            <svg class="ns-map-base" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                                <rect x="0" y="0" width="100" height="100" fill="rgba(6, 10, 6, 0.9)"></rect>
+                                <path d="M20 36 L24 33 L29 34 L33 39 L39 39 L44 43 L46 48 L52 50 L58 56 L63 58 L68 63 L73 65 L76 69 L81 72 L85 77 L83 81 L77 82 L70 79 L64 75 L56 73 L52 70 L47 67 L42 66 L37 63 L32 61 L28 56 L25 50 L22 47 L20 42 Z" fill="rgba(26,255,128,0.2)" stroke="rgba(26,255,128,0.6)" stroke-width="0.8"></path>
+                                <path d="M77 23 L82 22 L86 25 L90 30 L88 34 L83 35 L79 31 L76 27 Z" fill="rgba(26,255,128,0.2)" stroke="rgba(26,255,128,0.6)" stroke-width="0.8"></path>
+                                <path d="M66 66 L73 69" stroke="rgba(26,255,128,0.5)" stroke-width="0.6"></path>
+                            </svg>
+                            <div id="gm-mission-map-markers" class="absolute inset-0"></div>
+                        </div>
+                        <div class="flex gap-2 text-[8px] opacity-80 mb-2">
+                            <span>● CYAN POI</span>
+                            <span>● YELLOW MISSION POI</span>
+                            <span>● ORANGE ACTIVE MISSION</span>
+                        </div>
+                        <div id="gm-mission-map-summary" class="text-[9px] opacity-80">
+                            <p>LOADING MISSION MAP...</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
@@ -533,6 +589,7 @@
         const API_URL = window.location.origin.replace(/\/$/, "");
         let gameData = {};
         let questLocationById = {};
+        let questDataById = {};
         let notificationCounter = 0;
         const pendingStatUpdates = {};
         let statSyncToastTimer = null;
@@ -677,6 +734,9 @@
                     const lookup = {};
                     if (Array.isArray(questsWithLocation)) {
                         questsWithLocation.forEach((quest) => {
+                            if (quest?.id) {
+                                questDataById[quest.id] = quest;
+                            }
                             if (quest?.id && quest.location) {
                                 lookup[quest.id] = quest.location;
                             }
@@ -743,6 +803,82 @@
         function renderPlayerPanels() {
             renderPlayerPanel('logan');
             renderPlayerPanel('rylyn');
+        }
+
+        function renderMissionMap() {
+            const markerLayer = document.getElementById('gm-mission-map-markers');
+            const summary = document.getElementById('gm-mission-map-summary');
+            if (!markerLayer || !summary) return;
+
+            markerLayer.innerHTML = '';
+
+            const bounds = { minLat: 43.35, maxLat: 47.15, minLng: -66.6, maxLng: -59.35 };
+            const lngRange = Math.max(0.0001, Number(bounds.maxLng) - Number(bounds.minLng));
+            const latRange = Math.max(0.0001, Number(bounds.maxLat) - Number(bounds.minLat));
+
+            const uniqueLocations = {};
+            Object.values(questLocationById).forEach((location) => {
+                if (location?.id) {
+                    uniqueLocations[location.id] = location;
+                }
+            });
+
+            const activeMissions = [];
+            Object.entries(gameData.players || {}).forEach(([playerKey, playerData]) => {
+                const activeIds = Array.isArray(playerData?.activeQuests) ? playerData.activeQuests : [];
+                activeIds.forEach((questId) => {
+                    const quest = questDataById[questId] || (gameData.quests || []).find((q) => q.id === questId);
+                    if (!quest || !quest.location) return;
+                    activeMissions.push({
+                        player: playerKey,
+                        title: quest.title,
+                        location: quest.location
+                    });
+                });
+            });
+
+            const missionLocationIds = new Set(activeMissions.map((entry) => entry.location?.id).filter(Boolean));
+
+            Object.values(uniqueLocations).forEach((poi) => {
+                if (Number.isNaN(Number(poi.lat)) || Number.isNaN(Number(poi.lng))) {
+                    return;
+                }
+
+                const leftPercent = ((Number(poi.lng) - Number(bounds.minLng)) / lngRange) * 100;
+                const topPercent = 100 - (((Number(poi.lat) - Number(bounds.minLat)) / latRange) * 100);
+                const dot = document.createElement('div');
+                dot.className = `map-poi-dot ${missionLocationIds.has(poi.id) ? 'map-poi-linked' : ''}`;
+                dot.style.left = `${Math.min(98, Math.max(2, leftPercent))}%`;
+                dot.style.top = `${Math.min(96, Math.max(4, topPercent))}%`;
+                dot.title = `${poi.name} (${poi.region})`;
+                markerLayer.appendChild(dot);
+            });
+
+            activeMissions.forEach((mission) => {
+                const location = mission.location;
+                if (Number.isNaN(Number(location.lat)) || Number.isNaN(Number(location.lng))) {
+                    return;
+                }
+
+                const leftPercent = ((Number(location.lng) - Number(bounds.minLng)) / lngRange) * 100;
+                const topPercent = 100 - (((Number(location.lat) - Number(bounds.minLat)) / latRange) * 100);
+                const marker = document.createElement('div');
+                marker.className = 'map-mission-dot';
+                marker.style.left = `${Math.min(98, Math.max(2, leftPercent))}%`;
+                marker.style.top = `${Math.min(96, Math.max(4, topPercent))}%`;
+                marker.title = `${mission.player.toUpperCase()}: ${mission.title} @ ${location.name}`;
+                markerLayer.appendChild(marker);
+            });
+
+            if (activeMissions.length === 0) {
+                summary.innerHTML = '<p>NO ACTIVE MISSIONS TO PLOT.</p>';
+                return;
+            }
+
+            const rows = activeMissions
+                .map((mission) => `<p>${mission.player.toUpperCase()}: ${mission.title} → ${mission.location.name}</p>`)
+                .join('');
+            summary.innerHTML = rows;
         }
 
         function setStorageStatusUi(status, isError = false) {
@@ -1035,6 +1171,8 @@
                     }
                 });
             }
+
+            renderMissionMap();
         }
 
         function renderRadio() {
