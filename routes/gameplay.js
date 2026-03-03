@@ -91,11 +91,12 @@ function registerGameplayRoutes(app, deps) {
         const safeXp = Number(xpAmount || 0);
         if (safeXp <= 0) return levelsGained;
 
-        playerData.xp = (playerData.xp || 0) + safeXp;
+        playerData.level = Math.max(1, Number(playerData.level) || 1);
+        playerData.xp = Math.max(0, Number(playerData.xp) || 0) + safeXp;
         let xpNeeded = getXpRequiredForLevel(playerData.level);
         while (playerData.xp >= xpNeeded) {
             playerData.xp -= xpNeeded;
-            playerData.level += 1;
+            playerData.level = Number(playerData.level) + 1;
             levelsGained += 1;
             xpNeeded = getXpRequiredForLevel(playerData.level);
         }
@@ -103,6 +104,96 @@ function registerGameplayRoutes(app, deps) {
         playerData.pendingPerks = (playerData.pendingPerks || 0) + levelsGained;
         ensurePlayerProgressFields(playerData);
         return levelsGained;
+    }
+
+    function hasPerk(playerData, perkId) {
+        return Boolean(Array.isArray(playerData?.unlockedPerks) && playerData.unlockedPerks.includes(perkId));
+    }
+
+    function applyMissionTabsReward(playerData, baseTabs) {
+        const safeBase = Math.max(0, Number(baseTabs || 0));
+        if (safeBase <= 0) return 0;
+
+        let totalTabs = safeBase;
+        if (hasPerk(playerData, 'p3')) {
+            totalTabs += 2;
+        }
+        if (hasPerk(playerData, 'p14')) {
+            totalTabs += Math.ceil(safeBase * 0.10);
+        }
+
+        playerData.tabs = (playerData.tabs || 0) + totalTabs;
+        return totalTabs;
+    }
+
+    function applyScrapRewards(playerData, rewardScrap) {
+        const safeMap = rewardScrap && typeof rewardScrap === 'object' ? rewardScrap : {};
+        const applied = {};
+
+        Object.entries(safeMap).forEach(([type, rawAmount]) => {
+            let amount = Math.max(0, Number(rawAmount || 0));
+            if (amount <= 0) {
+                return;
+            }
+
+            if (hasPerk(playerData, 'p5') && Math.random() < 0.5) {
+                amount *= 2;
+            }
+
+            if (playerData.scrap[type] === undefined) {
+                playerData.scrap[type] = 0;
+            }
+            playerData.scrap[type] += amount;
+            applied[type] = (applied[type] || 0) + amount;
+        });
+
+        return applied;
+    }
+
+    function applyHealingWithPerks(playerData, baseHeal) {
+        const safeBase = Math.max(0, Number(baseHeal || 0));
+        if (safeBase <= 0) return 0;
+
+        const multiplier = hasPerk(playerData, 'p4') ? 2 : 1;
+        const healAmount = Math.max(0, Math.ceil(safeBase * multiplier));
+        const beforeHp = Number(playerData.hp || 0);
+        playerData.hp = clamp(beforeHp + healAmount, 0, playerData.maxHp || 10);
+        return playerData.hp - beforeHp;
+    }
+
+    function applyRadGainWithPerks(playerData, baseRads, { isFood = false } = {}) {
+        const safeBase = Math.max(0, Number(baseRads || 0));
+        if (safeBase <= 0) return 0;
+
+        if (isFood && hasPerk(playerData, 'p6')) {
+            return 0;
+        }
+
+        let adjusted = safeBase;
+        if (hasPerk(playerData, 'p2')) {
+            adjusted = Math.max(0, adjusted - 1);
+        }
+        if (hasPerk(playerData, 'p12')) {
+            adjusted = Math.max(0, adjusted - 1);
+        }
+
+        const beforeRads = Number(playerData.rads || 0);
+        playerData.rads = clamp(beforeRads + adjusted, 0, playerData.maxRads || 10);
+        return playerData.rads - beforeRads;
+    }
+
+    function applyHpLossWithPerks(playerData, baseHpLoss) {
+        const safeBase = Math.max(0, Number(baseHpLoss || 0));
+        if (safeBase <= 0) return 0;
+
+        let adjusted = safeBase;
+        if (hasPerk(playerData, 'p15')) {
+            adjusted = Math.max(0, adjusted - 1);
+        }
+
+        const beforeHp = Number(playerData.hp || 0);
+        playerData.hp = clamp(beforeHp - adjusted, 0, playerData.maxHp || 10);
+        return beforeHp - playerData.hp;
     }
 
     function grantAchievement(gameState, player, achievementId) {
@@ -557,12 +648,12 @@ function registerGameplayRoutes(app, deps) {
             outcome = 'failure';
             const hpLoss = Number(gameState.radioConsequences?.failure?.hpLoss || 1);
             const radsGain = Number(gameState.radioConsequences?.failure?.radsGain || 1);
-            playerData.hp = clamp((playerData.hp || 0) - hpLoss, 0, playerData.maxHp || 10);
-            playerData.rads = clamp((playerData.rads || 0) + radsGain, 0, playerData.maxRads || 10);
+            const hpLost = applyHpLossWithPerks(playerData, hpLoss);
+            const radsAdded = applyRadGainWithPerks(playerData, radsGain);
             activeData.verified = true;
             activeData.text = `${activeData.text}\n\nFAILURE: It was a trap. You took damage and radiation.`;
-            notes.push(`HP -${hpLoss}`);
-            notes.push(`RADS +${radsGain}`);
+            notes.push(`HP -${hpLost}`);
+            notes.push(`RADS +${radsAdded}`);
         }
 
         scheduleAutoSave();
@@ -705,15 +796,12 @@ function registerGameplayRoutes(app, deps) {
                 }
                 const tabsReward = quest.rewardTabs || 0;
                 const xpReward = quest.xp || 0;
-                playerData.tabs += tabsReward;
+                const tabsAwarded = applyMissionTabsReward(playerData, tabsReward);
                 addXpWithLeveling(playerData, xpReward);
 
                 if (quest.rewardScrap) {
-                    Object.entries(quest.rewardScrap).forEach(([type, amount]) => {
-                        if (playerData.scrap[type] === undefined) {
-                            playerData.scrap[type] = 0;
-                        }
-                        playerData.scrap[type] += amount;
+                    const appliedScrap = applyScrapRewards(playerData, quest.rewardScrap);
+                    Object.values(appliedScrap).forEach((amount) => {
                         gameState.sessionMetrics.scrapGained[player] = (gameState.sessionMetrics.scrapGained[player] || 0) + Number(amount || 0);
                     });
                 }
@@ -727,6 +815,10 @@ function registerGameplayRoutes(app, deps) {
                 res.json({
                     success: true,
                     message: `${player} completed ${quest.title}`,
+                    reward: {
+                        tabs: tabsAwarded,
+                        xp: xpReward
+                    },
                     chainUpdate,
                     passiveProc,
                     achievementsUnlocked: unlockedAchievements.map(a => ({ id: a.id, name: a.name }))
@@ -926,24 +1018,21 @@ function registerGameplayRoutes(app, deps) {
         }
 
         if (recipe.id === 'r4') {
-            const hasLeadBelly = (playerData.unlockedPerks || []).includes('p6');
             const healAmount = Math.max(1, Math.ceil((playerData.maxHp || 10) * 0.5));
             const beforeHp = playerData.hp || 0;
             const beforeRads = playerData.rads || 0;
 
-            playerData.hp = clamp(beforeHp + healAmount, 0, playerData.maxHp || 10);
-            if (!hasLeadBelly) {
-                playerData.rads = clamp(beforeRads + 10, 0, playerData.maxRads || 10);
-            }
+            const restored = applyHealingWithPerks(playerData, healAmount);
+            const radsAdded = applyRadGainWithPerks(playerData, 10, { isFood: true });
 
             return finalizeCraft({
                 success: true,
-                message: hasLeadBelly
+                message: radsAdded === 0
                     ? 'Crafted Donair-Dab Kit! Restored HP with no RAD gain (Lead Belly).'
                     : 'Crafted Donair-Dab Kit! Restored HP and gained RADS.',
                 effect: {
-                    hpRestored: playerData.hp - beforeHp,
-                    radsAdded: hasLeadBelly ? 0 : (playerData.rads - beforeRads),
+                    hpRestored: restored,
+                    radsAdded,
                     hp: playerData.hp,
                     rads: playerData.rads
                 }
@@ -952,14 +1041,11 @@ function registerGameplayRoutes(app, deps) {
 
         if (recipe.id === 'r5') {
             const healAmount = 4;
-            const beforeHp = playerData.hp || 0;
-            const maxHp = playerData.maxHp || 10;
-            playerData.hp = clamp(beforeHp + healAmount, 0, maxHp);
-            const healed = playerData.hp - beforeHp;
+            const healed = applyHealingWithPerks(playerData, healAmount);
             return finalizeCraft({
                 success: true,
                 message: `Crafted STIMPAK! Restored ${healed} HP.`,
-                effect: { hpRestored: healed, hp: playerData.hp, maxHp: maxHp }
+                effect: { hpRestored: healed, hp: playerData.hp, maxHp: playerData.maxHp || 10 }
             });
         }
 
@@ -976,13 +1062,12 @@ function registerGameplayRoutes(app, deps) {
         }
 
         if (recipe.id === 'r12') {
-            const beforeHp = playerData.hp || 0;
-            playerData.hp = clamp(beforeHp + 2, 0, playerData.maxHp || 10);
+            const restored = applyHealingWithPerks(playerData, 2);
             playerData.tabs = (playerData.tabs || 0) + 2;
             return finalizeCraft({
                 success: true,
-                message: 'Crafted Trail Mix Pack! Restored 2 HP and gained +2 Tabs.',
-                effect: { hp: playerData.hp, tabs: playerData.tabs }
+                message: `Crafted Trail Mix Pack! Restored ${restored} HP and gained +2 Tabs.`,
+                effect: { hpRestored: restored, hp: playerData.hp, tabs: playerData.tabs }
             });
         }
 
@@ -1344,10 +1429,14 @@ function registerGameplayRoutes(app, deps) {
         Object.keys(gameState.players || {}).forEach((playerKey) => {
             const playerData = gameState.players[playerKey];
             if (effect.rads) {
-                playerData.rads = clamp((playerData.rads || 0) + Number(effect.rads), 0, playerData.maxRads || 10);
+                applyRadGainWithPerks(playerData, Number(effect.rads));
             }
             if (effect.hp) {
-                playerData.hp = clamp((playerData.hp || 0) + Number(effect.hp), 0, playerData.maxHp || 10);
+                if (Number(effect.hp) >= 0) {
+                    applyHealingWithPerks(playerData, Number(effect.hp));
+                } else {
+                    applyHpLossWithPerks(playerData, Math.abs(Number(effect.hp)));
+                }
             }
             if (effect.tabs) {
                 playerData.tabs = (playerData.tabs || 0) + Number(effect.tabs);
@@ -1356,8 +1445,11 @@ function registerGameplayRoutes(app, deps) {
                 const scrapKeys = Object.keys(playerData.scrap || {});
                 if (scrapKeys.length > 0) {
                     const pick = scrapKeys[Math.floor(Math.random() * scrapKeys.length)];
-                    playerData.scrap[pick] = (playerData.scrap[pick] || 0) + Number(effect.randomScrap);
-                    gameState.sessionMetrics.scrapGained[playerKey] = (gameState.sessionMetrics.scrapGained[playerKey] || 0) + Number(effect.randomScrap);
+                    const bonusAmount = hasPerk(playerData, 'p5') && Math.random() < 0.5
+                        ? Number(effect.randomScrap) * 2
+                        : Number(effect.randomScrap);
+                    playerData.scrap[pick] = (playerData.scrap[pick] || 0) + bonusAmount;
+                    gameState.sessionMetrics.scrapGained[playerKey] = (gameState.sessionMetrics.scrapGained[playerKey] || 0) + bonusAmount;
                 }
             }
 

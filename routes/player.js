@@ -582,6 +582,63 @@ function registerPlayerRoutes(app, deps) {
         return levelsGained;
     }
 
+    function hasPerk(playerData, perkId) {
+        return Boolean(Array.isArray(playerData?.unlockedPerks) && playerData.unlockedPerks.includes(perkId));
+    }
+
+    function applyMissionTabsReward(playerData, baseTabs) {
+        const safeBase = Math.max(0, Number(baseTabs || 0));
+        if (safeBase <= 0) {
+            return 0;
+        }
+
+        let totalTabs = safeBase;
+        if (hasPerk(playerData, 'p3')) {
+            totalTabs += 2;
+        }
+        if (hasPerk(playerData, 'p14')) {
+            totalTabs += Math.ceil(safeBase * 0.10);
+        }
+
+        playerData.tabs = (playerData.tabs || 0) + totalTabs;
+        return totalTabs;
+    }
+
+    function applyRadGainWithPerks(playerData, baseRads) {
+        const safeBase = Math.max(0, Number(baseRads || 0));
+        if (safeBase <= 0) {
+            return 0;
+        }
+
+        let adjusted = safeBase;
+        if (hasPerk(playerData, 'p2')) {
+            adjusted = Math.max(0, adjusted - 1);
+        }
+        if (hasPerk(playerData, 'p12')) {
+            adjusted = Math.max(0, adjusted - 1);
+        }
+
+        const beforeRads = Number(playerData.rads || 0);
+        playerData.rads = Math.min(playerData.maxRads || 10, beforeRads + adjusted);
+        return playerData.rads - beforeRads;
+    }
+
+    function applyHpLossWithPerks(playerData, baseHpLoss) {
+        const safeBase = Math.max(0, Number(baseHpLoss || 0));
+        if (safeBase <= 0) {
+            return 0;
+        }
+
+        let adjusted = safeBase;
+        if (hasPerk(playerData, 'p15')) {
+            adjusted = Math.max(0, adjusted - 1);
+        }
+
+        const beforeHp = Number(playerData.hp || 0);
+        playerData.hp = Math.max(0, beforeHp - adjusted);
+        return beforeHp - playerData.hp;
+    }
+
     app.get('/api/player/:player', (req, res) => {
         const { player } = req.params;
         const gameState = getGameState();
@@ -770,7 +827,7 @@ function registerPlayerRoutes(app, deps) {
 
         const tabsReward = quest.reward || 0;
         const xpReward = quest.xp || 0;
-        playerData.tabs += tabsReward;
+        const tabsAwarded = applyMissionTabsReward(playerData, tabsReward);
         const levelsGained = addXpWithLeveling(playerData, xpReward);
         if (playerData.activeRandomQuest && playerData.activeRandomQuest.id === questId) {
             playerData.activeRandomQuest = null;
@@ -782,7 +839,7 @@ function registerPlayerRoutes(app, deps) {
             success: true,
             message: `${player} completed ${quest.title}`,
             reward: {
-                tabs: tabsReward,
+                tabs: tabsAwarded,
                 xp: xpReward,
                 levelsGained
             }
@@ -821,7 +878,7 @@ function registerPlayerRoutes(app, deps) {
         const isCorrect = Number(quest.correctOptionIndex) === answerIndex;
         const tabsReward = isCorrect ? Number(quest.rewardTabs || 0) : 0;
         const xpReward = isCorrect ? Number(quest.rewardXp || 0) : 0;
-        playerData.tabs = (playerData.tabs || 0) + tabsReward;
+        const tabsAwarded = applyMissionTabsReward(playerData, tabsReward);
         const levelsGained = addXpWithLeveling(playerData, xpReward);
 
         let hpPenalty = 0;
@@ -830,10 +887,10 @@ function registerPlayerRoutes(app, deps) {
             hpPenalty = Number(quest.wrongPenalty?.hp || 0);
             radsPenalty = Number(quest.wrongPenalty?.rads || 0);
             if (hpPenalty > 0) {
-                playerData.hp = Math.max(0, (playerData.hp || 0) - hpPenalty);
+                hpPenalty = applyHpLossWithPerks(playerData, hpPenalty);
             }
             if (radsPenalty > 0) {
-                playerData.rads = Math.min(playerData.maxRads || 10, (playerData.rads || 0) + radsPenalty);
+                radsPenalty = applyRadGainWithPerks(playerData, radsPenalty);
             }
         }
 
@@ -846,7 +903,7 @@ function registerPlayerRoutes(app, deps) {
             title: quest.title,
             correct: isCorrect,
             answerIndex,
-            tabs: tabsReward,
+            tabs: tabsAwarded,
             xp: xpReward,
             hpPenalty,
             radsPenalty,
@@ -858,7 +915,7 @@ function registerPlayerRoutes(app, deps) {
         }
         playerData.dailyCompleted.push({
             title: `[EDU] ${quest.title} ${isCorrect ? '(CORRECT)' : '(WRONG)'}`,
-            reward: tabsReward,
+            reward: tabsAwarded,
             xp: xpReward,
             time: new Date().toLocaleTimeString()
         });
@@ -876,7 +933,7 @@ function registerPlayerRoutes(app, deps) {
                 : `${player} answered ${quest.title} incorrectly`,
             correct: isCorrect,
             reward: {
-                tabs: tabsReward,
+                tabs: tabsAwarded,
                 xp: xpReward,
                 levelsGained
             },
