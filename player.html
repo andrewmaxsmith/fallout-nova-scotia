@@ -249,7 +249,7 @@
         <button onclick="showTab('perks')" data-tab-target="perks" class="pip-btn p-2 text-[9px]">PERKS</button>
         <button onclick="showTab('quests')" data-tab-target="quests" class="pip-btn p-2 text-[9px]">QUESTS</button>
         <button onclick="showTab('crafting')" data-tab-target="crafting" class="pip-btn p-2 text-[9px]">CRAFTING</button>
-        <button onclick="showTab('quarters')" data-tab-target="quarters" class="pip-btn p-2 text-[9px]">QUARTERS</button>
+        <button onclick="showTab('quarters')" data-tab-target="quarters" class="pip-btn p-2 text-[9px]">SHOP</button>
         <button onclick="showTab('radio')" data-tab-target="radio" class="pip-btn p-2 text-[9px]">RADIO</button>
         <button onclick="showTab('trade')" data-tab-target="trade" class="pip-btn p-2 text-[9px]">TRADE</button>
     </nav>
@@ -470,14 +470,14 @@
         </div>
     </section>
 
-    <!-- TAB: QUARTERS -->
+    <!-- TAB: SHOP -->
     <section id="quarters" class="tab-content">
         <div class="pip-border p-4 bg-black/50 space-y-4">
-            <h2 class="text-xl border-b border-pip-green mb-4">PERSONAL VAULT - HOME UPGRADES</h2>
+            <h2 class="text-xl border-b border-pip-green mb-4">PERSONAL SHOP - VAULT + FIELD GEAR</h2>
             
             <!-- PURCHASED UPGRADES -->
             <div>
-                <h3 class="text-xs font-bold text-green-400 mb-2">INSTALLED UPGRADES</h3>
+                <h3 class="text-xs font-bold text-green-400 mb-2">OWNED UPGRADES</h3>
                 <div id="quarters-installed" class="space-y-2 text-[10px]">
                     <p class="opacity-70">No upgrades installed yet.</p>
                 </div>
@@ -485,7 +485,7 @@
 
             <!-- AVAILABLE UPGRADES -->
             <div>
-                <h3 class="text-xs font-bold text-yellow-500 mb-2">UPGRADE CATALOG</h3>
+                <h3 class="text-xs font-bold text-yellow-500 mb-2">SHOP CATALOG</h3>
                 <div id="quarters-available" class="space-y-2 text-[10px]">
                     <!-- Available upgrades inject here -->
                 </div>
@@ -1667,27 +1667,37 @@
             }
             
             // Show available upgrades
-            const available = allQuartersUpgrades.filter(u => !playerQuarters.some(p => p.id === u.id));
+            const available = allQuartersUpgrades.filter((offer) => {
+                if (offer.repeatable || offer.type === 'item') {
+                    return true;
+                }
+                return !playerQuarters.some((owned) => owned.id === offer.id);
+            });
             if (available.length > 0) {
                 availableDiv.innerHTML = '';
-                available.forEach(upgrade => {
-                    const canAfford = playerData.tabs >= upgrade.cost;
+                available.forEach(offer => {
+                    const canAfford = playerData.tabs >= offer.cost;
+                    const typeLabel = (offer.type === 'item' || offer.repeatable)
+                        ? 'SHOP ITEM'
+                        : 'VAULT UPGRADE';
                     const upgradeEl = document.createElement('div');
                     upgradeEl.className = `border ${canAfford ? 'border-pip-green' : 'border-red-600'} p-2`;
                     upgradeEl.innerHTML = `
                         <div class="flex justify-between items-start">
                             <div>
-                                <p class="font-bold">${upgrade.name}</p>
-                                <p class="opacity-70 text-[9px]">${upgrade.desc}</p>
-                                <p class="text-[9px] text-yellow-500 font-bold mt-1">COST: ${upgrade.cost} TABS</p>
+                                <p class="font-bold">${offer.name}</p>
+                                <p class="text-[8px] text-cyan-300">${typeLabel}${offer.repeatable ? ' • REPEATABLE' : ''}</p>
+                                <p class="opacity-70 text-[9px]">${offer.desc}</p>
+                                ${offer.effect ? `<p class="text-[9px] text-green-300 mt-1">${offer.effect}</p>` : ''}
+                                <p class="text-[9px] text-yellow-500 font-bold mt-1">COST: ${offer.cost} TABS</p>
                             </div>
-                            <button onclick="purchaseUpgrade('${upgrade.id}', this)" class="pip-btn text-[8px] p-1 ${canAfford ? '' : 'opacity-50 cursor-not-allowed'}" ${!canAfford ? 'disabled' : ''}>BUY</button>
+                            <button onclick="purchaseUpgrade('${offer.id}', this)" class="pip-btn text-[8px] p-1 ${canAfford ? '' : 'opacity-50 cursor-not-allowed'}" ${!canAfford ? 'disabled' : ''}>BUY</button>
                         </div>
                     `;
                     availableDiv.appendChild(upgradeEl);
                 });
             } else {
-                availableDiv.innerHTML = '<p class="opacity-70">All upgrades purchased!</p>';
+                availableDiv.innerHTML = '<p class="opacity-70">No shop offers available.</p>';
             }
         }
 

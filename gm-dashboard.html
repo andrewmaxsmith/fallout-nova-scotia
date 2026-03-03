@@ -206,7 +206,7 @@
         <!-- NAVIGATION -->
         <nav id="gm-tab-nav" class="grid grid-cols-6 gap-2 mb-6">
             <button onclick="showTab('players')" data-tab-target="players" class="pip-btn tab-btn-active">PLAYERS</button>
-            <button onclick="showTab('quarters')" data-tab-target="quarters" class="pip-btn">QUARTERS</button>
+            <button onclick="showTab('quarters')" data-tab-target="quarters" class="pip-btn">SHOP</button>
             <button onclick="showTab('perks')" data-tab-target="perks" class="pip-btn">PERKS</button>
             <button onclick="showTab('quests')" data-tab-target="quests" class="pip-btn">QUESTS</button>
             <button onclick="showTab('effects')" data-tab-target="effects" class="pip-btn">EFFECTS</button>
@@ -300,12 +300,12 @@
             </div>
         </section>
 
-        <!-- TAB: QUARTERS -->
+        <!-- TAB: SHOP -->
         <section id="quarters" class="tab-content">
             <div class="grid grid-cols-2 gap-4">
                 <!-- AVAILABLE UPGRADES -->
                 <div class="pip-border p-4 bg-black/50">
-                    <h2 class="text-xl font-bold mb-4">UPGRADE CATALOG</h2>
+                    <h2 class="text-xl font-bold mb-4">SHOP CATALOG</h2>
                     <div id="quarters-catalog" class="space-y-2 no-scroll-box">
                         <!-- Upgrades injected here -->
                     </div>
@@ -313,18 +313,18 @@
 
                 <!-- PLAYER QUARTERS STATUS -->
                 <div class="pip-border p-4 bg-black/50">
-                    <h2 class="text-xl font-bold mb-4">PLAYER QUARTERS</h2>
+                    <h2 class="text-xl font-bold mb-4">PLAYER SHOP UPGRADES</h2>
                     <div class="space-y-4">
                         <!-- LOGAN QUARTERS -->
                         <div class="border border-blue-400 p-3">
-                            <h3 class="text-blue-400 font-bold text-sm mb-2">LOGAN'S UPGRADES</h3>
+                            <h3 class="text-blue-400 font-bold text-sm mb-2">LOGAN'S OWNED UPGRADES</h3>
                             <div id="logan-quarters" class="space-y-1 text-[10px] no-scroll-box">
                                 <!-- Logan's upgrades -->
                             </div>
                         </div>
                         <!-- RYLYN QUARTERS -->
                         <div class="border border-red-400 p-3">
-                            <h3 class="text-red-400 font-bold text-sm mb-2">RYLYN'S UPGRADES</h3>
+                            <h3 class="text-red-400 font-bold text-sm mb-2">RYLYN'S OWNED UPGRADES</h3>
                             <div id="rylyn-quarters" class="space-y-1 text-[10px] no-scroll-box">
                                 <!-- Rylyn's upgrades -->
                             </div>
@@ -1189,14 +1189,19 @@
             loganQuarters.innerHTML = '';
             rylynQuarters.innerHTML = '';
             
-            // Show all available upgrades
+            // Show all shop offers
             if (gameData.quarterUpgrades) {
                 gameData.quarterUpgrades.forEach(upgrade => {
+                    const typeLabel = (upgrade.type === 'item' || upgrade.repeatable)
+                        ? `SHOP ITEM${upgrade.repeatable ? ' • REPEATABLE' : ''}`
+                        : 'VAULT UPGRADE';
                     const div = document.createElement('div');
                     div.className = 'border border-yellow-500/50 p-2 text-[10px]';
                     div.innerHTML = `
                         <p class="font-bold text-yellow-500">${upgrade.name}</p>
+                        <p class="text-[8px] text-cyan-300 mb-1">${typeLabel}</p>
                         <p class="opacity-70 text-[9px] mb-1">${upgrade.desc}</p>
+                        ${upgrade.effect ? `<p class="text-[8px] text-green-300 mb-1">${upgrade.effect}</p>` : ''}
                         <p class="text-[9px] text-yellow-600 mb-2">COST: ${upgrade.cost} TABS</p>
                         <div class="flex gap-1">
                             <button onclick="grantPlayerUpgrade('logan', '${upgrade.id}', this)" class="pip-btn text-[8px] px-2 flex-1">→ LOGAN</button>

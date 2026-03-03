@@ -885,7 +885,7 @@ const BASE_GAME_STATE = {
             name: 'STRUCTURAL REINFORCEMENT',
             desc: 'Clothespins and binder clips reinforce tent walls against Room-Draft Rad-storms.',
             tier: 1,
-            cost: 50,
+            cost: 100,
             stat: 'hardiness',
             statBoost: 1,
             effect: 'Vault walls are now taut and resistant to radiation storms.'
@@ -895,7 +895,7 @@ const BASE_GAME_STATE = {
             name: 'TACTICAL LUMENS',
             desc: 'Battery-powered fairy lights illuminate the Vault at night.',
             tier: 1,
-            cost: 75,
+            cost: 150,
             stat: 'perception',
             statBoost: 1,
             effect: 'Lights prevent stubbed toes and improve nighttime visibility.'
@@ -905,7 +905,7 @@ const BASE_GAME_STATE = {
             name: 'SOFT-FLOOR PROTOCOL',
             desc: 'Extra yoga mats and rugs create cushioned flooring.',
             tier: 1,
-            cost: 100,
+            cost: 200,
             stat: null,
             hpRecovery: 'full',
             effect: 'Sleeping in the Vault now fully restores Health.'
@@ -915,7 +915,7 @@ const BASE_GAME_STATE = {
             name: 'SALVAGED SUPPLY BIN',
             desc: 'A plastic bin or cardboard crate inside the Vault for storage.',
             tier: 1,
-            cost: 60,
+            cost: 120,
             stat: null,
             inventorySlots: 3,
             effect: 'Store up to 3 extra pieces of scrap without carry weight penalties.'
@@ -925,7 +925,7 @@ const BASE_GAME_STATE = {
             name: 'DELTA MASCOT POSTER',
             desc: 'A drawing or photo of the Company mascot pinned to the Vault wall.',
             tier: 1,
-            cost: 45,
+            cost: 90,
             stat: 'charm',
             statBoost: 1,
             effect: 'Familiar face boosts morale and negotiation with factions.'
@@ -935,7 +935,7 @@ const BASE_GAME_STATE = {
             name: 'AIR-LOCK SEALANT',
             desc: 'Duct tape and masking tape seal the blanket fort seams.',
             tier: 1,
-            cost: 40,
+            cost: 80,
             stat: null,
             specialEffect: 'skeeterImmunity',
             effect: 'Immune to Rad-Skeeter Swarm encounters while inside the Vault.'
@@ -945,7 +945,7 @@ const BASE_GAME_STATE = {
             name: 'RATION DISPENSER',
             desc: 'A dedicated bowl or container for session snacks inside the Vault.',
             tier: 1,
-            cost: 80,
+            cost: 160,
             stat: null,
             specialEffect: 'fortifiedRecovery',
             effect: '+1 Hardiness for the duration of the next Wasteland Encounter.'
@@ -955,10 +955,54 @@ const BASE_GAME_STATE = {
             name: 'SCRAP-COMMS LINK',
             desc: 'Tin can phone, toy walkie-talkie, or colored string between Vaults.',
             tier: 1,
-            cost: 100,
+            cost: 200,
             stat: null,
             specialEffect: 'assistBonus',
             effect: 'Once per session, call the other survivor for +1 to any C.H.A.P.P.Y. roll.'
+        },
+        {
+            id: 'qs1',
+            type: 'item',
+            repeatable: true,
+            name: 'STIMPAK KIT',
+            desc: 'One-use medical injector for emergency healing.',
+            cost: 35,
+            itemName: 'Stimpak',
+            itemQty: 1,
+            effect: 'Adds 1 Stimpak to inventory.'
+        },
+        {
+            id: 'qs2',
+            type: 'item',
+            repeatable: true,
+            name: 'RAD-AWAY DOSE',
+            desc: 'Portable anti-rad dose for field cleanup.',
+            cost: 40,
+            itemName: 'Rad-Away',
+            itemQty: 1,
+            effect: 'Adds 1 Rad-Away to inventory.'
+        },
+        {
+            id: 'qs3',
+            type: 'item',
+            repeatable: true,
+            name: 'SNACK RATION PACK',
+            desc: 'Quick morale boost and travel snack.',
+            cost: 25,
+            itemName: 'Snack Ration Pack',
+            itemQty: 1,
+            effect: 'Adds 1 Snack Ration Pack to inventory.'
+        },
+        {
+            id: 'qs4',
+            type: 'item',
+            repeatable: true,
+            name: 'SCRAP TOOL ROLL',
+            desc: 'Basic tool wrap for repair tasks and tinkering.',
+            cost: 55,
+            itemName: 'Scrap Tool Roll',
+            itemQty: 1,
+            effect: 'Adds 1 Scrap Tool Roll to inventory.'
         }
     ],
     trades: [],
@@ -1175,6 +1219,11 @@ function migrateGameState(loadedState) {
     mergedState.randomEncounters = mergeCatalogById(mergedState.randomEncounters, BASE_GAME_STATE.randomEncounters);
     mergedState.recipes = mergeCatalogById(mergedState.recipes, BASE_GAME_STATE.recipes);
     mergedState.quarterUpgrades = mergeCatalogById(mergedState.quarterUpgrades, BASE_GAME_STATE.quarterUpgrades);
+    const quarterDefaultsById = new Map((BASE_GAME_STATE.quarterUpgrades || []).map((upgrade) => [upgrade.id, upgrade]));
+    mergedState.quarterUpgrades = (mergedState.quarterUpgrades || []).map((upgrade) => {
+        const defaults = quarterDefaultsById.get(upgrade?.id);
+        return defaults ? { ...upgrade, ...defaults } : upgrade;
+    });
     mergedState.eventCards = mergeCatalogById(mergedState.eventCards, BASE_GAME_STATE.eventCards);
     mergedState.achievements = mergeCatalogById(mergedState.achievements, BASE_GAME_STATE.achievements);
     mergedState.teamObjectives = mergeCatalogById(mergedState.teamObjectives, BASE_GAME_STATE.teamObjectives);

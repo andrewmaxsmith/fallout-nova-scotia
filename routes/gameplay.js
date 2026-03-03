@@ -1310,31 +1310,53 @@ function registerGameplayRoutes(app, deps) {
             return res.status(404).json({ error: 'Player not found' });
         }
 
-        const upgrade = gameState.quarterUpgrades.find(u => u.id === upgradeId);
-        if (!upgrade) {
-            return res.status(404).json({ error: 'Upgrade not found' });
+        const offer = gameState.quarterUpgrades.find(u => u.id === upgradeId);
+        if (!offer) {
+            return res.status(404).json({ error: 'Shop offer not found' });
         }
 
-        if (gameState.players[player].purchasedUpgrades.includes(upgradeId)) {
+        const isRepeatableItem = offer.type === 'item' || offer.repeatable === true;
+
+        if (!isRepeatableItem && gameState.players[player].purchasedUpgrades.includes(upgradeId)) {
             return res.status(400).json({ error: 'Upgrade already purchased' });
         }
 
-        if (gameState.players[player].tabs < upgrade.cost) {
-            return res.status(400).json({ error: `Need ${upgrade.cost} tabs, only have ${gameState.players[player].tabs}` });
+        if (gameState.players[player].tabs < offer.cost) {
+            return res.status(400).json({ error: `Need ${offer.cost} tabs, only have ${gameState.players[player].tabs}` });
         }
 
-        gameState.players[player].tabs -= upgrade.cost;
-        gameState.players[player].purchasedUpgrades.push(upgradeId);
+        gameState.players[player].tabs -= offer.cost;
 
-        if (upgrade.stat && upgrade.statBoost) {
-            gameState.players[player].stats[upgrade.stat] += upgrade.statBoost;
+        if (isRepeatableItem) {
+            if (!Array.isArray(gameState.players[player].inventory)) {
+                gameState.players[player].inventory = [];
+            }
+
+            const itemName = String(offer.itemName || offer.name || 'Shop Item');
+            const qtyToAdd = Math.max(1, Number(offer.itemQty || 1));
+            const existingItem = gameState.players[player].inventory.find((item) => item && item.name === itemName);
+            if (existingItem) {
+                existingItem.qty = Math.max(0, Number(existingItem.qty || 0)) + qtyToAdd;
+            } else {
+                gameState.players[player].inventory.push({
+                    id: `shop-${Date.now()}`,
+                    name: itemName,
+                    qty: qtyToAdd
+                });
+            }
+        } else {
+            gameState.players[player].purchasedUpgrades.push(upgradeId);
+
+            if (offer.stat && offer.statBoost) {
+                gameState.players[player].stats[offer.stat] += offer.statBoost;
+            }
         }
         scheduleAutoSave();
 
         res.json({
             success: true,
-            message: `Purchased ${upgrade.name}!`,
-            upgrade: upgrade,
+            message: `Purchased ${offer.name}!`,
+            upgrade: offer,
             remainingTabs: gameState.players[player].tabs
         });
     });
