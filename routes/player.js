@@ -521,6 +521,45 @@ function registerPlayerRoutes(app, deps) {
         scheduleAutoSave
     } = deps;
 
+    const CLASS_LOADOUTS = {
+        docksideDiplomat: {
+            id: 'docksideDiplomat',
+            name: 'Dockside Diplomat',
+            passiveKey: 'diplomat',
+            stats: { charm: 3, hardiness: 2, agility: 2, perception: 2, politeness: 4, yarns: 3 },
+            perkId: 'p18',
+            perkBoost: { stat: 'charm', amount: 1 },
+            item: 'Polite Pop-Tab Passport'
+        },
+        tidalVanguard: {
+            id: 'tidalVanguard',
+            name: 'Tidal Vanguard',
+            passiveKey: 'vanguard',
+            stats: { charm: 2, hardiness: 4, agility: 3, perception: 2, politeness: 2, yarns: 3 },
+            perkId: 'p19',
+            perkBoost: { stat: 'hardiness', amount: 1 },
+            item: 'Peggy Cove Splash Helmet'
+        },
+        foglineSignaler: {
+            id: 'foglineSignaler',
+            name: 'Fogline Signaler',
+            passiveKey: 'signaler',
+            stats: { charm: 2, hardiness: 2, agility: 2, perception: 4, politeness: 3, yarns: 3 },
+            perkId: 'p20',
+            perkBoost: { stat: 'perception', amount: 1 },
+            item: 'Three-Crows Signal Whistle'
+        },
+        scrapyardScavenger: {
+            id: 'scrapyardScavenger',
+            name: 'Scrapyard Scavenger',
+            passiveKey: 'scavenger',
+            stats: { charm: 2, hardiness: 3, agility: 4, perception: 3, politeness: 2, yarns: 2 },
+            perkId: 'p21',
+            perkBoost: { stat: 'agility', amount: 1 },
+            item: 'Masstown Magnet Grabber'
+        }
+    };
+
     function addXpWithLeveling(playerData, xpAmount) {
         let levelsGained = 0;
         const safeXp = Number(xpAmount || 0);
@@ -551,6 +590,68 @@ function registerPlayerRoutes(app, deps) {
         } else {
             res.status(404).json({ error: 'Player not found' });
         }
+    });
+
+    app.post('/api/player/:player/class-select', (req, res) => {
+        const { player } = req.params;
+        const { classId } = req.body || {};
+        const gameState = getGameState();
+        const playerData = gameState.players[player];
+
+        if (!playerData) {
+            return res.status(404).json({ error: 'Player not found' });
+        }
+
+        const loadout = CLASS_LOADOUTS[classId];
+        if (!loadout) {
+            return res.status(400).json({
+                error: 'Invalid class selection',
+                options: Object.keys(CLASS_LOADOUTS)
+            });
+        }
+
+        const totalStats = Object.values(playerData.stats || {}).reduce((sum, value) => sum + Number(value || 0), 0);
+        if (playerData.class || totalStats > 6) {
+            return res.status(400).json({ error: 'Class already selected for this player' });
+        }
+
+        const nextStats = { ...loadout.stats };
+        if (loadout.perkBoost && nextStats[loadout.perkBoost.stat] !== undefined) {
+            nextStats[loadout.perkBoost.stat] += Number(loadout.perkBoost.amount || 0);
+        }
+
+        playerData.stats = nextStats;
+        playerData.class = loadout.name;
+
+        if (!Array.isArray(playerData.unlockedPerks)) {
+            playerData.unlockedPerks = [];
+        }
+        if (loadout.perkId && !playerData.unlockedPerks.includes(loadout.perkId)) {
+            playerData.unlockedPerks.push(loadout.perkId);
+        }
+
+        if (!Array.isArray(playerData.inventory)) {
+            playerData.inventory = [];
+        }
+        const hasStarterItem = playerData.inventory.some((item) => item && item.name === loadout.item);
+        if (!hasStarterItem) {
+            playerData.inventory.push({ id: `class-${Date.now()}`, name: loadout.item, qty: 1 });
+        }
+
+        playerData.classPassiveKey = loadout.passiveKey;
+        playerData.classPassive = gameState.classPassives?.[loadout.passiveKey] || null;
+
+        ensurePlayerProgressFields(playerData);
+        scheduleAutoSave();
+
+        return res.json({
+            success: true,
+            classId: loadout.id,
+            className: loadout.name,
+            perkId: loadout.perkId,
+            item: loadout.item,
+            stats: playerData.stats
+        });
     });
 
     app.get('/api/quests', (req, res) => {

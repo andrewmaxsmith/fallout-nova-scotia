@@ -217,7 +217,11 @@ const BASE_GAME_STATE = {
         { id: 'p14', name: "KITCHEN PARTY", desc: "Social encounters grant +15% charm and +10% tabs reward.", tier: 1 },
         { id: 'p15', name: "LOBSTER REFLEXES", desc: "Dodge incoming damage with +2 to agility checks.", tier: 3 },
         { id: 'p16', name: "HIGHLAND HARDNESS", desc: "+3 Max HP. You're built for the brutal Nova Scotia terrain.", tier: 2, maxHpBonus: 3 },
-        { id: 'p17', name: "RADIO TUNER", desc: "Unlock 3 additional radio signals beyond normal broadcasts.", tier: 1 }
+        { id: 'p17', name: "RADIO TUNER", desc: "Unlock 3 additional radio signals beyond normal broadcasts.", tier: 1 },
+        { id: 'p18', name: "DONAIR CHARM", desc: "Class perk: +1 Charm and a gift for smooth-talking your way through the wasteland.", tier: 1 },
+        { id: 'p19', name: "TIDEWALL STANCE", desc: "Class perk: +1 Hardiness and steady footing when things get splashy.", tier: 1 },
+        { id: 'p20', name: "FOGLINE FOCUS", desc: "Class perk: +1 Perception for spotting clues in the mist.", tier: 1 },
+        { id: 'p21', name: "SCRAP SNATCH", desc: "Class perk: +1 Agility for quick, careful salvage runs.", tier: 1 }
     ],
     statusEffects: [
         {
@@ -1150,6 +1154,31 @@ function getXpRequiredForLevel(level) {
     return 5 + ((safeLevel - 1) * 3);
 }
 
+const CHAPPY_STATS = ['charm', 'hardiness', 'agility', 'perception', 'politeness', 'yarns'];
+const PERK_RUNTIME_BONUSES = {
+    p1: { stats: { hardiness: 1 } },
+    p2: { maxRads: 2 },
+    p3: { stats: { politeness: 1 } },
+    p4: { stats: { charm: 1 } },
+    p5: { stats: { perception: 1 } },
+    p6: {},
+    p7: { stats: { agility: 1 } },
+    p8: { stats: { perception: 1 } },
+    p9: { stats: { charm: 2 } },
+    p10: { stats: { agility: 1 } },
+    p11: { stats: { perception: 1 } },
+    p12: { stats: { perception: 1 } },
+    p13: { stats: { hardiness: 1 } },
+    p14: { stats: { charm: 1, politeness: 1 } },
+    p15: { stats: { agility: 2 } },
+    p16: {},
+    p17: { stats: { yarns: 1, perception: 1 } },
+    p18: { stats: { charm: 1 } },
+    p19: { stats: { hardiness: 1 } },
+    p20: { stats: { perception: 1 } },
+    p21: { stats: { agility: 1 } }
+};
+
 function ensurePlayerProgressFields(playerData) {
     if (!playerData || typeof playerData !== 'object') {
         return;
@@ -1169,26 +1198,73 @@ function ensurePlayerProgressFields(playerData) {
     const unlockedPerks = Array.isArray(playerData.unlockedPerks) ? playerData.unlockedPerks : [];
     const perkCatalogById = new Map((BASE_GAME_STATE.perks || []).map((perk) => [perk.id, perk]));
 
-    const perkCapBonuses = unlockedPerks.reduce((acc, perkId) => {
+    const desiredBonuses = unlockedPerks.reduce((acc, perkId) => {
         const perk = perkCatalogById.get(perkId);
-        if (!perk) {
-            return acc;
+        if (perk) {
+            acc.maxHp += Number(perk.maxHpBonus || 0);
+            acc.maxRads += Number(perk.maxRadsBonus || 0);
         }
-        acc.maxHp += Number(perk.maxHpBonus || 0);
-        acc.maxRads += Number(perk.maxRadsBonus || 0);
-        return acc;
-    }, { maxHp: 0, maxRads: 0 });
 
-    const requiredMaxHp = baseMaxHp + levelBasedBonus + perkCapBonuses.maxHp;
-    const requiredMaxRads = baseMaxRads + levelBasedBonus + perkCapBonuses.maxRads;
+        const runtimeBonus = PERK_RUNTIME_BONUSES[perkId] || {};
+        acc.maxHp += Number(runtimeBonus.maxHp || 0);
+        acc.maxRads += Number(runtimeBonus.maxRads || 0);
+
+        if (runtimeBonus.stats && typeof runtimeBonus.stats === 'object') {
+            Object.entries(runtimeBonus.stats).forEach(([stat, amount]) => {
+                if (!CHAPPY_STATS.includes(stat)) {
+                    return;
+                }
+                acc.stats[stat] = Number(acc.stats[stat] || 0) + Number(amount || 0);
+            });
+        }
+
+        return acc;
+    }, {
+        maxHp: 0,
+        maxRads: 0,
+        stats: Object.fromEntries(CHAPPY_STATS.map((stat) => [stat, 0]))
+    });
+
+    const appliedBonuses = playerData._appliedPerkBonuses && typeof playerData._appliedPerkBonuses === 'object'
+        ? playerData._appliedPerkBonuses
+        : { stats: Object.fromEntries(CHAPPY_STATS.map((stat) => [stat, 0])) };
+    if (!appliedBonuses.stats || typeof appliedBonuses.stats !== 'object') {
+        appliedBonuses.stats = Object.fromEntries(CHAPPY_STATS.map((stat) => [stat, 0]));
+    }
+
+    if (!playerData.stats || typeof playerData.stats !== 'object') {
+        playerData.stats = Object.fromEntries(CHAPPY_STATS.map((stat) => [stat, 1]));
+    }
+
+    CHAPPY_STATS.forEach((stat) => {
+        const desired = Number(desiredBonuses.stats[stat] || 0);
+        const applied = Number(appliedBonuses.stats[stat] || 0);
+        const delta = desired - applied;
+        if (delta !== 0) {
+            const current = Number(playerData.stats[stat] || 0);
+            playerData.stats[stat] = Math.max(0, current + delta);
+        }
+        appliedBonuses.stats[stat] = desired;
+    });
+    playerData._appliedPerkBonuses = appliedBonuses;
+
+    const requiredMaxHp = baseMaxHp + levelBasedBonus + desiredBonuses.maxHp;
+    const requiredMaxRads = baseMaxRads + levelBasedBonus + desiredBonuses.maxRads;
 
     const currentMaxHp = Number(playerData.maxHp);
     const currentMaxRads = Number(playerData.maxRads);
-    playerData.maxHp = Number.isFinite(currentMaxHp) ? Math.max(currentMaxHp, requiredMaxHp) : requiredMaxHp;
-    playerData.maxRads = Number.isFinite(currentMaxRads) ? Math.max(currentMaxRads, requiredMaxRads) : requiredMaxRads;
+    playerData.maxHp = Number.isFinite(currentMaxHp) ? requiredMaxHp : requiredMaxHp;
+    playerData.maxRads = Number.isFinite(currentMaxRads) ? requiredMaxRads : requiredMaxRads;
 
     playerData.hp = clamp(Number(playerData.hp || 0), 0, playerData.maxHp);
     playerData.rads = clamp(Number(playerData.rads || 0), 0, playerData.maxRads);
+
+    const effectCatalogById = new Map((BASE_GAME_STATE.statusEffects || []).map((effect) => [effect.id, effect]));
+    const activeEffectIds = Array.isArray(playerData.activeEffects) ? playerData.activeEffects : [];
+    playerData.skipNextTurn = activeEffectIds.some((effectId) => {
+        const effect = effectCatalogById.get(effectId);
+        return Boolean(effect?.effects?.skipNextTurn);
+    });
 
     playerData.xpToNext = getXpRequiredForLevel(playerData.level);
 }
