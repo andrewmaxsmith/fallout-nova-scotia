@@ -1346,6 +1346,30 @@ function registerGameplayRoutes(app, deps) {
             } else if (effectType === 'tabs') {
                 const tabsGained = applyTabsGain(gameState.players[player], Number(offer?.shopEffect?.amount || 0));
                 appliedEffect = { tabsGained, tabs: gameState.players[player].tabs };
+            } else if (effectType === 'scrapbundle') {
+                if (!gameState.players[player].scrap || typeof gameState.players[player].scrap !== 'object') {
+                    gameState.players[player].scrap = {};
+                }
+
+                const rolls = Math.max(1, Number(offer?.shopEffect?.rolls || 2));
+                const minAmount = Math.max(1, Number(offer?.shopEffect?.minAmount || 1));
+                const maxAmount = Math.max(minAmount, Number(offer?.shopEffect?.maxAmount || minAmount));
+                const pool = Array.isArray(offer?.shopEffect?.pool) && offer.shopEffect.pool.length > 0
+                    ? offer.shopEffect.pool
+                    : ['maritimeMetal', 'syntheticSap', 'hubCircuitry', 'plaidScraps', 'propaneTank', 'radMeat', 'spices', 'cleanWater'];
+
+                const gained = {};
+                for (let i = 0; i < rolls; i += 1) {
+                    const type = pool[Math.floor(Math.random() * pool.length)];
+                    const amount = Math.floor(Math.random() * (maxAmount - minAmount + 1)) + minAmount;
+                    gameState.players[player].scrap[type] = (gameState.players[player].scrap[type] || 0) + amount;
+                    gained[type] = (gained[type] || 0) + amount;
+                }
+
+                appliedEffect = {
+                    scrapGained: gained,
+                    scrap: gameState.players[player].scrap
+                };
             } else {
                 return res.status(400).json({ error: 'Shop item has no configured effect.' });
             }

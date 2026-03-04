@@ -798,84 +798,84 @@ const BASE_GAME_STATE = {
             id: 'r1',
             name: 'BLUENOSE BAYONET',
             desc: 'A reach weapon that deals extra damage to Rad-Skeeters.',
-            ingredients: [{ type: 'maritimeMetal', amount: 2 }],
+            ingredients: [{ type: 'maritimeMetal', amount: 3 }],
             output: { item: 'Bluenose Bayonet', qty: 1 }
         },
         {
             id: 'r2',
             name: 'TRAPPER\'S PLATE',
             desc: 'High-resistance armor that makes the wearer immune to the Red Mud agility penalty.',
-            ingredients: [{ type: 'maritimeMetal', amount: 4 }, { type: 'plaidScraps', amount: 2 }],
+            ingredients: [{ type: 'maritimeMetal', amount: 5 }, { type: 'plaidScraps', amount: 3 }],
             output: { item: 'Trapper\'s Plate', qty: 1 }
         },
         {
             id: 'r3',
             name: 'PROPANE POPPER',
             desc: 'A makeshift grenade that causes a massive fire AOE, perfect for clearing out swarms.',
-            ingredients: [{ type: 'propaneTank', amount: 1 }, { type: 'syntheticSap', amount: 2 }],
+            ingredients: [{ type: 'propaneTank', amount: 2 }, { type: 'syntheticSap', amount: 3 }],
             output: { item: 'Propane Popper', qty: 1 }
         },
         {
             id: 'r4',
             name: 'DONAIR-DAB KIT',
             desc: 'A powerful healing item (50% HP) but adds +10 RADS unless you have LEAD BELLY perk.',
-            ingredients: [{ type: 'radMeat', amount: 1 }, { type: 'spices', amount: 1 }, { type: 'cleanWater', amount: 1 }],
+            ingredients: [{ type: 'radMeat', amount: 2 }, { type: 'spices', amount: 2 }, { type: 'cleanWater', amount: 2 }],
             output: { item: 'Donair-Dab Kit', qty: 1 }
         },
         {
             id: 'r5',
             name: 'STIMPAK',
             desc: 'Restores 4 HP.',
-            ingredients: [{ type: 'syntheticSap', amount: 1 }],
+            ingredients: [{ type: 'syntheticSap', amount: 2 }],
             output: { item: 'Stimpak', qty: 1 }
         },
         {
             id: 'r6',
             name: 'RAD-AWAY',
             desc: 'Removes 2 Rads.',
-            ingredients: [{ type: 'syntheticSap', amount: 2 }],
+            ingredients: [{ type: 'syntheticSap', amount: 3 }],
             output: { item: 'Rad-Away', qty: 1 }
         },
         {
             id: 'r7',
             name: 'PEGGY\'S COVE CLEATS',
             desc: 'Studded shoreline boots. +1 Agility and +1 Hardiness when crafted (one-time).',
-            ingredients: [{ type: 'maritimeMetal', amount: 2 }, { type: 'plaidScraps', amount: 1 }],
+            ingredients: [{ type: 'maritimeMetal', amount: 3 }, { type: 'plaidScraps', amount: 2 }],
             output: { item: 'Peggy\'s Cove Cleats', qty: 1 }
         },
         {
             id: 'r8',
             name: 'BASIN FOG LENS',
             desc: 'A salvaged monocle tuned for coastal haze. +1 Perception when crafted (one-time).',
-            ingredients: [{ type: 'hubCircuitry', amount: 1 }, { type: 'cleanWater', amount: 1 }],
+            ingredients: [{ type: 'hubCircuitry', amount: 2 }, { type: 'cleanWater', amount: 2 }],
             output: { item: 'Basin Fog Lens', qty: 1 }
         },
         {
             id: 'r9',
             name: 'APPLE-CORE SASH',
             desc: 'A Valley propaganda sash that boosts confidence. +1 Charm and +1 Politeness when crafted (one-time).',
-            ingredients: [{ type: 'plaidScraps', amount: 2 }, { type: 'spices', amount: 1 }],
+            ingredients: [{ type: 'plaidScraps', amount: 3 }, { type: 'spices', amount: 2 }],
             output: { item: 'Apple-Core Sash', qty: 1 }
         },
         {
             id: 'r10',
             name: 'SCOUT NOTEBOOK',
             desc: 'A field notebook for mission reports. Gain +1 Perception when crafted (one-time).',
-            ingredients: [{ type: 'plaidScraps', amount: 1 }, { type: 'cleanWater', amount: 1 }],
+            ingredients: [{ type: 'plaidScraps', amount: 2 }, { type: 'cleanWater', amount: 2 }],
             output: { item: 'Scout Notebook', qty: 1 }
         },
         {
             id: 'r11',
             name: 'SIGNAL FLAG KIT',
             desc: 'A bright signal kit for team communication. Grants +1 Politeness when crafted (one-time).',
-            ingredients: [{ type: 'plaidScraps', amount: 1 }, { type: 'syntheticSap', amount: 1 }],
+            ingredients: [{ type: 'plaidScraps', amount: 2 }, { type: 'syntheticSap', amount: 2 }],
             output: { item: 'Signal Flag Kit', qty: 1 }
         },
         {
             id: 'r12',
             name: 'TRAIL MIX PACK',
             desc: 'Quick snack ration. Restores 2 HP and grants +2 Tabs.',
-            ingredients: [{ type: 'spices', amount: 1 }, { type: 'radMeat', amount: 1 }],
+            ingredients: [{ type: 'spices', amount: 2 }, { type: 'radMeat', amount: 2 }],
             output: { item: 'Trail Mix Pack', qty: 1 }
         }
     ],
@@ -997,8 +997,14 @@ const BASE_GAME_STATE = {
             name: 'SCRAP TOOL ROLL',
             desc: 'Basic tool wrap for repair tasks and tinkering. Consumed on purchase.',
             cost: 55,
-            shopEffect: { type: 'tabs', amount: 6 },
-            effect: 'Use now: grants +6 Tabs.'
+            shopEffect: {
+                type: 'scrapBundle',
+                rolls: 3,
+                minAmount: 1,
+                maxAmount: 2,
+                pool: ['maritimeMetal', 'syntheticSap', 'hubCircuitry', 'plaidScraps', 'propaneTank', 'radMeat', 'spices', 'cleanWater']
+            },
+            effect: 'Use now: grants a random bundle of scrap materials.'
         }
     ],
     trades: [],
