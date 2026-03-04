@@ -1709,7 +1709,7 @@
                     busyText: 'BUYING...'
                 });
                 await loadData();
-                notify(`Purchased: ${result.upgrade.name}!`);
+                notify(result.message || `Purchased: ${result.upgrade.name}!`);
             } catch (e) {
                 console.error('Error purchasing upgrade:', e);
             }

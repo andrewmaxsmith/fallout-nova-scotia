@@ -1469,7 +1469,7 @@
                     button,
                     busyText: 'GRANTING...'
                 });
-                showNotice(`${result.upgrade.name} granted to ${player.toUpperCase()}`, 'success');
+                showNotice(`${player.toUpperCase()}: ${result.message || `Purchased ${result.upgrade.name}!`}`, 'success');
                 await loadGameState();
                 renderQuarters();
             } catch (e) {

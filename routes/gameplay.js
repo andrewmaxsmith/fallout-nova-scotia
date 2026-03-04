@@ -1327,22 +1327,27 @@ function registerGameplayRoutes(app, deps) {
 
         gameState.players[player].tabs -= offer.cost;
 
+        let appliedEffect = null;
         if (isRepeatableItem) {
-            if (!Array.isArray(gameState.players[player].inventory)) {
-                gameState.players[player].inventory = [];
-            }
+            const effectType = String(offer?.shopEffect?.type || '').toLowerCase();
 
-            const itemName = String(offer.itemName || offer.name || 'Shop Item');
-            const qtyToAdd = Math.max(1, Number(offer.itemQty || 1));
-            const existingItem = gameState.players[player].inventory.find((item) => item && item.name === itemName);
-            if (existingItem) {
-                existingItem.qty = Math.max(0, Number(existingItem.qty || 0)) + qtyToAdd;
+            if (effectType === 'heal') {
+                const healed = applyHealingWithPerks(gameState.players[player], Number(offer?.shopEffect?.amount || 0));
+                appliedEffect = { hpRestored: healed, hp: gameState.players[player].hp, maxHp: gameState.players[player].maxHp || 10 };
+            } else if (effectType === 'radaway') {
+                const beforeRads = Number(gameState.players[player].rads || 0);
+                const removeAmount = Math.max(0, Number(offer?.shopEffect?.amount || 0));
+                gameState.players[player].rads = clamp(beforeRads - removeAmount, 0, gameState.players[player].maxRads || 10);
+                appliedEffect = { radsRemoved: beforeRads - gameState.players[player].rads, rads: gameState.players[player].rads };
+            } else if (effectType === 'healandtabs') {
+                const healed = applyHealingWithPerks(gameState.players[player], Number(offer?.shopEffect?.heal || 0));
+                const tabsGained = applyTabsGain(gameState.players[player], Number(offer?.shopEffect?.tabs || 0));
+                appliedEffect = { hpRestored: healed, tabsGained, hp: gameState.players[player].hp, tabs: gameState.players[player].tabs };
+            } else if (effectType === 'tabs') {
+                const tabsGained = applyTabsGain(gameState.players[player], Number(offer?.shopEffect?.amount || 0));
+                appliedEffect = { tabsGained, tabs: gameState.players[player].tabs };
             } else {
-                gameState.players[player].inventory.push({
-                    id: `shop-${Date.now()}`,
-                    name: itemName,
-                    qty: qtyToAdd
-                });
+                return res.status(400).json({ error: 'Shop item has no configured effect.' });
             }
         } else {
             gameState.players[player].purchasedUpgrades.push(upgradeId);
@@ -1355,9 +1360,12 @@ function registerGameplayRoutes(app, deps) {
 
         res.json({
             success: true,
-            message: `Purchased ${offer.name}!`,
+            message: isRepeatableItem
+                ? `Purchased ${offer.name}! Effect applied immediately.`
+                : `Purchased ${offer.name}!`,
             upgrade: offer,
-            remainingTabs: gameState.players[player].tabs
+            remainingTabs: gameState.players[player].tabs,
+            effect: appliedEffect
         });
     });
 

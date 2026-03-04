@@ -965,44 +965,40 @@ const BASE_GAME_STATE = {
             type: 'item',
             repeatable: true,
             name: 'STIMPAK KIT',
-            desc: 'One-use medical injector for emergency healing.',
+            desc: 'One-use medical injector for emergency healing. Consumed on purchase.',
             cost: 35,
-            itemName: 'Stimpak',
-            itemQty: 1,
-            effect: 'Adds 1 Stimpak to inventory.'
+            shopEffect: { type: 'heal', amount: 4 },
+            effect: 'Use now: restores 4 HP.'
         },
         {
             id: 'qs2',
             type: 'item',
             repeatable: true,
             name: 'RAD-AWAY DOSE',
-            desc: 'Portable anti-rad dose for field cleanup.',
+            desc: 'Portable anti-rad dose for field cleanup. Consumed on purchase.',
             cost: 40,
-            itemName: 'Rad-Away',
-            itemQty: 1,
-            effect: 'Adds 1 Rad-Away to inventory.'
+            shopEffect: { type: 'radAway', amount: 2 },
+            effect: 'Use now: removes 2 RADS.'
         },
         {
             id: 'qs3',
             type: 'item',
             repeatable: true,
             name: 'SNACK RATION PACK',
-            desc: 'Quick morale boost and travel snack.',
+            desc: 'Quick morale boost and travel snack. Consumed on purchase.',
             cost: 25,
-            itemName: 'Snack Ration Pack',
-            itemQty: 1,
-            effect: 'Adds 1 Snack Ration Pack to inventory.'
+            shopEffect: { type: 'healAndTabs', heal: 2, tabs: 2 },
+            effect: 'Use now: restores 2 HP and grants +2 Tabs.'
         },
         {
             id: 'qs4',
             type: 'item',
             repeatable: true,
             name: 'SCRAP TOOL ROLL',
-            desc: 'Basic tool wrap for repair tasks and tinkering.',
+            desc: 'Basic tool wrap for repair tasks and tinkering. Consumed on purchase.',
             cost: 55,
-            itemName: 'Scrap Tool Roll',
-            itemQty: 1,
-            effect: 'Adds 1 Scrap Tool Roll to inventory.'
+            shopEffect: { type: 'tabs', amount: 6 },
+            effect: 'Use now: grants +6 Tabs.'
         }
     ],
     trades: [],
